@@ -1,0 +1,47 @@
+<svg width="250" height="250" viewBox="0 0 250 250" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .brand-name { 
+        font-family: 'Poppins', sans-serif; /* Hoặc font tương tự như trên homepage của bạn */
+        font-weight: 700; 
+        font-size: 26px; 
+        fill: #005A9C; /* Màu xanh đậm */
+      }
+      .tagline { 
+        font-family: 'Poppins', sans-serif; /* Hoặc font tương tự như trên homepage của bạn */
+        font-weight: 400; 
+        font-size: 10px; 
+        letter-spacing: 0.12em; 
+        fill: #6c757d; /* Màu xám */
+        text-transform: uppercase;
+      }
+      .heart-color { fill: #2C7BE5; } /* Màu xanh của trái tim */
+      .person-color { fill: #2C7BE5; } /* Màu xanh của biểu tượng người */
+    </style>
+  </defs>
+
+  <g transform="translate(45, 25)"> 
+    <path class="heart-color" d="M78.61,43.08c-8.91-9.98-23.4-10.9-33.37-2C35.25,50.75,49.24,67.63,78.61,95.38c29.37-27.75,43.36-44.63,33.37-54.29C102.01,32.18,87.52,33.1,78.61,43.08Z" transform="translate(3 -10) scale(0.6)" />
+
+    <g transform="translate(-10, -5)">
+      <circle class="person-color" cx="120" cy="80" r="5" />
+      <path class="person-color" d="M115,90h10v15h-10Z" />
+
+      <circle class="person-color" cx="145" cy="110" r="5" />
+      <path class="person-color" d="M140,120h10v15h-10Z" />
+
+      <circle class="person-color" cx="120" cy="140" r="5" />
+      <path class="person-color" d="M115,150h10v15h-10Z" />
+
+      <circle class="person-color" cx="95" cy="110" r="5" />
+      <path class="person-color" d="M90,120h10v15h-10Z" />
+      
+      <circle class="person-color" cx="70" cy="80" r="5" />
+      <path class="person-color" d="M65,90h10v15h-10Z" />
+    </g>
+  </g>
+
+  <g transform="translate(60, 180)"> <text x="0" y="0" class="brand-name">VolunteerHub</text>
+    <text x="0" y="20" class="tagline">FOR COMMUNITY</text>
+  </g>
+</svg>

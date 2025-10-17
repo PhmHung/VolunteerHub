@@ -23,7 +23,10 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // JSX usage of some helpers like `motion` from framer-motion can be
+      // reported as unused by the core rule. Allow `motion` (and keep the
+      // existing pattern for uppercase globals) to avoid false-positives.
+      'no-unused-vars': ['error', { varsIgnorePattern: '^(motion|[A-Z_])' }],
     },
   },
 ])

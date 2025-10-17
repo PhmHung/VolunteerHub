@@ -137,7 +137,8 @@ export default function Information({ setPicture }) {
       localStorage.removeItem("token");
       window.location.href = "/";
     } catch (err) {
-      alert("Failed to delete account.");
+      const errMsg = err?.response?.data?.error || err.message || 'Failed to delete account';
+      window.alert(errMsg);
     }
   };
 
