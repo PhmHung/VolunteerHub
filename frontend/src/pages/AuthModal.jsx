@@ -1,21 +1,9 @@
-// ====================================
-// AuthModal Component
-// ====================================
-// Mục đích: Modal hiển thị form đăng ký và đăng nhập
-// Props:
-//   - mode: "login" hoặc "register"
-//   - onClose: Function đóng modal
-//   - onSuccess: Function xử lý khi login/register thành công
-//   - error/success: Messages hiển thị
-//   - setError/setSuccess: Functions để set messages
-// ====================================
-
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
 import axios from "axios"; // HTTP client
 import FirebaseLogin from "../components/FirebaseLogin"; // Component login bằng Firebase
 
-export default function AuthModal({ mode, onClose, onSuccess, setToken, setPicture, error, success, setError, setSuccess }) {
+export default function AuthModal({ mode, onClose, onSuccess }) {
   // ========== STATE MANAGEMENT ==========
   // States cho form fields
   const [email, setEmail] = useState(""); // Email người dùng
@@ -35,6 +23,10 @@ export default function AuthModal({ mode, onClose, onSuccess, setToken, setPictu
   // States cho UI
   const [loading, setLoading] = useState(false); // Trạng thái đang load
   const [show, setShow] = useState(false); // Show/hide password
+
+  // Local UI messages (AuthModal manages its own error/success state now)
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
 
 
@@ -418,7 +410,14 @@ export default function AuthModal({ mode, onClose, onSuccess, setToken, setPictu
                   </div>
                 </div>
 
-                <FirebaseLogin setToken={setToken} setPicture={setPicture} />
+                {/* FirebaseLogin now returns auth result via onSuccess callback */}
+                <FirebaseLogin onSuccess={(data) => {
+                  // data should contain { token, picture, user }
+                  if (data?.token) {
+                    // reuse onSuccess provided by App to finalize login
+                    onSuccess(data);
+                  }
+                }} />
               </>
             )}
           </div>

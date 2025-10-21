@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import heroImage from '../assets/hd1.png'; // Đảm bảo bạn có ảnh nền phù hợp
 
-const Hero = ({ token, openAuth }) => {
+const Hero = ({ user, openAuth }) => {
   const contentVariants = {
     hidden: { opacity: 0, y: 20 },
     show: {
@@ -24,7 +24,6 @@ const Hero = ({ token, openAuth }) => {
   };
 
   return (
-    // Đã xóa px-4 để section tràn hết chiều ngang
     <section
       className="relative flex items-center justify-center h-svh w-full"
       style={{
@@ -36,7 +35,7 @@ const Hero = ({ token, openAuth }) => {
     >
       {/* Container này giữ cho content không bị quá rộng */}
       <motion.div
-        className="w-full max-w-4xl text-center flex flex-col items-center px-4"
+        className="w-full max-w-4xl text-center flex flex-col items-center"
         variants={contentVariants}
         initial="hidden"
         animate="show"
@@ -44,6 +43,7 @@ const Hero = ({ token, openAuth }) => {
         <motion.h1
           variants={itemVariants}
           className="text-3xl sm:text-5xl md:text-6xl font-black text-white leading-tight"
+          transition={{ delay: 0.5, duration: 1 }} 
         >
           Hãy tham gia cùng chúng tôi để tạo nên những đổi thay.
         </motion.h1>
@@ -56,7 +56,7 @@ const Hero = ({ token, openAuth }) => {
         </motion.p>
 
         <motion.div variants={itemVariants} className="mt-8 flex flex-wrap justify-center gap-4">
-          {token ? (
+          {user ? (
             <Link
               to="/information"
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#F4A261] to-[#FFC107] hover:from-[#E08B3E] hover:to-[#FFB300] hover:shadow-2xl hover:shadow-orange-300/50 active:scale-95 text-white px-6 py-3 text-base font-semibold transition-all shadow-lg"

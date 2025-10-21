@@ -1,10 +1,23 @@
 import { motion } from "framer-motion";
-import { Sparkles, LogOut, LogIn, Menu, X } from "lucide-react";
+import { Sparkles, LogOut, LogIn, Menu, X, Home as HomeIcon, Info as InfoIcon } from "lucide-react";
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-export default function Header({ setAuthModal, token, picture, handleLogout, PAGES }) {
+
+// Header now expects `user` (object) instead of separate token/picture props.
+// App.jsx passes `user` and `setAuthModal` and `handleLogout`.
+export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  // Derive token/picture from user object for backward compatibility
+  const token = !!user;
+  const picture = user?.personalInformation?.picture || user?.picture || null;
+
+  // Provide default pages if parent doesn't pass PAGES
+  const defaultPages = [
+    { key: "Home", path: "/", icon: HomeIcon },
+    { key: "Information", path: "/information", icon: InfoIcon },
+  ];
+  PAGES = PAGES && PAGES.length ? PAGES : defaultPages;
   return (
     <header className="sticky top-0 z-30 backdrop-blur-xl supports-[backdrop-filter]:bg-white/40 bg-white/50 border-white/40">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 h-14 flex items-center justify-between">

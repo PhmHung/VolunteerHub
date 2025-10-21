@@ -1,96 +1,173 @@
 import Information from "./Information.jsx";
-import { useMemo, useState, useEffect } from "react";
-import { AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
 import AuthModal from "./pages/AuthModal.jsx";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header.jsx";
-import { Home, Info } from "lucide-react";
 import HomePage from "./pages/Home.jsx";
+import Footer from "./components/Footer.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
 
 export default function App() {
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
-  const [token, setToken] = useState(null);
-  const [picture, setPicture] = useState(null);
-  const [authSuccess, setAuthSuccess] = useState("");
-  const [authError, setAuthError] = useState("");
+  const [user, setUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
-  // Lấy token và picture từ localStorage khi load trang
-  useEffect(() => {
-    const savedToken = localStorage.getItem("token");
-    const savedPicture = localStorage.getItem("picture");
-    if (savedToken) setToken(savedToken);
-    if (savedPicture) setPicture(savedPicture);
+  const decodeUserIdFromToken = useCallback((token) => {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload?.userId ?? null;
+    } catch (err) {
+      console.error("Failed to decode token payload", err);
+      return null;
+    }
   }, []);
 
-  const handleSuccess = (data) => {
-    // Cập nhật token và picture
-    if (data.token) {
-      localStorage.setItem("token", data.token);
-      setToken(data.token);
+  const syncUserFromToken = useCallback(
+    async (token) => {
+      if (!token) {
+        setUser(null);
+        return null;
+      }
+
+      const userId = decodeUserIdFromToken(token);
+      if (!userId) {
+        setUser(null);
+        return null;
+      }
+
+      try {
+        const res = await fetch(`http://localhost:5000/user/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          console.error("Failed to fetch user profile", res.status);
+          if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem("token");
+          }
+          setUser(null);
+          return null;
+        }
+
+        const data = await res.json();
+        setUser(data);
+        return data;
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        localStorage.removeItem("token");
+        setUser(null);
+        return null;
+      }
+    },
+    [decodeUserIdFromToken]
+  );
+
+  // Lấy thông tin người dùng từ token khi load trang
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setLoadingUser(false);
+      setUser(null);
+      return;
     }
-    if (data.picture) {
-      localStorage.setItem("picture", data.picture);
-      setPicture(data.picture);
+
+    let isMounted = true;
+
+    (async () => {
+      await syncUserFromToken(token);
+      if (isMounted) {
+        setLoadingUser(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [syncUserFromToken]);
+
+  const handleSuccess = async (data) => {
+    let resetLoading = false;
+
+    try {
+      if (data?.token) {
+        localStorage.setItem("token", data.token);
+        setLoadingUser(true);
+        resetLoading = true;
+        await syncUserFromToken(data.token);
+      } else if (data?.user) {
+        setUser(data.user);
+      }
+    } finally {
+      if (resetLoading) {
+        setLoadingUser(false);
+      }
+      setAuthModal(null);
     }
-    
-    // Đóng modal và reset messages
-    setAuthModal(null);
-    setAuthSuccess("");
-    setAuthError("");
   };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("picture");
-    setToken(null);
-    setPicture(null);
-    window.location.reload(); 
+    setUser(null);
+    window.location.href = "/";
   };
-    // Hàm này đảm bảo thông báo lỗi được xóa khi người dùng tự đóng modal
+
+  // Hàm này đảm bảo thông báo lỗi được xóa khi người dùng tự đóng modal
   const handleCloseModal = () => {
-      setAuthModal(null);
-      setAuthError("");
-      setAuthSuccess("");
+    setAuthModal(null);
+  };
+
+  if (loadingUser) {
+    return <div className="min-h-screen w-full flex items-center justify-center bg-gray-100">Đang tải...</div>;
   }
-
-
-  const PAGES = useMemo(() => [
-    { key: "Home", icon: Home, path: "/", element: <HomePage token={token} openAuth={setAuthModal} /> },
-    { key: "Information", icon: Info, path: "/information", element: <Information setPicture={setPicture} /> },
-  ], [token, setPicture]);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-[#A8D0E6]/20 via-white to-[#F0F0F0] transition-colors">
       <div className="min-h-screen w-full bg-[#F0F0F0]/30 transition-colors">
         <Header
           setAuthModal={setAuthModal}
-          token={token}
-          picture={picture}
+          user={user}
           handleLogout={handleLogout}
-          PAGES={PAGES}
         />
 
         <main className="w-full">
           <Routes>
-            {PAGES.map(({ path, element }) => element && <Route key={path} path={path} element={element} />)}
+            <Route
+              path="/"
+              element={<HomePage user={user} openAuth={setAuthModal} />}
+            />
+            <Route
+              path="/information"
+              element={
+                <ProtectedRoute user={user}>
+                  <Information onProfileUpdate={setUser} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/about"
+              element={<div className="p-8">About Us Page Content</div>}
+            />
+             <Route element={<ProtectedRoute user={user} requiredRole="admin" />}>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
 
         <footer className={`py-8 text-center text-base text-slate-600/80`}>
-          If you have any questions, suggestions, or feedback, please feel free to contact me at 23020655@vnu.edu.vn.
+          If you have any questions, suggestions, or feedback, please feel free to contact us at Volunteerhub@
         </footer>
+        <Footer />
 
         {authModal && (
           <AuthModal
             mode={authModal}
             onClose={handleCloseModal}
             onSuccess={handleSuccess}
-            success={authSuccess}
-            error={authError}
-            setError={setAuthError}
-            setSuccess={setAuthSuccess}
-            setToken={setToken}
-            setPicture={setPicture}
           />
         )}
       </div>
