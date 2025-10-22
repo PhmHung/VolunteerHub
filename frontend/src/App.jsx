@@ -7,6 +7,8 @@ import HomePage from "./pages/Home.jsx";
 import Footer from "./components/Footer.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
+import Events from "./pages/events.jsx";
+import axios from "axios";
 
 export default function App() {
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
@@ -53,9 +55,17 @@ export default function App() {
         }
 
         const data = await res.json();
-        setUser(data);
-        return data;
-      } catch (error) {
+         // === BƯỚC CAN THIỆP: GÁN VAI TRÒ GIẢ ===
+        const userWithMockedRole = {
+          ...data, // Giữ nguyên thông tin từ backend
+          role: 'admin' // <-- THAY ĐỔI Ở ĐÂY để test 'admin' hoặc 'volunteer'
+        };
+       setUser(userWithMockedRole); // Cập nhật state với vai trò đã gán
+      return userWithMockedRole; // Trả về user đã gán vai trò
+
+   //     setUser(data);
+  //   return data;
+      } catch (error)   {
         console.error("Error fetching user profile:", error);
         localStorage.removeItem("token");
         setUser(null);
@@ -98,8 +108,13 @@ export default function App() {
         resetLoading = true;
         await syncUserFromToken(data.token);
       } else if (data?.user) {
-        setUser(data.user);
-      }
+        const userWithMockedRole = {
+          ...data.user,
+          role: 'admin' // <-- GÁN VAI TRÒ GIẢ Ở ĐÂY NỮA
+        };
+        setUser(userWithMockedRole);
+        //setUser(data.user);
+        }
     } finally {
       if (resetLoading) {
         setLoadingUser(false);
@@ -151,9 +166,11 @@ export default function App() {
               element={<div className="p-8">About Us Page Content</div>}
             />
              <Route element={<ProtectedRoute user={user} requiredRole="admin" />}>
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />
             </Route>
 
+            <Route path="/events" element={<Events user={user} openAuth={setAuthModal} />} />
+            
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>

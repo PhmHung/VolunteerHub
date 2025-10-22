@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles, LogOut, LogIn, Menu, X, Home as HomeIcon, Info as InfoIcon } from "lucide-react";
+import { Sparkles, LogOut, LogIn, Menu, X, Home as HomeIcon, Info as InfoIcon, Calendar, ShieldCheck } from "lucide-react";
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -11,11 +11,16 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
   // Derive token/picture from user object for backward compatibility
   const token = !!user;
   const picture = user?.personalInformation?.picture || user?.picture || null;
+  const displayName = user?.personalInformation?.name || user?.name || "";
+  const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "";
 
   // Provide default pages if parent doesn't pass PAGES
   const defaultPages = [
     { key: "Home", path: "/", icon: HomeIcon },
-    { key: "Information", path: "/information", icon: InfoIcon },
+    ...(token ? [{ key: "Information", path: "/information", icon: InfoIcon }] : []),
+    { key: "Events", path: "/events", icon: Calendar },
+    { key: "About Us", path: "/about", icon: InfoIcon },
+    ...(token && user.role === 'admin' ? [{ key: "Admin", path: "/admin/dashboard", icon: ShieldCheck }] : []),
   ];
   PAGES = PAGES && PAGES.length ? PAGES : defaultPages;
   return (
@@ -46,6 +51,9 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
           {/* Desktop Navigation - giữa logo và auth buttons */}
           <nav className="hidden md:flex items-center gap-1">
             {PAGES.map((page) => {
+              if (page.requiresAuth && !token) {
+                return null;
+              }
               const isActive = location.pathname === page.path;
               const Icon = page.icon;
               return (
@@ -73,11 +81,27 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
           {token ? (
-            <>
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-end leading-tight">
+                {displayName ? (
+                  <span className="text-sm font-semibold text-slate-900">{displayName}</span>
+                ) : null}
+                {roleLabel ? (
+                  <span className="text-xs font-medium text-slate-500">{roleLabel}</span>
+                ) : null}
+              </div>
               <div className="h-10 w-10 rounded-full overflow-hidden border border-slate-300 bg-white">
                 {picture ? (
-                  <img src={picture.startsWith("http") ? picture : `http://localhost:5000${picture}`} alt="Picture" className="h-full w-full object-cover" />
-                ) : null}
+                  <img
+                    src={picture.startsWith("http") ? picture : `http://localhost:5000${picture}`}
+                    alt="Avatar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-slate-600">
+                    {displayName ? displayName.charAt(0).toUpperCase() : "U"}
+                  </div>
+                )}
               </div>
 
               <button
@@ -87,7 +111,7 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                 <LogOut className="h-4 w-4" />
                 Logout
               </button>
-            </>
+            </div>
           ) : (
             <>
               <button
@@ -113,6 +137,9 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
         <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-white/40 shadow-lg">
           <nav className="px-4 py-3 space-y-2">
             {PAGES.map((page) => {
+              if (page.requiresAuth && !token) {
+                return null;
+              }
               const isActive = location.pathname === page.path;
               const Icon = page.icon;
               return (
