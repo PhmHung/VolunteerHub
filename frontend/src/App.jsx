@@ -8,6 +8,7 @@ import Footer from "./components/Footer.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import Events from "./pages/events.jsx";
+import About from "./pages/AboutUs.jsx"
 import axios from "axios";
 
 export default function App() {
@@ -163,7 +164,7 @@ export default function App() {
             />
             <Route
               path="/about"
-              element={<div className="p-8">About Us Page Content</div>}
+              element={<About user={user} openAuth={setAuthModal} />}
             />
              <Route element={<ProtectedRoute user={user} requiredRole="admin" />}>
               <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />
