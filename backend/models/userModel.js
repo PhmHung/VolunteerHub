@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId },
+    //userId: { type: mongoose.Schema.Types.ObjectId },
     userName: { type: String, required: true, minlength: 1, maxlength: 50 },
     userEmail: {
       type: String,
@@ -28,6 +28,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["active", "inactive"],
       default: "active",
+    },
+    profilePicture: {
+      type: String,
+      default: null,
     },
   },
   { timestamps: true }

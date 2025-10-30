@@ -14,7 +14,7 @@ const authUsers = asyncHandler(async (req, res) => {
 
   if (user && (await user.matchPassword(password))) {
     res.status(200).json({
-      userId: user.userId,
+      _id: user._id,
       userName: user.userName,
       userEmail: user.userEmail,
       role: user.role,
@@ -34,7 +34,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (user) {
     res.status(200).json({
-      userId: user.userId,
+      _id: user._id,
       userName: user.userName,
       userEmail: user.userEmail,
       role: user.role,
@@ -76,9 +76,9 @@ const registerUser = asyncHandler(async (req, res) => {
   if (user) {
     res.status(201).json({
       _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      role: user.role,
       token: generateToken(user._id),
     });
   } else {
@@ -93,17 +93,36 @@ const registerUser = asyncHandler(async (req, res) => {
 const updateUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (user) {
-    user.name = req.body.name || user.name;
-    user.email = req.body.email || user.email;
+    //Update User name
+    user.userName = req.body.userName || user.userName;
+    //Update Phone number
+    user.phoneNumber = req.body.phoneNumber || user.phoneNumber;
+    //Update Password
     if (req.body.password) {
       user.password = req.body.password;
+    }
+    //Update Email
+    if (req.body.userEmail && req.body.userEmail !== user.userEmail) {
+      const emailExists = await User.findOne({ userEmail: req.body.userEmail });
+      if (emailExists) {
+        res.status(400);
+        throw new Error("Email already in use");
+      }
+      user.userEmail = req.body.userEmail;
+    }
+    //Update Profile Picture
+    if (req.file && req.file.path) {
+      user.profilePicture = req.file.path;
     }
     const updatedUser = await user.save();
     res.status(200).json({
       _id: updatedUser._id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      isAdmin: updatedUser.isAdmin,
+      userName: updatedUser.userName,
+      userEmail: updatedUser.userEmail,
+      role: updatedUser.role,
+      phoneNumber: updatedUser.phoneNumber,
+      profilePicture: updatedUser.profilePicture,
+      token: generateToken(updatedUser._id),
     });
   } else {
     res.status(404);
@@ -113,10 +132,10 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
 // @desc   GET all user
 // @route  GET/api/users
-// @access Private/Admin
-const getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({});
-  res.json(users);
+// @access Private/Admin,Manager
+const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find({}).select("-password");
+  res.status(200).json(users);
 });
 
 // @desc   Delete user
@@ -124,13 +143,18 @@ const getUsers = asyncHandler(async (req, res) => {
 // @access Private/Admin
 const deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
-  if (user) {
-    await user.deleteOne();
-    res.json({ message: "User removed" });
-  } else {
+  if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
+
+  if (user.role === "admin") {
+    res.status(400);
+    throw new Error("Cannot delete admin user");
+  }
+
+  await user.deleteOne();
+  res.status(200).json({ message: "User removed" });
 });
 
 // @desc   GET user by ID
@@ -147,26 +171,44 @@ const getUserById = asyncHandler(async (req, res) => {
   res.json(user);
 });
 
-// @desc   Update user, Admin only
-// @route  PUT /api/users/:id
+// @desc   Update user role, Admin only
+// @route  PUT/api/users/:id/role
 // @access Private/Admin
-const updateUser = asyncHandler(async (req, res) => {
+const updateUserRole = asyncHandler(async (req, res) => {
+  const { role: newRole } = req.body;
+  if (!newRole) {
+    res.status(400);
+    throw new Error("Role is required");
+  }
+
   const user = await User.findById(req.params.id);
-  if (user) {
-    user.name = req.body.name || user.name;
-    user.email = req.body.email || user.email;
-    user.isAdmin = req.body.isAdmin ?? user.isAdmin;
-    const updatedUser = await user.save();
-    res.status(200).json({
-      _id: updatedUser._id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      isAdmin: updatedUser.isAdmin,
-    });
-  } else {
+  if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
+
+  const currentRole = user.role;
+  if (currentRole === "admin") {
+    res.status(400);
+    throw new Error("Admin cannot change admin role");
+  }
+  if (currentRole === newRole) {
+    res.status(0);
+    throw new Error("User already has this role");
+  }
+
+  if (currentRole === "volunteer" && newRole === "admin") {
+    res.status(400);
+    throw new Error("Cannot promote volunteer directly to admin");
+  }
+
+  user.role = newRole;
+  const updatedUser = await user.save();
+  res.status(200).json({
+    _id: updatedUser._id,
+    userName: updatedUser.userName,
+    role: updatedUser.role,
+  });
 });
 
 export {
@@ -174,8 +216,8 @@ export {
   getUserProfile,
   registerUser,
   updateUserProfile,
-  getUsers,
+  getAllUsers,
   deleteUser,
   getUserById,
-  updateUser,
+  updateUserRole,
 };
