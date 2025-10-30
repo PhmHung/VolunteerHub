@@ -95,26 +95,16 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   if (user) {
     //Update User name
     user.userName = req.body.userName || user.userName;
+
     //Update Phone number
     user.phoneNumber = req.body.phoneNumber || user.phoneNumber;
-    //Update Password
-    if (req.body.password) {
-      user.password = req.body.password;
-    }
-    //Update Email
-    if (req.body.userEmail && req.body.userEmail !== user.userEmail) {
-      const emailExists = await User.findOne({ userEmail: req.body.userEmail });
-      if (emailExists) {
-        res.status(400);
-        throw new Error("Email already in use");
-      }
-      user.userEmail = req.body.userEmail;
-    }
+
     //Update Profile Picture
     if (req.file && req.file.path) {
       user.profilePicture = req.file.path;
     }
     const updatedUser = await user.save();
+
     res.status(200).json({
       _id: updatedUser._id,
       userName: updatedUser.userName,
@@ -211,6 +201,30 @@ const updateUserRole = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc Change user password
+// @route PUT /api/users/profile/change-password
+// @access Private
+const changeUserPassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    res.status(400);
+    throw new Error("Please provide current and new password");
+  }
+
+  const user = await User.findById(req.user._id);
+  if (user && (await user.matchPassword(currentPassword))) {
+    user.password = newPassword;
+    await user.save();
+    sendPasswordChangeEmail(user.userEmail, user.userName).catch((err) => {
+      console.error("Error sending password change email:", err);
+    });
+    res.status(200).json({ message: "Password updated successfully" });
+  } else {
+    res.status(401);
+    throw new Error("Current password is incorrect");
+  }
+});
+
 export {
   authUsers,
   getUserProfile,
@@ -220,4 +234,5 @@ export {
   deleteUser,
   getUserById,
   updateUserRole,
+  changeUserPassword,
 };
