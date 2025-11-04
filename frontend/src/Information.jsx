@@ -324,7 +324,7 @@ export default function Information({ onProfileUpdate }) {
                 <label className={`block mb-1 font-medium text-base`}>
                   {field.label}
                 </label>
-                <input
+                <input  
                   type={field.show ? "text" : "password"}
                   value={field.value}
                   onChange={(e) => field.setValue(e.target.value)}

@@ -182,25 +182,10 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     // p-4: Padding 1rem (16px) tất cả các cạnh
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       
-      {/* Modal container */}
-      {/* bg-white: Background trắng */}
-      {/* rounded-3xl: Border radius 1.5rem (24px) - bo góc rất tròn */}
-      {/* w-full max-w-md: Width 100%, nhưng không vượt quá 28rem (448px) */}
-      {/* max-h-[90vh]: Chiều cao tối đa 90% viewport height */}
-      {/* relative: Position relative để absolute children định vị theo đây */}
-      {/* shadow-2xl: Box shadow lớn */}
-      {/* overflow-hidden: Ẩn nội dung tràn ra ngoài */}
-      {/* border border-gray-100: Viền xám nhạt 1px */}
-      {/* flex flex-col: Flexbox theo chiều dọc */}
+      
       <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] relative shadow-2xl overflow-hidden border border-gray-100 flex flex-col">
         
-        {/* Close button */}
-        {/* absolute top-4 right-4: Đặt ở góc trên bên phải, cách 1rem */}
-        {/* z-10: Z-index cao để luôn nằm trên content */}
-        {/* text-gray-400 hover:text-gray-600: Màu xám, đậm hơn khi hover */}
-        {/* transition-colors: Animate màu sắc mượt mà */}
-        {/* bg-white/80 backdrop-blur-sm: Background trắng 80% opacity + blur */}
-        {/* rounded-full p-1: Bo tròn hoàn toàn, padding 0.25rem */}
+      
         <button
           onClick={onClose}
           className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 transition-colors bg-white/80 backdrop-blur-sm rounded-full p-1"

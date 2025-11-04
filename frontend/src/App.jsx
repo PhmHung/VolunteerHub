@@ -4,12 +4,13 @@ import AuthModal from "./pages/AuthModal.jsx";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header.jsx";
 import HomePage from "./pages/Home.jsx";
+import Dashboard from "./pages/dashboard.jsx";
 import Footer from "./components/Footer.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import Events from "./pages/events.jsx";
-import About from "./pages/AboutUs.jsx"
-import axios from "axios";
+import About from "./pages/AboutUs.jsx";
+
 
 export default function App() {
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
@@ -147,12 +148,18 @@ export default function App() {
           user={user}
           handleLogout={handleLogout}
         />
-
+      
         <main className="w-full">
           <Routes>
             <Route
               path="/"
-              element={<HomePage user={user} openAuth={setAuthModal} />}
+              element={
+                user ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <HomePage user={user} openAuth={setAuthModal} />
+                )
+              }
             />
             <Route
               path="/information"
@@ -171,7 +178,14 @@ export default function App() {
             </Route>
 
             <Route path="/events" element={<Events user={user} openAuth={setAuthModal} />} />
-            
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute user={user}>
+                  <Dashboard user={user} />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>

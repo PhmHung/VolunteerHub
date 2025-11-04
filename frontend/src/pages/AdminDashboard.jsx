@@ -1,3 +1,6 @@
+import React from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+
 const SUMMARY_CARDS = [
   { label: "Tổng số tình nguyện viên", value: 1284, change: "+8.2% tuần này" },
   { label: "Sự kiện đang diễn ra", value: 12, change: "3 sự kiện cần duyệt" },
@@ -65,6 +68,57 @@ export default function AdminDashboard({ user }) {
               <p className="mt-2 text-sm text-emerald-600">{change}</p>
             </div>
           ))}
+        </section>
+
+        {/* Charts section: attendee activity + event types */}
+        <section className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+            <h2 className="text-lg font-semibold text-slate-900">Hoạt động người tham gia</h2>
+            <p className="text-sm text-slate-500">Số người tham gia theo tháng</p>
+            <div className="mt-4 h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={[{name:'Jan', attendees:22},{name:'Feb', attendees:15},{name:'Mar', attendees:9},{name:'Apr', attendees:17},{name:'May', attendees:20},{name:'Jun', attendees:26}]}
+                  margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="attendees" stroke="#4A3AFF" strokeWidth={2} dot />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+            <h2 className="text-lg font-semibold text-slate-900">Loại sự kiện</h2>
+            <p className="text-sm text-slate-500">Tỷ lệ theo loại</p>
+            <div className="mt-4 h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  {/* Categories: Môi trường, Giáo dục, Cộng đồng, Trẻ em, Sức khỏe */}
+                  <Pie
+                    data={[
+                      { name: 'Môi trường', value: 28, color: '#34A853' },
+                      { name: 'Giáo dục', value: 24, color: '#4A3AFF' },
+                      { name: 'Cộng đồng', value: 20, color: '#06B6D4' },
+                      { name: 'Trẻ em', value: 16, color: '#FFB800' },
+                      { name: 'Sức khỏe', value: 12, color: '#EA4335' },
+                    ]}
+                    dataKey="value"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={4}
+                  >
+                    <Cell key={0} fill="#34A853" />
+                    <Cell key={1} fill="#4A3AFF" />
+                    <Cell key={2} fill="#06B6D4" />
+                    <Cell key={3} fill="#FFB800" />
+                    <Cell key={4} fill="#EA4335" />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-3">

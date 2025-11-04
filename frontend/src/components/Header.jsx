@@ -16,7 +16,9 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
 
   // Provide default pages if parent doesn't pass PAGES
   const defaultPages = [
-    { key: "Home", path: "/", icon: HomeIcon },
+    token
+      ? { key: "Dashboard", path: "/dashboard", icon: HomeIcon }
+      : { key: "Home", path: "/", icon: HomeIcon },
     ...(token ? [{ key: "Information", path: "/information", icon: InfoIcon }] : []),
     { key: "Events", path: "/events", icon: Calendar },
     { key: "About Us", path: "/about", icon: InfoIcon },
