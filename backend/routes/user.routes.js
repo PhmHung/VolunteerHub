@@ -1,19 +1,53 @@
-import express from 'express';
-import {authorize, allowSelfOrAdmin, allowAdminOnly} from '../middlewares/auth.middleware.js';
-import * as userController from '../controllers/user.controller.js';
-import { uploadPicture } from '../config/cloudinarystorage.js';
+/** @format */
 
+import express from "express";
+import { uploadPicture } from "../config/cloudinarystorage.js";
+
+import {
+  protect,
+  allowAdminOnly,
+  allowAdminOrManager,
+} from "../middlewares/auth.middleware.js";
+
+import { register, login } from "../controllers/auth.controller.js";
+
+import {
+  updateUserProfile,
+  getAllUsers,
+  deleteUser,
+  getUserById,
+  updateUserRole,
+  changeUserPassword,
+  getUserProfile,
+} from "../controllers/user.controller.js";
 const router = express.Router();
 
+router.post("/", register);
 
-router.get('/', authorize, allowAdminOnly, userController.getUsers);
+// @route  POST /api/users/login
+router.post("/login", login);
 
-router.get('/:id', authorize, allowSelfOrAdmin, userController.getUserById);
+// @route  GET /api/users/profile (Lấy hồ sơ CỦA TÔI)
+// @route  PUT /api/users/profile (Cập nhật hồ sơ CỦA TÔI)
+router
+  .route("/profile")
+  .get(protect, getUserProfile)
+  .put(protect, uploadPicture, updateUserProfile);
 
-router.put('/:id', authorize, allowSelfOrAdmin, uploadPicture, userController.updateUser);
+// @route  PUT /api/users/profile/change-password
+router.put("/profile/change-password", protect, changeUserPassword);
 
-router.put('/change-password/:id', authorize, allowSelfOrAdmin, userController.changePassword);
+// @route  GET /api/users/
+router.get("/", protect, allowAdminOrManager, getAllUsers);
 
-router.delete('/:id', authorize, allowSelfOrAdmin, userController.deleteUser);
+// @route  GET /api/users/:id
+// @route  DELETE /api/users/:id
+router
+  .route("/:id")
+  .get(protect, allowAdminOrManager, getUserById)
+  .delete(protect, allowAdminOnly, deleteUser);
+
+// @route  PUT /api/users/:id/role
+router.put("/:id/role", protect, allowAdminOnly, updateUserRole);
 
 export default router;

@@ -1,44 +1,68 @@
-import dotenv from 'dotenv';
-dotenv.config({ path: '.env.development.local' });
-import jwt from 'jsonwebtoken';
+/** @format */
 
-// Middleware to verify JWT and extract user ID
-export const authorize = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.development.local" });
+import jwt from "jsonwebtoken";
+import User from "../models/userModel.js";
+import asyncHandler from "express-async-handler";
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Authorization header missing or malformed' });
+const protect = asyncHandler(async (req, res, next) => {
+  let token;
+  const authHeader = req.headers.authorization;
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    try {
+      token = authHeader.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.userId).select("-password");
+
+      if (!req.user) {
+        res.status(401);
+        throw new Error("User not found, authorization denied.");
+      }
+
+      next();
+    } catch (error) {
+      console.error(error);
+      res.status(401);
+      throw new Error("Token expired or invalid, authorization denied.");
     }
+  }
 
-    const token = authHeader.split(' ')[1]; //Loại bỏ Bearer ở đầu
-    if (!token) {
-      return res.status(401).json({ message: 'Token missing' });
-    }
+  if (!token) {
+    res.status(401);
+    throw new Error("Has no token, authorization denied.");
+  }
+});
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); //payload đã encode khi tạo token
-
-    req.userId = decoded.userId; 
+const allowAdminOnly = (req, res, next) => {
+  if (req.user && req.user.role === "admin") {
     next();
-  }
-  catch (error) {
-    return res.status(401).json({ message: 'Invalid or expired token' });
+  } else {
+    res.status(403);
+    throw new Error("Only Admin can access this resource.");
   }
 };
 
-// Middleware to allow access only to the user themselves
-export const allowSelfOrAdmin = (req, res, next) => {
-  if (req.userId !== req.params.id && req.userId !== process.env.ADMIN_ID) {
-    return res.status(403).json({ message: 'Forbidden' });
+const allowAdminOrManager = (req, res, next) => {
+  if (req.user && (req.user.role === "admin" || req.user.role === "manager")) {
+    next();
+  } else {
+    res.status(403);
+    throw new Error("Only Admin or Manager can access this resource.");
   }
-  next();
 };
 
-// Middleware to allow access only to the admin
-export const allowAdminOnly = (req, res, next) => {
-  if (req.userId !== process.env.ADMIN_ID) {
-    return res.status(403).json({ message: 'Admin only' });
+const allowSelfOrAdmin = (req, res, next) => {
+  if (
+    req.user &&
+    (req.user._id.toString() === req.params.id || req.user.role === "admin")
+  ) {
+    next();
+  } else {
+    res.status(403);
+    throw new Error("Can only access own data or be an Admin.");
   }
-  next();
 };
 
+export { protect, allowAdminOnly, allowAdminOrManager, allowSelfOrAdmin };
