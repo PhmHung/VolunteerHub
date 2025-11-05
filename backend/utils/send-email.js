@@ -40,4 +40,4 @@ const sendPasswordChangeEmail = async (userEmail, userName) => {
   }
 };
 
-export default { sendVerificationEmail, sendPasswordChangeEmail };
+export { sendVerificationEmail, sendPasswordChangeEmail };
