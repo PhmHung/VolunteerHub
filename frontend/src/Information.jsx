@@ -1,13 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 
-export default function Information({ setPicture }) {
+export default function Information({ onProfileUpdate }) {
   const token = localStorage.getItem("token");
   const userId = token ? JSON.parse(atob(token.split(".")[1])).userId : null;
 
   const [user, setUser] = useState(null);
-  const [originalUser, setOriginalUser] = useState(null);
   const [editing, setEditing] = useState(false);
   const [passwordModal, setPasswordModal] = useState(false);
   const [pictureFile, setPictureFile] = useState(null);
@@ -22,7 +21,7 @@ export default function Information({ setPicture }) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   // fetch user helper (used on mount and to refresh after errors)
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const res = await axios.get(`http://localhost:5000/user/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -31,11 +30,11 @@ export default function Information({ setPicture }) {
     } catch (err) {
       console.error('Failed to fetch user:', err);
     }
-  };
+  }, [token, userId]);
 
   useEffect(() => {
     if (token && userId) fetchUser();
-  }, [userId, token]);
+  }, [userId, token, fetchUser]);
 
   const handlePictureChange = (e) => {
     const file = e.target.files[0];
@@ -95,8 +94,9 @@ export default function Information({ setPicture }) {
           setUser(res.data.user);
           if (res.data.user?.personalInformation?.picture) {
             localStorage.setItem("picture", res.data.user.personalInformation.picture);
-            setPicture(res.data.user.personalInformation.picture);
           }
+
+          onProfileUpdate?.(res.data.user);
 
           setEditing(false);
 
@@ -137,7 +137,8 @@ export default function Information({ setPicture }) {
       localStorage.removeItem("token");
       window.location.href = "/";
     } catch (err) {
-      alert("Failed to delete account.");
+      const errMsg = err?.response?.data?.error || err.message || 'Failed to delete account';
+      window.alert(errMsg);
     }
   };
 
@@ -257,7 +258,7 @@ export default function Information({ setPicture }) {
         <div className={`flex gap-3 mt-4 text-base`}>
           {!editing ? (
             <button
-              onClick={() => { setOriginalUser(JSON.parse(JSON.stringify(user))); setEditing(true); }}
+              onClick={() => { setEditing(true); }}
               className="bg-blue-500 text-white px-4 py-2 rounded-2xl"
             >
               Edit
@@ -296,7 +297,7 @@ export default function Information({ setPicture }) {
             >
               ✕
             </button>
-            <h2 className={`text-xl font-bold mb-4 ${getFontSizeClass(setting.fontSize, "large")}`}>
+            <h2 className="text-xl font-bold mb-4">
               Change Password
             </h2>
 
@@ -323,7 +324,7 @@ export default function Information({ setPicture }) {
                 <label className={`block mb-1 font-medium text-base`}>
                   {field.label}
                 </label>
-                <input
+                <input  
                   type={field.show ? "text" : "password"}
                   value={field.value}
                   onChange={(e) => field.setValue(e.target.value)}

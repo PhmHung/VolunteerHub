@@ -1,0 +1,19 @@
+<svg width="270" height="60" viewBox="0 0 270 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .brand-name { font-family: 'Poppins', 'Helvetica', 'Arial', sans-serif; font-weight: 700; font-size: 24px; }
+      .tagline { font-family: 'Poppins', 'Helvetica', 'Arial', sans-serif; font-weight: 400; font-size: 9px; letter-spacing: 0.1em; }
+    </style>
+  </defs>
+
+  <g transform="translate(0, 5)">
+    <path d="M26.25 17.5C26.25 14.9477 24.2018 12.9 21.65 12.9C19.0982 12.9 17.05 14.9477 17.05 17.5V28H20.6V20.45C20.6 19.8977 21.0482 19.45 21.6 19.45C22.1518 19.45 22.6 19.8977 22.6 20.45V28H26.2V17.5H26.25Z" fill="#005A9C"/>
+    <path d="M14.5 9.1C12.4 9.1 10.7 10.8 10.7 12.9C10.7 17.5 14.5 21.7 14.5 21.7C14.5 21.7 18.3 17.5 18.3 12.9C18.3 10.8 16.6 9.1 14.5 9.1Z" fill="#F9A826"/>
+  </g>
+  
+  <g transform="translate(45, 0)">
+    <text x="0" y="28" class="brand-name" fill="#005A9C">Volunteer<tspan fill="#F9A826">Hub</tspan></text>
+    
+    <text x="0" y="44" class="tagline" fill="#6c757d">FOR COMMUNITY</text>
+  </g>
+</svg>

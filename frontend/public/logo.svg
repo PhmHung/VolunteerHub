@@ -1,0 +1,20 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="32" cy="32" r="30" fill="url(#gradient1)" />
+  
+  <!-- Heart Icon -->
+  <path d="M32 48L24 40C16 32.5 12 28.5 12 23.5C12 19.5 15 16.5 19 16.5C21.5 16.5 24 17.5 25.5 19.5L32 26L38.5 19.5C40 17.5 42.5 16.5 45 16.5C49 16.5 52 19.5 52 23.5C52 28.5 48 32.5 40 40L32 48Z" fill="white" opacity="0.95"/>
+  
+  <!-- Hands Icon (Two overlapping hands showing support) -->
+  <path d="M20 28C20 28 22 26 24 26C26 26 27 27 27 29V34C27 34 27 36 25 36C23 36 20 34 20 28Z" fill="white" opacity="0.8"/>
+  <path d="M44 28C44 28 42 26 40 26C38 26 37 27 37 29V34C37 34 37 36 39 36C41 36 44 34 44 28Z" fill="white" opacity="0.8"/>
+  
+  <!-- Gradient Definitions -->
+  <defs>
+    <linearGradient id="gradient1" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#005A9C"/>
+      <stop offset="50%" stop-color="#0077CC"/>
+      <stop offset="100%" stop-color="#A8D0E6"/>
+    </linearGradient>
+  </defs>
+</svg>
