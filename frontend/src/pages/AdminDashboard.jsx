@@ -118,6 +118,28 @@ export default function AdminDashboard({ user }) {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-slate-600">
+              <div className="flex items-center gap-2">
+                <span className="block h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: '#34A853' }} />
+                <span>Môi trường</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="block h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: '#4A3AFF' }} />
+                <span>Giáo dục</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="block h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: '#06B6D4' }} />
+                <span>Cộng đồng</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="block h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: '#FFB800' }} />
+                <span>Trẻ em</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="block h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: '#EA4335' }} />
+                <span>Sức khỏe</span>
+              </div>
+            </div>
           </div>
         </section>
 

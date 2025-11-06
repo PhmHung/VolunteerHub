@@ -37,10 +37,10 @@ export default function Home({ user, openAuth }) {
         user={user}
         openAuth={openAuth}
         heroImage={heroImage}
-        title="Kết nối đam mê với VolunteerHub"
-        subtitle="Khám phá hàng trăm hoạt động tình nguyện phù hợp với bạn."
-        primaryLabel={user ? "Xem trang cá nhân" : "Tham gia ngay"}
-        secondaryLabel="Tôi đã có tài khoản"
+        title="Connect your passion with VolunteerHub"
+        subtitle="Discover hundreds of volunteer opportunities that match your interests."
+        primaryLabel={user ? "View profile" : "Join now"}
+        secondaryLabel="I already have an account"
       />
       {/* ==================== HERO SECTION - END ==================== */}
 
