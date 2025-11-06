@@ -1,20 +1,43 @@
-import transporter from '../config/nodemailer.js';
-import { verificationCodeTemplate } from './email-template.js';
+/** @format */
 
-export const sendVerificationEmail = async (email, code) => {
-    const { subject, text, html } = verificationCodeTemplate(code);
+import transporter from "../config/nodemailer.js";
+import {
+  verificationCodeTemplate,
+  sendPasswordChangeTemplate,
+} from "./email-template.js";
 
-    try {
-        const info = await transporter.sendMail({
-            from: `"VolunteerHub" <${process.env.SMTP_USER}>`,
-            to: email,
-            subject,
-            text,
-            html
-        });
-    } catch (error) {
-        throw error;
-    }
+const sendVerificationEmail = async (userEmail, verificationCode) => {
+  const { subject, text, html } = verificationCodeTemplate(verificationCode);
+  try {
+    await transporter.sendMail({
+      from: `"VolunteerHub" <${process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: subject,
+      text: text,
+      html: html,
+    });
+    console.log(`Verification email sent to ${userEmail}`);
+  } catch (error) {
+    console.error(`Error sending email to ${userEmail}:`, error);
+    throw new Error("Email could not be sent");
+  }
 };
 
-export default sendVerificationEmail;
+const sendPasswordChangeEmail = async (userEmail, userName) => {
+  const { subject, text, html } = sendPasswordChangeTemplate(userName);
+  try {
+    await transporter.sendMail({
+      from: `"VolunteerHub" <${process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: subject,
+      text: text,
+      html: html,
+    });
+    console.log(`Password change email sent to ${userEmail}`);
+  } catch (error) {
+    console.error(`Error sending email to ${userEmail}:`, error);
+    throw new Error("Email could not be sent");
+  }
+};
+
+export { sendVerificationEmail, sendPasswordChangeEmail };

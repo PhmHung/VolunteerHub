@@ -1,172 +1,174 @@
-import User from "../models/user.model.js"; 
-import bcrypt from 'bcryptjs';
+/** @format */
 
+import asyncHandler from "express-async-handler";
+import User from "../models/userModel.js";
+import generateToken from "../utils/generateToken.js";
 
-//Chỉ admin mới được xem danh sách user nên gửi cả hashedPassword cũng được
-export const getUsers = async (req, res) => {
-  try {
-    const users = await User.find();
+// @desc   Update user profile
+// @route  PUT /api/users/profile
+// @access Public
+const updateUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (user) {
+    //Update User name
+    user.userName = req.body.userName || user.userName;
 
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+    //Update Phone number
+    user.phoneNumber = req.body.phoneNumber || user.phoneNumber;
 
-//Không lộ hashedPassword cho chính người dùng đó, nên dùng -password
-export const getUserById = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id)
-      .select('-password');
-
-    
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-export const updateUser = async (req, res) => {
-  try {
-    // start with request body (may come from multipart/form-data via multer)
-    const updates = { ...req.body };
-
-    // If picture was uploaded by multer/cloudinary, attach its path to personalInformation.picture
+    //Update Profile Picture
     if (req.file && req.file.path) {
-      // prefer dot-notation so findByIdAndUpdate can set the nested field
-      updates['personalInformation.picture'] = req.file.path;
+      user.profilePicture = req.file.path;
     }
+    const updatedUser = await user.save();
 
-    function coerceBoolean(value, fieldName) {
-      if (value === 'true' || value === true || value === '1' || value === 1) return true;
-      if (value === 'false' || value === false || value === '0' || value === 0) return false;
+    res.status(200).json({
+      _id: updatedUser._id,
+      userName: updatedUser.userName,
+      userEmail: updatedUser.userEmail,
+      role: updatedUser.role,
+      phoneNumber: updatedUser.phoneNumber,
+      profilePicture: updatedUser.profilePicture,
+      token: generateToken(updatedUser._id),
+    });
+  } else {
+    res.status(404);
+    throw new Error("User not found");
+  }
+});
 
-      throw new Error(`Invalid value for ${fieldName}: ${value}`);
-    }
+// @desc   GET all user
+// @route  GET/api/users
+// @access Private/Admin,Manager
+const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find({}).select("-password");
+  res.status(200).json(users);
+});
 
-    try {
-      if ('notificationPrefs.emailAnnouncements' in updates) {
-        updates['notificationPrefs.emailAnnouncements'] =
-          coerceBoolean(updates['notificationPrefs.emailAnnouncements'], 'notificationPrefs.emailAnnouncements');
-      }
-
-      if ('notificationPrefs.emailAssignments' in updates) {
-        updates['notificationPrefs.emailAssignments'] =
-          coerceBoolean(updates['notificationPrefs.emailAssignments'], 'notificationPrefs.emailAssignments');
-      }
-    } catch (err) {
-      return res.status(400).json({ error: err.message });
-    }
-
-    try {
-      if (updates.notificationPrefs && typeof updates.notificationPrefs === 'object') {
-        const np = updates.notificationPrefs;
-
-        if ('emailAnnouncements' in np) {
-          np.emailAnnouncements = coerceBoolean(np.emailAnnouncements, 'notificationPrefs.emailAnnouncements');
-        }
-
-        if ('emailAssignments' in np) {
-          np.emailAssignments = coerceBoolean(np.emailAssignments, 'notificationPrefs.emailAssignments');
-        }
-
-        updates.notificationPrefs = np;
-      }
-    } catch (err) {
-      return res.status(400).json({ error: err.message });
-    }
-
-
-
-    // if (updates.password) {
-    //   if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(updates.password)) {
-    //     throw new Error('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
-    // }
-    //   const salt = await bcrypt.genSalt(10);
-    //   updates.password = await bcrypt.hash(updates.password, salt);
-    // }
-
-// Utility: get value from updates (dot-notation or object)
-function getUpdateField(updates, path) {
-  const dotValue = updates[path];
-  if (dotValue !== undefined) return dotValue;
-
-  // Nếu path = "personalInformation.name"
-  const [root, key] = path.split('.');
-  if (updates[root] && typeof updates[root] === 'object') {
-    return updates[root][key];
+// @desc   Delete user
+// @route  DELETE/api/users
+// @access Private/Admin
+const deleteUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
   }
 
-  return undefined;
-}
-
-try {
-  const name = getUpdateField(updates, 'personalInformation.name');
-  if (typeof name === 'string' && name.trim() === '') {
-    throw new Error('Name is required and must be a non-empty string');
+  if (user.role === "admin") {
+    res.status(400);
+    throw new Error("Cannot delete admin user");
   }
-} catch (err) {
-  return res.status(400).json({ error: err.message });
-}
 
-    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true }).select('-password');
+  await user.deleteOne();
+  res.status(200).json({ message: "User removed" });
+});
 
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ message: 'User updated successfully', user });
-  } catch (error) {
-    // For validation-like errors respond with 400
-    const msg = error && error.message ? String(error.message) : 'Unknown error';
-    if (/required|must|valid|invalid/i.test(msg)) {
-      return res.status(400).json({ error: msg });
-    }
-    res.status(500).json({ error: msg });
+// @desc   GET user by ID
+// @route  GET/api/users/:id
+// @access Private/Admin
+const getUserById = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select("-password");
+  if (user) {
+    res.json(user);
+  } else {
+    res.status(404);
+    throw new Error("User not found");
   }
-};
+  res.json(user);
+});
 
-export const changePassword = async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const { oldPassword, newPassword } = req.body;
+// @desc   Update user role, Admin only
+// @route  PUT/api/users/:id/role
+// @access Private/Admin
+const updateUserRole = asyncHandler(async (req, res) => {
+  const { role: newRole } = req.body;
+  if (!newRole) {
+    res.status(400);
+    throw new Error("Role is required");
+  }
 
-    console.log(userId);
-    console.log(oldPassword);
-    console.log(newPassword);
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
 
-    if (!oldPassword || !newPassword) {
-      return res.status(400).json({ error: 'Old password and new password are required.' });
-    }
+  const currentRole = user.role;
+  if (currentRole === "admin") {
+    res.status(400);
+    throw new Error("Admin cannot change admin role");
+  }
+  if (currentRole === newRole) {
+    res.status(0);
+    throw new Error("User already has this role");
+  }
 
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(newPassword)) {
-      return res.status(400).json({ error: 'New password must be at least 8 characters and include uppercase, lowercase, and a number.' });
-    }
+  if (currentRole === "volunteer" && newRole === "admin") {
+    res.status(400);
+    throw new Error("Cannot promote volunteer directly to admin");
+  }
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+  user.role = newRole;
+  const updatedUser = await user.save();
+  res.status(200).json({
+    _id: updatedUser._id,
+    userName: updatedUser.userName,
+    role: updatedUser.role,
+  });
+});
 
-    const match = await bcrypt.compare(oldPassword, user.password);
-    if (!match) return res.status(401).json({ error: 'Old password is incorrect' });
+// @desc Change user password
+// @route PUT /api/users/profile/change-password
+// @access Private
+const changeUserPassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    res.status(400);
+    throw new Error("Please provide current and new password");
+  }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashed = await bcrypt.hash(newPassword, salt);
-
-    user.password = hashed;
+  const user = await User.findById(req.user._id);
+  if (user && (await user.matchPassword(currentPassword))) {
+    user.password = newPassword;
     await user.save();
-
-    res.json({ message: 'Password changed successfully' });
-  } catch (err) {
-    next(err);
+    sendPasswordChangeEmail(user.userEmail, user.userName).catch((err) => {
+      console.error("Error sending password change email:", err);
+    });
+    res.status(200).json({ message: "Password updated successfully" });
+  } else {
+    res.status(401);
+    throw new Error("Current password is incorrect");
   }
-};
+});
 
-export const deleteUser = async (req, res) => {
-  try {
-    const user = await User.findByIdAndDelete(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+// @desc   Get user profile
+// @route  GET /api/users/profile
+// @access Private
+const getUserProfile = asyncHandler(async (req, res) => {
+  const user = req.user;
 
-    res.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  if (user) {
+    res.status(200).json({
+      _id: user._id,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      role: user.role,
+      phoneNumber: user.phoneNumber,
+      profilePicture: user.profilePicture,
+    });
+  } else {
+    res.status(404);
+    throw new Error("User not found");
   }
+});
+
+export {
+  updateUserProfile,
+  getAllUsers,
+  deleteUser,
+  getUserById,
+  updateUserRole,
+  changeUserPassword,
+  getUserProfile,
 };
