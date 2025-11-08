@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Calendar, MapPin, Users, Clock, Search, Filter, Plus, CheckCircle, XCircle, Eye } from "lucide-react";
 import { MOCK_EVENTS, EVENT_CATEGORIES, EVENT_STATUS } from "../data/mockEvents";
 import { motion } from "framer-motion";
@@ -7,10 +7,24 @@ export default function EventsPage({ user, openAuth }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [statusFilter, setStatusFilter] = useState("all"); // all | approved | pending
+  const [eventsData, setEventsData] = useState(() =>
+    MOCK_EVENTS.map((event) => ({
+      ...event,
+      registered: Number.isFinite(event.registered) ? event.registered : 0,
+    }))
+  );
+  const [registeredEventIds, setRegisteredEventIds] = useState([]);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // Filter events based on search, category, and status
   const filteredEvents = useMemo(() => {
-    return MOCK_EVENTS.filter((event) => {
+    return eventsData.filter((event) => {
       const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           event.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === "Tất cả" || event.category === selectedCategory;
@@ -18,14 +32,62 @@ export default function EventsPage({ user, openAuth }) {
       
       return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [searchQuery, selectedCategory, statusFilter]);
+  }, [searchQuery, selectedCategory, statusFilter, eventsData]);
 
   const handleRegister = (eventId) => {
     if (!user) {
       openAuth?.("login");
       return;
     }
-    alert(`Đăng ký sự kiện ${eventId} - Tính năng đang phát triển`);
+    const event = eventsData.find((item) => item.id === eventId);
+    if (!event) {
+      setToast({ type: "error", message: "Không tìm thấy sự kiện." });
+      return;
+    }
+
+    if (registeredEventIds.includes(eventId)) {
+      setToast({ type: "info", message: "Bạn đã đăng ký sự kiện này rồi." });
+      return;
+    }
+
+    if (event.registered >= event.slots) {
+      setToast({ type: "warning", message: "Sự kiện đã đủ số lượng người tham gia." });
+      return;
+    }
+
+    setEventsData((prev) =>
+      prev.map((item) =>
+        item.id === eventId ? { ...item, registered: item.registered + 1 } : item
+      )
+    );
+    setRegisteredEventIds((prev) => [...prev, eventId]);
+    setToast({ type: "success", message: `Đăng ký thành công cho sự kiện "${event.title}"!` });
+  };
+
+  const handleCancelRegistration = (eventId) => {
+    if(!user) {
+      openAuth?.("login");
+      return;
+    }
+    if(!registeredEventIds.includes(eventId)) {
+      setToast({ type: "info", message: "Bạn chưa đăng ký sự kiện này." });
+      return;
+    }
+    const event = eventsData.find((item) => item.id === eventId);
+    if (!event) {
+      setToast({ type: "error", message: "Không tìm thấy sự kiện." });
+      return;
+    }
+
+    setEventsData((prev) =>
+      prev.map((item) =>
+        item.id === eventId
+          ? { ...item, registered: Math.max(0, item.registered - 1) }
+          : item
+      )
+    );
+    setRegisteredEventIds((prev) => prev.filter((id) => id !== eventId));
+    setToast({ type: "success", message: `Đã hủy đăng ký sự kiện "${event.title}"!` });
   };
 
   const handleApprove = (eventId) => {
@@ -75,6 +137,22 @@ export default function EventsPage({ user, openAuth }) {
             )}
           </div>
         </header>
+
+        {toast && (
+          <div
+            className={`rounded-lg border px-4 py-3 text-sm font-medium shadow-sm transition ${
+              toast.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : toast.type === "warning"
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : toast.type === "info"
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            {toast.message}
+          </div>
+        )}
 
         {/* Filters */}
         <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
@@ -138,21 +216,25 @@ export default function EventsPage({ user, openAuth }) {
               <p className="text-slate-500 text-lg">Không tìm thấy sự kiện nào phù hợp</p>
             </div>
           ) : (
-            filteredEvents.map((event, idx) => (
-              <motion.article
-                key={event.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="flex flex-col rounded-xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden hover:shadow-lg transition-shadow"
-              >
-                {/* Event Image */}
-                <div className="relative h-48 bg-slate-200">
-                  <img
-                    src={event.imageUrl}
-                    alt={event.title}
-                    className="h-full w-full object-cover"
-                  />
+            filteredEvents.map((event, idx) => {
+              const alreadyJoined = registeredEventIds.includes(event.id);
+              const isFull = event.registered >= event.slots;
+
+              return (
+                <motion.article
+                  key={event.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="flex flex-col rounded-xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  {/* Event Image */}
+                  <div className="relative h-48 bg-slate-200">
+                    <img
+                      src={event.imageUrl}
+                      alt={event.title}
+                      className="h-full w-full object-cover"
+                    />
                   {/* Status badge */}
                   <div className={`absolute top-3 right-3 rounded-full px-3 py-1 text-xs font-semibold ${
                     event.status === "approved" ? "bg-emerald-100 text-emerald-700" :
@@ -208,17 +290,26 @@ export default function EventsPage({ user, openAuth }) {
                     {/* Volunteer actions */}
                     {(!user || isVolunteer) && event.status === "approved" && (
                       <>
-                        <button
-                          onClick={() => handleRegister(event.id)}
-                          disabled={event.registered >= event.slots}
-                          className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                            event.registered >= event.slots
-                              ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                              : "bg-indigo-500 text-white hover:bg-indigo-600"
-                          }`}
-                        >
-                          {event.registered >= event.slots ? "Đã hết chỗ" : "Đăng ký"}
-                        </button>
+                        {alreadyJoined ? (
+                          <button
+                            onClick={() => handleCancelRegistration(event.id)}
+                            className="flex-1 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                          >
+                            Hủy đăng ký
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleRegister(event.id)}
+                            disabled={isFull}
+                            className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                              isFull
+                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                : "bg-indigo-500 text-white hover:bg-indigo-600"
+                            }`}
+                          >
+                            {isFull ? "Đã hết chỗ" : "Đăng ký"}
+                          </button>
+                        )}
                         <button
                           onClick={() => alert(`Xem chi tiết ${event.id}`)}
                           className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -277,8 +368,9 @@ export default function EventsPage({ user, openAuth }) {
                     )}
                   </div>
                 </div>
-              </motion.article>
-            ))
+                </motion.article>
+              );
+            })
           )}
         </section>
 

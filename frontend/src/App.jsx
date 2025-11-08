@@ -10,12 +10,12 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import Events from "./pages/events.jsx";
 import About from "./pages/AboutUs.jsx";
-
+import { USE_MOCK, MOCK_USER } from "./utils/mockUser.js";
 
 export default function App() {
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const [user, setUser] = useState(USE_MOCK ? MOCK_USER : null);
+  const [loadingUser, setLoadingUser] = useState(!USE_MOCK);
 
   const decodeUserIdFromToken = useCallback((token) => {
     try {
@@ -29,6 +29,12 @@ export default function App() {
 
   const syncUserFromToken = useCallback(
     async (token) => {
+      // Nếu đang sử dụng mock backend
+      if (USE_MOCK) {
+        setUser(MOCK_USER);
+        return MOCK_USER;
+      }
+      // Nếu không có token
       if (!token) {
         setUser(null);
         return null;
@@ -57,16 +63,8 @@ export default function App() {
         }
 
         const data = await res.json();
-         // === BƯỚC CAN THIỆP: GÁN VAI TRÒ GIẢ ===
-        const userWithMockedRole = {
-          ...data, // Giữ nguyên thông tin từ backend
-          role: 'admin' // <-- THAY ĐỔI Ở ĐÂY để test 'admin' hoặc 'volunteer'
-        };
-       setUser(userWithMockedRole); // Cập nhật state với vai trò đã gán
-      return userWithMockedRole; // Trả về user đã gán vai trò
-
-   //     setUser(data);
-  //   return data;
+        setUser(data);
+        return data;
       } catch (error)   {
         console.error("Error fetching user profile:", error);
         localStorage.removeItem("token");
@@ -79,6 +77,9 @@ export default function App() {
 
   // Lấy thông tin người dùng từ token khi load trang
   useEffect(() => {
+    if (USE_MOCK) {
+      return;
+    }
     const token = localStorage.getItem("token");
     if (!token) {
       setLoadingUser(false);
@@ -101,6 +102,11 @@ export default function App() {
   }, [syncUserFromToken]);
 
   const handleSuccess = async (data) => {
+    if (USE_MOCK) {
+      setUser(MOCK_USER);
+      setAuthModal(null);
+      return;
+    }
     let resetLoading = false;
 
     try {
@@ -110,13 +116,8 @@ export default function App() {
         resetLoading = true;
         await syncUserFromToken(data.token);
       } else if (data?.user) {
-        const userWithMockedRole = {
-          ...data.user,
-          role: 'admin' // <-- GÁN VAI TRÒ GIẢ Ở ĐÂY NỮA
-        };
-        setUser(userWithMockedRole);
-        //setUser(data.user);
-        }
+        setUser(data.user);
+      }
     } finally {
       if (resetLoading) {
         setLoadingUser(false);
@@ -128,6 +129,10 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     setUser(null);
+    if (USE_MOCK) {
+      setAuthModal("login");
+      return;
+    }
     window.location.href = "/";
   };
 

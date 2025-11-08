@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
+import { USE_MOCK, MOCK_USER } from "./utils/mockUser.js";
 
 export default function Information({ onProfileUpdate }) {
-  const token = localStorage.getItem("token");
-  const userId = token ? JSON.parse(atob(token.split(".")[1])).userId : null;
+  const token = USE_MOCK ? null : localStorage.getItem("token");
+  const userId = USE_MOCK
+    ? MOCK_USER._id
+    : token
+      ? JSON.parse(atob(token.split(".")[1])).userId
+      : null;
 
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(USE_MOCK ? MOCK_USER : null);
   const [editing, setEditing] = useState(false);
   const [passwordModal, setPasswordModal] = useState(false);
   const [pictureFile, setPictureFile] = useState(null);
@@ -22,6 +27,10 @@ export default function Information({ onProfileUpdate }) {
 
   // fetch user helper (used on mount and to refresh after errors)
   const fetchUser = useCallback(async () => {
+    if (USE_MOCK) {
+      setUser(MOCK_USER);
+      return;
+    }
     try {
       const res = await axios.get(`http://localhost:5000/user/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -33,6 +42,7 @@ export default function Information({ onProfileUpdate }) {
   }, [token, userId]);
 
   useEffect(() => {
+    if (USE_MOCK) return;
     if (token && userId) fetchUser();
   }, [userId, token, fetchUser]);
 
@@ -48,6 +58,16 @@ export default function Information({ onProfileUpdate }) {
   const handleUpdate = async () => {
 
     try {
+      if (USE_MOCK) {
+        onProfileUpdate?.(user);
+        setEditing(false);
+        if (picturePreview) {
+          URL.revokeObjectURL(picturePreview);
+          setPicturePreview(null);
+        }
+        setPictureFile(null);
+        return;
+      }
       const formData = new FormData();
 
       console.log(pictureFile);
@@ -130,6 +150,10 @@ export default function Information({ onProfileUpdate }) {
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this account?")) return;
     try {
+      if (USE_MOCK) {
+        window.alert("Đây là chế độ mô phỏng – tài khoản không bị xoá.");
+        return;
+      }
       await axios.delete(`http://localhost:5000/user/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -154,6 +178,14 @@ export default function Information({ onProfileUpdate }) {
     }
 
     try {
+      if (USE_MOCK) {
+        window.alert("Đây là chế độ mô phỏng – mật khẩu không thay đổi.");
+        setPasswordModal(false);
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        return;
+      }
       const res = await axios.put(
         `http://localhost:5000/user/change-password/${userId}`,
         { oldPassword, newPassword },
@@ -190,7 +222,7 @@ export default function Information({ onProfileUpdate }) {
             <img
                 src={
                 picturePreview ||
-                user.personalInformation.picture ||
+                user.personalInformation?.picture ||
                 "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IndoaXRlIi8+PC9zdmc+" // ảnh trắng
                 }
                 alt="Picture"
@@ -215,12 +247,12 @@ export default function Information({ onProfileUpdate }) {
             </label>
             <input
               type="text"
-              value={user.personalInformation.name}
+              value={user.personalInformation?.name || ""}
               readOnly={!editing}
               onChange={(e) =>
                 setUser({
                   ...user,
-                  personalInformation: { ...user.personalInformation, name: e.target.value },
+                  personalInformation: { ...(user.personalInformation || {}), name: e.target.value },
                 })
               }
               className={`w-full p-2 border rounded-2xl text-base ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
@@ -233,12 +265,12 @@ export default function Information({ onProfileUpdate }) {
               Biography
             </label>
             <textarea
-              value={user.personalInformation.biography}
+              value={user.personalInformation?.biography || ""}
               readOnly={!editing}
               onChange={(e) =>
                 setUser({
                   ...user,
-                  personalInformation: { ...user.personalInformation, biography: e.target.value },
+                  personalInformation: { ...(user.personalInformation || {}), biography: e.target.value },
                 })
               }
               className={`w-full p-2 border rounded-2xl text-base ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
@@ -248,8 +280,8 @@ export default function Information({ onProfileUpdate }) {
 
         {/* READ-ONLY FIELDS */}
         <div className={`grid grid-cols-2 gap-4 mt-4 text-base`}>
-          <div><b>Email:</b> {user.email}</div>
-          <div><b>ID:</b> {user._id}</div>
+          <div><b>Email:</b> {user.userEmail || user.email}</div>
+          <div><b>ID:</b> {user._id || user.id}</div>
           <div><b>Created:</b> {new Date(user.createdAt).toLocaleString()}</div>
           <div><b>Updated:</b> {new Date(user.updatedAt).toLocaleString()}</div>
         </div>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
 import axios from "axios"; // HTTP client
 import FirebaseLogin from "../components/FirebaseLogin"; // Component login bằng Firebase
+import { USE_MOCK, MOCK_USER } from "../utils/mockUser.js";
 
 export default function AuthModal({ mode, onClose, onSuccess }) {
   // ========== STATE MANAGEMENT ==========
@@ -43,6 +44,13 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         setLoading(false);
         return;
       }
+
+      if (USE_MOCK) {
+        setStep(1);
+        setError("");
+        return;
+      }
+
       // Gọi API gửi verification code
       await axios.post("http://localhost:5000/auth/sendVerificationCode", { email });
       setStep(1); // Chuyển sang step 1 (nhập code)
@@ -67,6 +75,12 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         setLoading(false);
         return;
       }
+      if (USE_MOCK) {
+        setStep(2);
+        setError("");
+        return;
+      }
+
       // Gọi API verify code
       await axios.post("http://localhost:5000/auth/verifyCode", { email, code });
       setStep(2); // Chuyển sang step 2 (hoàn tất profile)
@@ -96,6 +110,20 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     }
 
     try {
+        if (USE_MOCK) {
+          const isAdminMock = MOCK_USER.role === "admin";
+          const successMessage = isAdminMock
+            ? "Chế độ mô phỏng: đang sử dụng tài khoản Quản trị viên."
+            : "Chế độ mô phỏng: đang sử dụng tài khoản Tình nguyện viên.";
+
+          setSuccess(successMessage);
+          setError("");
+          setTimeout(() => {
+            onSuccess({ user: MOCK_USER });
+          }, isAdminMock ? 4000 : 2000);
+          return;
+        }
+
         // Tạo FormData để gửi file ảnh
         const formData = new FormData();
         formData.append("email", email);
@@ -151,6 +179,20 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     }
 
     try {
+      if (USE_MOCK) {
+        const isAdminMock = MOCK_USER.role === "admin";
+        setSuccess(
+          isAdminMock
+            ? "Chế độ mô phỏng: đăng nhập với quyền Quản trị viên."
+            : "Chế độ mô phỏng: đăng nhập với quyền Tình nguyện viên."
+        );
+        setError("");
+        setTimeout(() => {
+          onSuccess({ user: MOCK_USER });
+        }, isAdminMock ? 1500 : 1000);
+        return;
+      }
+
       // Gọi API login
       const res = await axios.post("http://localhost:5000/auth/login", { email, password });
       
@@ -212,6 +254,17 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                 : "Create an account to start volunteering"}
             </p>
           </div>
+
+        {USE_MOCK && (
+          <div className="mb-5 sm:mb-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            Chế độ mô phỏng đang bật: tài khoản sẽ có quyền
+            {" "}
+            <span className="font-semibold">
+              {MOCK_USER.role === "admin" ? "Quản trị viên" : "Tình nguyện viên"}
+            </span>
+            .
+          </div>
+        )}
 
         {/* Register Step 0 */}
         {mode === "register" && step === 0 && (
@@ -397,9 +450,8 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
 
                 {/* FirebaseLogin now returns auth result via onSuccess callback */}
                 <FirebaseLogin onSuccess={(data) => {
-                  // data should contain { token, picture, user }
-                  if (data?.token) {
-                    // reuse onSuccess provided by App to finalize login
+                  // data may contain either { token, ... } or { user }
+                  if (data?.token || data?.user) {
                     onSuccess(data);
                   }
                 }} />
