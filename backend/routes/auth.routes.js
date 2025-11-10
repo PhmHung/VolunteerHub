@@ -18,7 +18,6 @@ const router = express.Router();
 
 router.post("/sendVerificationCode", sendVerificationCode);
 router.post("/verifyCode", verifyCode);
-
 router.post("/google", googleLogin);
 
 // @route POST /api/auth/register
