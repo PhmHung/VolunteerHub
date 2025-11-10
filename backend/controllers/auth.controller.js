@@ -1,11 +1,10 @@
 /** @format */
 
 import mongoose from "mongoose";
-
+import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
-import bcrypt from "bcryptjs";
 import Redis from "ioredis";
-import jwt from "jsonwebtoken";
+import generateToken from "../utils/generateToken.js";
 import {
   sendVerificationEmail,
   sendPasswordChangeEmail,
@@ -43,7 +42,7 @@ const checkCode = async (email, code) => {
   return savedCode === code;
 };
 
-export const sendVerificationCode = async (req, res, next) => {
+const sendVerificationCode = async (req, res, next) => {
   try {
     const { email } = req.body;
 
@@ -66,7 +65,7 @@ export const sendVerificationCode = async (req, res, next) => {
   }
 };
 
-export const verifyCode = async (req, res, next) => {
+const verifyCode = async (req, res, next) => {
   try {
     const { email, code } = req.body;
 
@@ -80,7 +79,109 @@ export const verifyCode = async (req, res, next) => {
   }
 };
 
-export const register = async (req, res, next) => {
+// @desc   Login user
+// @route  POST /api/auth/login
+// @access Public
+const loginUser = asyncHandler(async (req, res) => {
+  const { userEmail, password } = req.body;
+  const user = await User.findOne({ userEmail });
+  if (user && (await bcrypt.compare(password, user.password))) {
+    res.json({
+      _id: user._id,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      role: user.role,
+      phoneNumber: user.phoneNumber,
+      profilePicture: user.profilePicture,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(401);
+    throw new Error("Email hoặc mật khẩu không hợp lệ.");
+  }
+});
+
+// @desc   Login user
+// @route  POST /api/auth/login-firebase
+// @access Public
+const login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required." });
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email))
+      return res.status(400).json({ message: "Invalid email" });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(401).json({ message: "Email not found." });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid password." });
+    }
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+
+    console.log(token);
+
+    res.status(200).json({
+      message: "Login successful",
+      picture: user.personalInformation.picture,
+      token,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+// @desc   Register user
+// @route  POST /api/auth/register
+// @access Public
+const registerUser = asyncHandler(async (req, res) => {
+  const { userName, userEmail, password, role } = req.body;
+  if (!userName || !userEmail || !password || !role) {
+    res.status(400);
+    throw new Error("Vui lòng điền đầy đủ tất cả các trường bắt buộc.");
+  }
+  const userExists = await User.findOne({ userEmail });
+
+  if (userExists) {
+    res.status(400);
+    throw new Error("Địa chỉ email này đã được sử dụng.");
+  }
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  const user = await User.create({
+    userName,
+    userEmail,
+    password: hashedPassword,
+    role: role || "volunteer",
+  });
+
+  if (user) {
+    res.status(201).json({
+      _id: user._id,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      role: user.role,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(400);
+    throw new Error("Dữ liệu người dùng không hợp lệ.");
+  }
+});
+
+const register = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -137,45 +238,6 @@ export const register = async (req, res, next) => {
   }
 };
 
-export const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required." });
-    }
-
-    if (!/\S+@\S+\.\S+/.test(email))
-      return res.status(400).json({ message: "Invalid email" });
-
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) {
-      return res.status(401).json({ message: "Email not found." });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid password." });
-    }
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN,
-    });
-
-    console.log(token);
-
-    res.status(200).json({
-      message: "Login successful",
-      picture: user.personalInformation.picture,
-      token,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 // Khởi tạo Firebase Admin
 if (!admin.apps.length) {
   try {
@@ -206,7 +268,7 @@ if (!admin.apps.length) {
   }
 }
 
-export const googleLogin = async (req, res) => {
+const googleLogin = async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) return res.status(400).json({ message: "Missing token" });
@@ -262,4 +324,16 @@ export const googleLogin = async (req, res) => {
     console.error("Google login error:", error);
     res.status(401).json({ success: false, message: "Invalid Google token" });
   }
+};
+
+export {
+  saveCode,
+  checkCode,
+  sendVerificationCode,
+  verifyCode,
+  loginUser,
+  login,
+  registerUser,
+  register,
+  googleLogin,
 };

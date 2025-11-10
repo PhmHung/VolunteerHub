@@ -8,7 +8,7 @@ dotenv.config({ path: ".env.development.local" });
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
-import { connectDB } from "./config/mongodb.js";
+import connectDB from "./config/mongodb.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import cors from "cors";
 
