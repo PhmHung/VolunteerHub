@@ -1,6 +1,6 @@
 /** @format */
 
-import { protect } from "../middleware/auth.middleware.js";
+import { protect } from "../middlewares/auth.middleware.js";
 import {
   registerForEvent,
   cancelRegistration,
@@ -10,3 +10,5 @@ const router = express.Router();
 
 router.post("/", protect, registerForEvent);
 router.delete("/:id", protect, cancelRegistration);
+
+export default router;
