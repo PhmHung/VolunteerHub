@@ -18,6 +18,7 @@ const users = [
     role: "manager",
     phoneNumber: "",
     status: "active",
+    
   },
   {
     userName: "Nguyễn Văn B",
@@ -39,6 +40,7 @@ const users = [
     userName: "Tình Nguyện Viên Dũng",
     userEmail: "Dungnguyen@gmail.com",
     password: bcrypt.hashSync("MP123$", 10),
+    phoneNumber: "0981234567",
     role: "volunteer",
     status: "active",
   },

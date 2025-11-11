@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema(
       required: true,
       match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
-    password: { type: String, required: true, minlength: 6, maxlength: 32 },
+    password: { type: String, required: true, minlength: 6, maxlength: 255 },
     role: {
       type: String,
       enum: ["volunteer", "manager", "admin"],
@@ -21,8 +21,8 @@ const userSchema = new mongoose.Schema(
     phoneNumber: {
       type: String,
       match: /^0\d{9,10}$/,
-      minlength: 10,
-      maxlength: 11,
+      minlength: 0,
+      maxlength: 12,
     },
     status: {
       type: String,

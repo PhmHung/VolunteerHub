@@ -9,8 +9,6 @@ import {
   allowAdminOrManager,
 } from "../middlewares/auth.middleware.js";
 
-import { register, login } from "../controllers/auth.controller.js";
-
 import {
   updateUserProfile,
   getAllUsers,
@@ -21,11 +19,6 @@ import {
   getUserProfile,
 } from "../controllers/user.controller.js";
 const router = express.Router();
-
-router.post("/", register);
-
-// @route  POST /api/users/login
-router.post("/login", login);
 
 // @route  GET /api/users/profile (Lấy hồ sơ CỦA TÔI)
 // @route  PUT /api/users/profile (Cập nhật hồ sơ CỦA TÔI)

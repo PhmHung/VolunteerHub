@@ -1,11 +1,11 @@
 /** @format */
 
 import mongoose from "mongoose";
-
-import User from "../models/userModel.js";
+import asyncHandler from "express-async-handler";
 import bcrypt from "bcryptjs";
+import User from "../models/userModel.js";
 import Redis from "ioredis";
-import jwt from "jsonwebtoken";
+import generateToken from "../utils/generateToken.js";
 import {
   sendVerificationEmail,
   sendPasswordChangeEmail,
@@ -43,7 +43,7 @@ const checkCode = async (email, code) => {
   return savedCode === code;
 };
 
-export const sendVerificationCode = async (req, res, next) => {
+const sendVerificationCode = async (req, res, next) => {
   try {
     const { email } = req.body;
 
@@ -66,7 +66,7 @@ export const sendVerificationCode = async (req, res, next) => {
   }
 };
 
-export const verifyCode = async (req, res, next) => {
+const verifyCode = async (req, res, next) => {
   try {
     const { email, code } = req.body;
 
@@ -80,100 +80,167 @@ export const verifyCode = async (req, res, next) => {
   }
 };
 
-export const register = async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+// @desc   Login user
+// @route  POST /api/auth/login
+// @access Public
+const loginUser = asyncHandler(async (req, res) => {
+  const { userEmail, password } = req.body;
+  const user = await User.findOne({ userEmail }).select("+password");
 
-  try {
-    const { email, password, name, biography } = req.body;
-
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) {
-      throw new Error(
-        "Password must be at least 8 characters and include uppercase, lowercase, and a number."
-      );
-    }
-
-    if (name.trim() === "") {
-      throw new Error("Name is required and must be a non-empty string");
-    }
-
-    let pictureUrl = null;
-    if (req.file) {
-      pictureUrl = req.file.path; // Cloudinary trả về URL trực tiếp
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const personalInformation = {
-      name,
-      biography: biography || "",
-      picture: pictureUrl,
-    };
-
-    const user = new User({
-      email,
-      password: hashedPassword,
-      personalInformation,
+  if (user && (await bcrypt.compare(password, user.password))) {
+    res.json({
+      _id: user._id,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      role: user.role,
+      phoneNumber: user.phoneNumber,
+      profilePicture: user.profilePicture,
+      token: generateToken(user._id),
     });
-    await user.save({ session });
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN,
-    });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    res.status(201).json({ message: "User created successfully", user, token });
-  } catch (error) {
-    try {
-      await session.abortTransaction();
-    } catch (abortErr) {
-      console.error("Abort failed:", abortErr);
-    }
-    session.endSession();
-    next(error);
+  } else {
+    res.status(401);
+    throw new Error("Email hoặc mật khẩu không hợp lệ.");
   }
+});
+
+// @desc   Login user
+// @route  POST /api/auth/login-firebase
+// @access Public
+const login = async (req, res, next) => {
+  const { idToken } = req.body;
+  if (!idToken) {
+    res.status(400);
+    throw new Error("Firebase ID Token is required.");
+  }
+  let decodedToken;
+  try {
+    decodedToken = await admin.auth().verifyIdToken(idToken);
+  } catch (error) {
+    res.status(401);
+    throw new Error("Invalid or expired Firebase token.");
+  }
+
+  const { email } = decodedToken;
+
+  const user = await User.findOne({ userEmail: email });
+
+  if (!user) {
+    res.status(404);
+    throw new Error("Account not found. Please register first.");
+  }
+
+  const appToken = generateToken(user._id);
+
+  res.status(200).json({
+    message: "Login successful",
+    _id: user._id,
+    userName: user.userName,
+    userEmail: user.userEmail,
+    phoneNumber: user.phoneNumber,
+    profilePicture: user.profilePicture,
+    role: user.role,
+    token: appToken,
+  });
 };
-
-export const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required." });
-    }
-
-    if (!/\S+@\S+\.\S+/.test(email))
-      return res.status(400).json({ message: "Invalid email" });
-
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) {
-      return res.status(401).json({ message: "Email not found." });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid password." });
-    }
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN,
-    });
-
-    console.log(token);
-
-    res.status(200).json({
-      message: "Login successful",
-      picture: user.personalInformation.picture,
-      token,
-    });
-  } catch (error) {
-    next(error);
+// @desc   Register user
+// @route  POST /api/auth/register
+// @access Public
+const registerUser = asyncHandler(async (req, res) => {
+  const { userName, userEmail, password, role, phoneNumber } = req.body;
+  if (!userName || !userEmail || !password || !role) {
+    res.status(400);
+    throw new Error("Vui lòng điền đầy đủ tất cả các trường bắt buộc.");
   }
+  const userExists = await User.findOne({ userEmail });
+
+  if (userExists) {
+    res.status(400);
+    throw new Error("Địa chỉ email này đã được sử dụng.");
+  }
+
+  const user = await User.create({
+    userName,
+    userEmail,
+    password: password,
+    phoneNumber,
+    role: role || "volunteer",
+  });
+
+  if (user) {
+    res.status(201).json({
+      _id: user._id,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      role: user.role,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(400);
+    throw new Error("Dữ liệu người dùng không hợp lệ.");
+  }
+});
+
+// @desc   Login user
+// @route  POST /api/auth/register-firebase
+// @access Public
+const register = async (req, res, next) => {
+  const { idToken } = req.body;
+  if (!idToken) {
+    res.status(400);
+    throw new Error("Firebase ID Token is required.");
+  }
+
+  let decodedToken;
+  try {
+    decodedToken = await admin.auth().verifyIdToken(idToken);
+  } catch (error) {
+    res.status(401);
+    throw new Error("Invalid or expired Firebase token.");
+  }
+
+  const {
+    email,
+    name: firebaseName,
+    picture: firebasePicture,
+    uid: firebaseUid,
+  } = decodedToken;
+
+  const existingUser = await User.findOne({ userEmail: email });
+
+  if (existingUser) {
+    res.status(409);
+    throw new Error("Email already registered. Please login.");
+  }
+
+  const tempPassword = Math.floor(
+    10000000 + Math.random() * 90000000
+  ).toString();
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(tempPassword, salt);
+  const newUser = new User({
+    userEmail: email,
+    password: hashedPassword,
+    userName: firebaseName || email.split("@")[0],
+    role: "volunteer",
+    profilePicture: firebasePicture || null,
+    googleId: firebaseUid,
+    isEmailVerified: true,
+    status: "active",
+  });
+
+  await newUser.save();
+  const appToken = generateToken(newUser._id);
+
+  res.status(201).json({
+    message: "Registration successful",
+    _id: newUser._id,
+    userName: newUser.userName,
+    userEmail: newUser.userEmail,
+    profilePicture: newUser.profilePicture,
+    role: newUser.role,
+    token: appToken,
+  });
 };
 
 // Khởi tạo Firebase Admin
@@ -206,20 +273,13 @@ if (!admin.apps.length) {
   }
 }
 
-export const googleLogin = async (req, res) => {
+const googleLogin = async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) return res.status(400).json({ message: "Missing token" });
-
-    // Verify token từ Firebase
     const decodedToken = await admin.auth().verifyIdToken(token);
-
     const { uid, email, name, picture } = decodedToken;
-
-    // Kiểm tra user trong DB
     let user = await User.findOne({ email });
-
-    // Nếu chưa có user thì tạo mới
     if (!user) {
       const personalInformation = {
         name: name || "No Name",
@@ -262,4 +322,16 @@ export const googleLogin = async (req, res) => {
     console.error("Google login error:", error);
     res.status(401).json({ success: false, message: "Invalid Google token" });
   }
+};
+
+export {
+  saveCode,
+  checkCode,
+  sendVerificationCode,
+  verifyCode,
+  loginUser,
+  login,
+  registerUser,
+  register,
+  googleLogin,
 };

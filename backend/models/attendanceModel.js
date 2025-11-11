@@ -2,21 +2,30 @@
 
 import mongoose from "mongoose";
 
-const feedbackSchema = new mongoose.Schema({
-  rating: {
-    type: Number,
-    min: 1,
-    max: 5, // thang điểm 1–5
+const feedbackSchema = new mongoose.Schema(
+  {
+    rating: {
+      type: Number,
+      min: [1, "Rating must be at least 1"],
+      max: [5, "Rating cannot exceed 5"],
+      required: [true, "Rating is required"],
+    },
+    comment: {
+      type: String,
+      trim: true,
+      maxlength: [300, "Comment cannot exceed 300 characters"],
+      select: false,
+    },
+    submittedAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
-  comment: {
-    type: String,
-    trim: true,
-  },
-});
+  { _id: false } // Không cần ID riêng
+);
 
 const attendanceSchema = new mongoose.Schema(
   {
-    attId: { type: mongoose.Schema.Types.ObjectId },
     regId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Registration",
@@ -29,9 +38,16 @@ const attendanceSchema = new mongoose.Schema(
       enum: ["in-progress", "completed", "absent"],
       default: "in-progress",
     },
-    feedback: feedbackSchema,
+    feedback: {
+      type: feedbackSchema,
+      default: null,
+      select: false,
+    },
   },
   { timestamps: true }
 );
 
+attendanceSchema.index({ regId: 1 }, { unique: true });
+attendanceSchema.index({ "feedback.rating": 1 });
+attendanceSchema.index({ status: 1, checkOut: -1 });
 export default mongoose.model("Attendance", attendanceSchema);
