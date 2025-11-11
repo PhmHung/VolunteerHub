@@ -11,6 +11,7 @@ const eventSchema = new mongoose.Schema(
     endDate: { type: Date, required: true },
     maxParticipants: { type: Number, min: 5, max: 100, required: true },
     currentParticipants: { type: Number, default: 0 },
+    channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel" }, // 1–1
     status: {
       type: String,
       enum: ["pending", "approved", "rejected", "cancelled"],
