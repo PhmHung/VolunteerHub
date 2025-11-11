@@ -2,6 +2,7 @@
 
 import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
+import bcrypt from "bcryptjs";
 import User from "../models/userModel.js";
 import Redis from "ioredis";
 import generateToken from "../utils/generateToken.js";
@@ -84,7 +85,8 @@ const verifyCode = async (req, res, next) => {
 // @access Public
 const loginUser = asyncHandler(async (req, res) => {
   const { userEmail, password } = req.body;
-  const user = await User.findOne({ userEmail });
+  const user = await User.findOne({ userEmail }).select("+password");
+
   if (user && (await bcrypt.compare(password, user.password))) {
     res.json({
       _id: user._id,
@@ -144,7 +146,7 @@ const login = async (req, res, next) => {
 // @route  POST /api/auth/register
 // @access Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { userName, userEmail, password, role } = req.body;
+  const { userName, userEmail, password, role, phoneNumber } = req.body;
   if (!userName || !userEmail || !password || !role) {
     res.status(400);
     throw new Error("Vui lòng điền đầy đủ tất cả các trường bắt buộc.");
@@ -155,13 +157,11 @@ const registerUser = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Địa chỉ email này đã được sử dụng.");
   }
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
 
   const user = await User.create({
     userName,
     userEmail,
-    password: hashedPassword,
+    password: password,
     phoneNumber,
     role: role || "volunteer",
   });
