@@ -1,136 +1,212 @@
 /** @format */
 
 import asyncHandler from "express-async-handler";
-import Event from "../models/eventModel.js"; // Giả định: Import Event Model
-// Có thể cần import thêm Registration Model nếu muốn xóa đăng ký liên quan khi xóa sự kiện
+import Event from "../models/eventModel.js";
+import ApprovalRequest from "../models/approvalRequestModel.js";
+import Registration from "../models/registrationModel.js";
 
-// @desc    Get all events
+// @desc    Get all APPROVED events (Public)
 // @route   GET /api/events
 // @access  Public
 const getEvents = asyncHandler(async (req, res) => {
-  // 1. Xây dựng điều kiện lọc (Query filter)
-  // Ví dụ: Lọc theo từ khóa, trạng thái active, hoặc ngày
-  const filter = {
-    isActive: true, // Chỉ lấy sự kiện đang hoạt động
-    ...req.query,
-  };
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
 
-  // 2. Lấy dữ liệu và phân trang (Pagination)
-  const events = await Event.find(filter)
-    .sort({ date: 1 }) // Sắp xếp theo ngày tăng dần
-    .select("-__v"); // Loại bỏ trường __v của Mongoose
+  const filter = { status: "approved" };
 
-  if (!events || events.length === 0) {
-    return res
-      .status(200)
-      .json({ message: "No active events found.", data: [] });
+  // Tìm kiếm theo từ khóa
+  if (req.query.search) {
+    filter.$or = [
+      { title: { $regex: req.query.search, $options: "i" } },
+      { description: { $regex: req.query.search, $options: "i" } },
+    ];
   }
 
+  // Lọc theo tag
+  if (req.query.tag) {
+    filter.tags = req.query.tag;
+  }
+
+  const events = await Event.find(filter)
+    .sort({ startDate: 1 })
+    .skip(skip)
+    .limit(limit)
+    .select("-__v")
+    .populate("createdBy", "name email");
+
+  const total = await Event.countDocuments(filter);
+
   res.json({
-    message: "List of events retrieved successfully",
-    count: events.length,
+    message: "Danh sách sự kiện được duyệt",
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     data: events,
   });
 });
 
-// @desc    Get single event by ID
+// @desc    Get event by ID (Public nếu approved)
 // @route   GET /api/events/:id
-// @access  Public
 const getEventById = asyncHandler(async (req, res) => {
-  // 1. Tìm sự kiện theo ID
-  const event = await Event.findById(req.params.id).select("-__v");
+  const event = await Event.findById(req.params.id)
+    .populate("createdBy", "name email")
+    .select("-__v");
 
-  // 2. Xử lý trường hợp không tìm thấy
   if (!event) {
     res.status(404);
-    throw new Error(`Event with ID ${req.params.id} not found.`);
+    throw new Error("Sự kiện không tồn tại");
+  }
+
+  // Chỉ cho xem nếu đã duyệt (hoặc là admin/manager)
+  if (
+    event.status !== "approved" &&
+    req.user?.role !== "admin" &&
+    req.user?.role !== "manager"
+  ) {
+    res.status(403);
+    throw new Error("Sự kiện chưa được duyệt");
   }
 
   res.json({
-    message: `Event details for ID: ${req.params.id}`,
+    message: "Chi tiết sự kiện",
     data: event,
   });
 });
 
-// @desc    Create a new event
+// @desc    Manager tạo sự kiện + gửi yêu cầu duyệt
 // @route   POST /api/events
-// @access  Private/Admin
+// @access  Private/Manager
 const createEvent = asyncHandler(async (req, res) => {
-  // req.user._id được lấy từ middleware xác thực (Auth Middleware)
-  const { name, date, location, description } = req.body;
+  const {
+    title,
+    description,
+    location,
+    startDate,
+    endDate,
+    maxParticipants,
+    tags,
+    image,
+  } = req.body;
 
-  // 1. Kiểm tra dữ liệu đầu vào cơ bản
-  if (!name || !date || !location) {
+  if (!title || !startDate || !endDate || !location || !maxParticipants) {
     res.status(400);
-    throw new Error("Please provide name, date, and location for the event.");
+    throw new Error("Vui lòng điền đầy đủ thông tin bắt buộc");
   }
 
-  // 2. Tạo sự kiện mới và lưu người tạo
+  if (new Date(startDate) >= new Date(endDate)) {
+    res.status(400);
+    throw new Error("Ngày bắt đầu phải trước ngày kết thúc");
+  }
+
   const event = await Event.create({
-    name,
-    date,
-    location,
+    title,
     description,
-    createdBy: req.user._id, // Gắn ID người dùng tạo sự kiện
+    location,
+    startDate,
+    endDate,
+    maxParticipants,
+    tags,
+    image,
+    createdBy: req.user._id,
+    status: "pending",
   });
 
+  const approvalRequest = await ApprovalRequest.create({
+    event: event._id,
+    requestedBy: req.user._id,
+  });
+
+  event.approvalRequest = approvalRequest._id;
+  await event.save();
+
   res.status(201).json({
-    message: "Event created successfully",
+    message: "Tạo sự kiện thành công. Đang chờ duyệt.",
     data: event,
   });
 });
 
-// @desc    Update an event
+// @desc    Update event (chỉ manager sở hữu + chưa duyệt)
 // @route   PUT /api/events/:id
-// @access  Private/Admin
+// @access  Private/Manager
 const updateEvent = asyncHandler(async (req, res) => {
-  // 1. Cập nhật sự kiện theo ID, sử dụng dữ liệu từ req.body
   const event = await Event.findById(req.params.id);
 
   if (!event) {
     res.status(404);
-    throw new Error(`Event with ID ${req.params.id} not found.`);
+    throw new Error("Sự kiện không tồn tại");
   }
 
-  // 2. Thêm logic kiểm tra quyền (ví dụ: chỉ Admin hoặc người tạo sự kiện mới được sửa)
-  // if (event.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-  //     res.status(403);
-  //     throw new Error('Not authorized to update this event.');
-  // }
+  // Chỉ manager tạo hoặc admin
+  if (
+    event.createdBy.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
+    res.status(403);
+    throw new Error("Không có quyền chỉnh sửa");
+  }
 
-  // 3. Cập nhật dữ liệu
+  // Không cho sửa nếu đã duyệt
+  if (event.status === "approved") {
+    res.status(400);
+    throw new Error("Không thể sửa sự kiện đã duyệt");
+  }
+
+  const { startDate, endDate } = req.body;
+  if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
+    res.status(400);
+    throw new Error("Ngày bắt đầu phải trước ngày kết thúc");
+  }
+
   const updatedEvent = await Event.findByIdAndUpdate(req.params.id, req.body, {
-    new: true, // Trả về tài liệu đã cập nhật
-    runValidators: true, // Chạy lại các validators của schema
-  }).select("-__v");
+    new: true,
+    runValidators: true,
+  });
 
   res.json({
-    message: `Event ID ${req.params.id} updated successfully`,
+    message: "Cập nhật sự kiện thành công",
     data: updatedEvent,
   });
 });
 
-// @desc    Delete an event
-// @route   DELETE /api/events/:id
+// @desc    Admin duyệt/hủy sự kiện
+// @route   PATCH /api/events/:id/approve
 // @access  Private/Admin
-const deleteEvent = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id);
+const approveEvent = asyncHandler(async (req, res) => {
+  const { status, adminNote } = req.body; // approved | rejected
+  const event = await Event.findById(req.params.id).populate("approvalRequest");
 
   if (!event) {
     res.status(404);
-    throw new Error(`Event with ID ${req.params.id} not found.`);
+    throw new Error("Sự kiện không tồn tại");
   }
 
-  // 1. Xử lý logic phụ thuộc (Nếu có Registration Model)
-  // Ví dụ: Xóa tất cả bản ghi đăng ký liên quan đến sự kiện này
-  // await Registration.deleteMany({ event: req.params.id });
+  if (!event.approvalRequest) {
+    res.status(400);
+    throw new Error("Yêu cầu duyệt không tồn tại");
+  }
 
-  // 2. Xóa sự kiện khỏi DB
-  await event.deleteOne();
+  if (!["approved", "rejected"].includes(status)) {
+    res.status(400);
+    throw new Error("Trạng thái không hợp lệ");
+  }
+
+  event.status = status;
+  await event.save();
+
+  // Cập nhật ApprovalRequest
+  event.approvalRequest.status = status;
+  event.approvalRequest.adminNote = adminNote;
+  event.approvalRequest.reviewedBy = req.user._id;
+  event.approvalRequest.reviewedAt = new Date();
+  await event.approvalRequest.save();
 
   res.json({
-    message: `Event ID ${req.params.id} and all related registrations removed`,
+    message: `Sự kiện đã được ${
+      status === "approved" ? "approved" : "rejected"
+    }`,
+    data: event,
   });
 });
 
-export { getEvents, getEventById, createEvent, updateEvent, deleteEvent };
+registrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
+
+export { getEvents, getEventById, createEvent, updateEvent, approveEvent };

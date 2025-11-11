@@ -16,11 +16,29 @@ const recordCheckIn = asyncHandler(async (req, res) => {
   const { regId } = req.body;
 
   // 1. Xác thực regId
-  const registration = await Registration.findById(regId);
+  const registration = await Registration.findById(regId).populate("eventId");
   if (!registration) {
     res.status(404);
     throw new Error("Registration record not found.");
   }
+
+  //Sự kiện đang diễn ra
+  const event = registration.eventId;
+  const now = new Date();
+
+  // Chuyển now sang múi giờ Việt Nam (+07:00)
+  const nowInVietnam = new Date(
+    now.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" })
+  );
+
+  if (
+    nowInVietnam < new Date(event.startDate) ||
+    nowInVietnam > new Date(event.endDate)
+  ) {
+    res.status(400);
+    throw new Error("Sự kiện chưa bắt đầu hoặc đã kết thúc.");
+  }
+  //
 
   // 2. Kiểm tra xem người này đã điểm danh vào (Check-In) chưa
   let attendance = await Attendance.findOne({ regId });
@@ -57,8 +75,11 @@ const recordCheckIn = asyncHandler(async (req, res) => {
 const recordCheckOut = asyncHandler(async (req, res) => {
   const { regId } = req.body;
 
-  // 1. Tìm bản ghi điểm danh
-  const attendance = await Attendance.findOne({ regId });
+  // 1. Tìm attendance + populate registration + event
+  const attendance = await Attendance.findOne({ regId }).populate({
+    path: "regId",
+    populate: { path: "eventId" }, // Lấy thông tin event
+  });
 
   if (!attendance) {
     res.status(404);
@@ -75,16 +96,37 @@ const recordCheckOut = asyncHandler(async (req, res) => {
     throw new Error("User has already checked out.");
   }
 
-  // 2. Cập nhật Check-Out và Status
-  attendance.checkOut = Date.now();
+  // === THÊM: KIỂM TRA SỰ KIỆN CÒN DIỄN RA KHÔNG ===
+  const event = attendance.regId.eventId;
+  const now = new Date();
+  const nowInVietnam = new Date(
+    now.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" })
+  );
+
+  // Cho phép check-out TRƯỚC HOẶC TRONG THỜI GIAN sự kiện
+  if (nowInVietnam > new Date(event.endDate)) {
+    res.status(400);
+    throw new Error("Sự kiện đã kết thúc. Không thể check-out.");
+  }
+  // === HẾT PHẦN SỬA ===
+
+  // Cập nhật check-out với giờ Việt Nam
+  attendance.checkOut = nowInVietnam;
   attendance.status = "completed";
   await attendance.save();
+
+  // Tính thời gian tham gia (ms)
+  const durationMs = attendance.checkOut - attendance.checkIn;
+  const durationMinutes = Math.floor(durationMs / 60000); // Chuyển sang phút
 
   res.json({
     message: "Check-Out recorded successfully. Attendance completed.",
     attendanceId: attendance._id,
     checkOutTime: attendance.checkOut,
-    duration: attendance.checkOut - attendance.checkIn, // Thời gian tham gia (miligiây)
+    duration: {
+      milliseconds: durationMs,
+      minutes: durationMinutes,
+    },
   });
 });
 
@@ -150,4 +192,89 @@ const getAttendanceByRegId = asyncHandler(async (req, res) => {
   });
 });
 
-export { recordCheckIn, recordCheckOut, addFeedback, getAttendanceByRegId };
+// @desc    Lấy rating công khai của sự kiện (Public)
+// @route   GET /api/events/:eventId/rating
+// @access  Public
+const getEventPublicRating = asyncHandler(async (req, res) => {
+  const { eventId } = req.params;
+
+  const stats = await Attendance.aggregate([
+    {
+      $lookup: {
+        from: "registrations",
+        localField: "regId",
+        foreignField: "_id",
+        as: "reg",
+      },
+    },
+    { $unwind: "$reg" },
+    {
+      $match: {
+        "reg.eventId": mongoose.Types.ObjectId.createFromHexString(eventId),
+        feedback: { $ne: null },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        avgRating: { $avg: "$feedback.rating" },
+        totalRatings: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const result = stats[0] || { avgRating: 0, totalRatings: 0 };
+
+  res.json({
+    message: "Public event rating",
+    data: {
+      averageRating: result.avgRating ? Number(result.avgRating.toFixed(2)) : 0,
+      totalRatings: result.totalRatings,
+    },
+  });
+});
+
+// @desc    Xem toàn bộ feedback + comment (Manager/Admin)
+// @route   GET /api/events/:eventId/feedbacks
+// @access  Private/Manager
+const getEventPrivateFeedbacks = asyncHandler(async (req, res) => {
+  const { eventId } = req.params;
+
+  const event = await Event.findById(eventId);
+  if (!event) throw new Error("Event not found");
+
+  const isManager = event.createdBy.toString() === req.user._id.toString();
+  const isAdmin = req.user.role === "admin";
+  if (!isManager && !isAdmin) throw new Error("Not authorized");
+
+  const feedbacks = await Attendance.find({
+    regId: {
+      $in: await Registration.find({ eventId }).select("_id"),
+    },
+    feedback: { $ne: null },
+  })
+    .select("+feedback") // BẮT BUỘC: bật field bị ẩn
+    .populate({
+      path: "regId",
+      populate: { path: "userId", select: "name email" },
+    });
+
+  res.json({
+    message: "Private feedbacks (Manager/Admin only)",
+    data: feedbacks.map((f) => ({
+      user: f.regId.userId.name,
+      rating: f.feedback.rating,
+      comment: f.feedback.comment,
+      submittedAt: f.feedback.submittedAt,
+    })),
+  });
+});
+
+export {
+  recordCheckIn,
+  recordCheckOut,
+  addFeedback,
+  getAttendanceByRegId,
+  getEventPublicRating,
+  getEventPrivateFeedbacks,
+};
