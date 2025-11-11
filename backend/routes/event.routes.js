@@ -12,13 +12,13 @@ import {
   protect,
   allowAdminOnly,
   allowAdminOrManager,
-} from "../middleware/auth.middleware.js";
+} from "../middlewares/auth.middleware.js";
 
 import {
   getEventPublicRating,
   getEventPrivateFeedbacks,
 } from "../controllers/attendance.controller.js";
-import { canModifyEvent } from "../middleware/event.middleware.js";
+import { canModifyEvent } from "../middlewares/event.middleware.js";
 
 const router = express.Router();
 
