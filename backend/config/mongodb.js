@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 
 dotenv.config({ path: ".env.development.local" });
 
-export const connectDB = async () => {
+const connectDB = async () => {
   try {
     if (!process.env.MONGO_URI) {
       throw new Error("MONGO_URI is not defined in .env.development.local");
@@ -29,3 +29,4 @@ export const connectDB = async () => {
     console.error(" MongoDB runtime error:", err);
   });
 };
+export default connectDB;
