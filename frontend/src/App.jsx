@@ -1,4 +1,5 @@
 import Information from "./Information.jsx";
+import api from "./api.js";
 import { useState, useEffect, useCallback } from "react";
 import AuthModal from "./pages/AuthModal.jsx";
 import { Routes, Route, Navigate } from "react-router-dom";
@@ -8,8 +9,10 @@ import Dashboard from "./pages/dashboard.jsx";
 import Footer from "./components/Footer.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
+import ManagerDashboard from "./pages/ManagerDashboard.jsx";
 import Events from "./pages/events.jsx";
 import About from "./pages/AboutUs.jsx";
+import Media from "./pages/Media.jsx";
 import { USE_MOCK, MOCK_USER } from "./utils/mockUser.js";
 
 export default function App() {
@@ -40,34 +43,16 @@ export default function App() {
         return null;
       }
 
-      const userId = decodeUserIdFromToken(token);
-      if (!userId) {
-        setUser(null);
-        return null;
-      }
-
+      // call protected "my profile" endpoint
       try {
-        const res = await fetch(`http://localhost:5000/user/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          console.error("Failed to fetch user profile", res.status);
-          if (res.status === 401 || res.status === 403) {
-            localStorage.removeItem("token");
-          }
-          setUser(null);
-          return null;
-        }
-
-        const data = await res.json();
+        const { data } = await api.get("/user/profile");
         setUser(data);
         return data;
-      } catch (error)   {
+      } catch (error) {
         console.error("Error fetching user profile:", error);
-        localStorage.removeItem("token");
+        // remove token if unauthorized
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) localStorage.removeItem("token");
         setUser(null);
         return null;
       }
@@ -178,8 +163,15 @@ export default function App() {
               path="/about"
               element={<About user={user} openAuth={setAuthModal} />}
             />
+            <Route
+              path="/media"
+              element={<Media user={user} openAuth={setAuthModal} />}
+            />
              <Route element={<ProtectedRoute user={user} requiredRole="admin" />}>
               <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />
+            </Route>
+            <Route element={<ProtectedRoute user={user} requiredRole="manager" />}>
+              <Route path="/manager/dashboard" element={<ManagerDashboard user={user} />} />
             </Route>
 
             <Route path="/events" element={<Events user={user} openAuth={setAuthModal} />} />

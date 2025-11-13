@@ -1,11 +1,19 @@
 import { useState, useMemo, useEffect } from "react";
-import { Calendar, MapPin, Users, Clock, Search, Filter, Plus, CheckCircle, XCircle, Eye } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Search, Filter, Plus, CheckCircle, XCircle, Eye, History } from "lucide-react";
 import { MOCK_EVENTS, EVENT_CATEGORIES, EVENT_STATUS } from "../data/mockEvents";
 import { motion } from "framer-motion";
+
+const TIME_FILTERS = [
+  { label: "Tất cả", value: "all" },
+  { label: "Đang diễn ra", value: "ongoing" },
+  { label: "Sắp diễn ra", value: "upcoming" },
+  { label: "Đã diễn ra", value: "past" },
+];
 
 export default function EventsPage({ user, openAuth }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
+  const [timeFilter, setTimeFilter] = useState("all"); // all | upcoming | past
   const [statusFilter, setStatusFilter] = useState("all"); // all | approved | pending
   const [eventsData, setEventsData] = useState(() =>
     MOCK_EVENTS.map((event) => ({
@@ -14,6 +22,7 @@ export default function EventsPage({ user, openAuth }) {
     }))
   );
   const [registeredEventIds, setRegisteredEventIds] = useState([]);
+  const [participationHistory, setParticipationHistory] = useState([]);
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -25,15 +34,24 @@ export default function EventsPage({ user, openAuth }) {
   // Filter events based on search, category, and status
   const filteredEvents = useMemo(() => {
     return eventsData.filter((event) => {
-      const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          event.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch =
+        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === "Tất cả" || event.category === selectedCategory;
       const matchesStatus = statusFilter === "all" || event.status === statusFilter;
-      
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
-  }, [searchQuery, selectedCategory, statusFilter, eventsData]);
 
+  const now = new Date();
+  const eventStart = new Date(event.startDate || `${event.date}T${event.startTime}`);
+  const eventEnd = new Date(event.endDate || `${event.date}T${event.endTime}`);
+      const matchesTime =
+        timeFilter === "all" ||
+        (timeFilter === "upcoming" && eventStart > now) ||
+        (timeFilter === "ongoing" && eventStart <= now && eventEnd >= now) ||
+        (timeFilter === "past" && eventEnd < now);
+
+      return matchesSearch && matchesCategory && matchesStatus && matchesTime;
+    });
+  }, [searchQuery, selectedCategory, statusFilter, timeFilter, eventsData]);
   const handleRegister = (eventId) => {
     if (!user) {
       openAuth?.("login");
@@ -61,15 +79,27 @@ export default function EventsPage({ user, openAuth }) {
       )
     );
     setRegisteredEventIds((prev) => [...prev, eventId]);
+    const registerTimestamp = Date.now();
+    setParticipationHistory((prev) => [
+      {
+        id: `${eventId}-${registerTimestamp}`,
+        eventId,
+        title: event.title,
+        date: event.date,
+        action: "registered",
+        timestamp: registerTimestamp,
+      },
+      ...prev,
+    ]);
     setToast({ type: "success", message: `Đăng ký thành công cho sự kiện "${event.title}"!` });
   };
 
   const handleCancelRegistration = (eventId) => {
-    if(!user) {
+    if (!user) {
       openAuth?.("login");
       return;
     }
-    if(!registeredEventIds.includes(eventId)) {
+    if (!registeredEventIds.includes(eventId)) {
       setToast({ type: "info", message: "Bạn chưa đăng ký sự kiện này." });
       return;
     }
@@ -87,6 +117,18 @@ export default function EventsPage({ user, openAuth }) {
       )
     );
     setRegisteredEventIds((prev) => prev.filter((id) => id !== eventId));
+    const cancelTimestamp = Date.now();
+    setParticipationHistory((prev) => [
+      {
+        id: `${eventId}-${cancelTimestamp}`,
+        eventId,
+        title: event.title,
+        date: event.date,
+        action: "cancelled",
+        timestamp: cancelTimestamp,
+      },
+      ...prev,
+    ]);
     setToast({ type: "success", message: `Đã hủy đăng ký sự kiện "${event.title}"!` });
   };
 
@@ -96,16 +138,6 @@ export default function EventsPage({ user, openAuth }) {
 
   const handleReject = (eventId) => {
     alert(`Từ chối sự kiện ${eventId} - Tính năng đang phát triển`);
-  };
-
-  const handleEdit = (eventId) => {
-    alert(`Chỉnh sửa sự kiện ${eventId} - Tính năng đang phát triển`);
-  };
-
-  const handleDelete = (eventId) => {
-    if (window.confirm("Bạn có chắc muốn xóa sự kiện này?")) {
-      alert(`Xóa sự kiện ${eventId} - Tính năng đang phát triển`);
-    }
   };
 
   const isVolunteer = user?.role === "volunteer";
@@ -126,7 +158,7 @@ export default function EventsPage({ user, openAuth }) {
             </div>
             
             {/* Manager/Admin can create events */}
-            {(isManager || isAdmin) && (
+            {(isAdmin) && (
               <button
                 onClick={() => alert("Tạo sự kiện mới - Tính năng đang phát triển")}
                 className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:from-indigo-600 hover:to-indigo-700 shadow-md"
@@ -187,7 +219,20 @@ export default function EventsPage({ user, openAuth }) {
               ))}
             </div>
           </div>
-
+          <div className="mt-4 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-slate-500" />
+            {TIME_FILTERS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setTimeFilter(value)}
+                className={`rounded-lg px-3 py-1 text-sm font-medium ${
+                  timeFilter === value ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           {/* Status filter (Admin/Manager only) */}
           {(isAdmin || isManager) && (
             <div className="mt-4 flex items-center gap-2 pt-4 border-t border-slate-100">
@@ -262,9 +307,15 @@ export default function EventsPage({ user, openAuth }) {
                   <div className="space-y-2 text-sm text-slate-600">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-slate-400" />
-                      <span>{new Date(event.date).toLocaleDateString("vi-VN")}</span>
+                      <span>
+                        {new Date(event.startDate || `${event.date}T${event.startTime}`).toLocaleDateString("vi-VN")}
+                      </span>
                       <Clock className="h-4 w-4 text-slate-400 ml-2" />
-                      <span>{event.startTime} - {event.endTime}</span>
+                      <span>
+                        {event.startDate && event.endDate
+                          ? `${new Date(event.startDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${new Date(event.endDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+                          : `${event.startTime} - ${event.endTime}`}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-slate-400" />
@@ -272,7 +323,9 @@ export default function EventsPage({ user, openAuth }) {
                     </div>
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-slate-400" />
-                      <span>{event.registered}/{event.slots} người đã đăng ký</span>
+                      <span>
+                        {(event.currentParticipants ?? event.registered)}/{(event.maxParticipants ?? event.slots)} người đã đăng ký
+                      </span>
                     </div>
                   </div>
 
@@ -319,23 +372,7 @@ export default function EventsPage({ user, openAuth }) {
                       </>
                     )}
 
-                    {/* Manager actions */}
-                    {isManager && (
-                      <>
-                        <button
-                          onClick={() => handleEdit(event.id)}
-                          className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          Chỉnh sửa
-                        </button>
-                        <button
-                          onClick={() => handleDelete(event.id)}
-                          className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-                        >
-                          Xóa
-                        </button>
-                      </>
-                    )}
+                  
 
                     {/* Admin actions */}
                     {isAdmin && (
@@ -373,6 +410,41 @@ export default function EventsPage({ user, openAuth }) {
             })
           )}
         </section>
+
+        {user && participationHistory.length > 0 && (
+          <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+            <div className="flex items-center gap-2 text-slate-900">
+              <History className="h-5 w-5 text-indigo-500" />
+              <h2 className="text-lg font-semibold">Lịch sử tham gia của bạn</h2>
+            </div>
+            <ul className="mt-4 space-y-3">
+              {participationHistory.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="flex flex-col gap-1 rounded-lg border border-slate-100 bg-slate-50 p-4 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-900">{entry.title}</span>
+                    <span className="text-xs text-slate-500">
+                      {new Date(entry.timestamp).toLocaleString("vi-VN")}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-slate-600">
+                    <span>{new Date(entry.date).toLocaleDateString("vi-VN")}</span>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        entry.action === "registered"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-rose-100 text-rose-700"
+                      }`}
+                    >
+                      {entry.action === "registered" ? "Đã đăng ký" : "Đã hủy đăng ký"}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Info banner for non-logged users */}
         {!user && (

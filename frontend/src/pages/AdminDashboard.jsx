@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { approvalRequestApi } from '../api';
 
 const SUMMARY_CARDS = [
   { label: "Tổng số tình nguyện viên", value: 1284, change: "+8.2% tuần này" },
@@ -49,12 +50,14 @@ const TONE_CLASSES = {
 };
 
 export default function AdminDashboard({ user }) {
+  const displayName = user?.personalInformation?.name || user?.userName || user?.name || "Người quản trị";
+
   return (
     <div className="w-full min-h-screen bg-slate-50 px-6 py-10">
       <div className="max-w-6xl mx-auto space-y-10">
         <header className="space-y-2">
           <p className="text-sm uppercase tracking-wide text-slate-500">Bảng điều khiển</p>
-          <h1 className="text-3xl font-bold text-slate-900">Chào mừng bạn quay lại, {user.personalInformation.name}!</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Chào mừng bạn quay lại, {displayName}!</h1>
           <p className="text-base text-slate-600">
             Theo dõi hoạt động của cộng đồng tình nguyện, xử lý đơn đăng ký và khởi động các chiến dịch mới.
           </p>

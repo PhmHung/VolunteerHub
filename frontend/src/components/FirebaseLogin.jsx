@@ -1,5 +1,6 @@
 import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../config/firebase";
+import api from "../api.js";
 import { USE_MOCK, MOCK_USER } from "../utils/mockUser.js";
 
 const GOOGLE_ICON =
@@ -16,13 +17,7 @@ export default function FirebaseLogin({ onSuccess }) {
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
 
-      const res = await fetch("http://localhost:5000/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: idToken }),
-      });
-
-      const data = await res.json();
+      const { data } = await api.post("/auth/google", { token: idToken });
 
       if (data?.token) {
         localStorage.setItem("token", data.token);

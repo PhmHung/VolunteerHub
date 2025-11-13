@@ -1,38 +1,66 @@
 import { motion } from "framer-motion";
-import { Sparkles, LogOut, LogIn, Menu, X, Home as HomeIcon, Info as InfoIcon, Calendar, ShieldCheck } from "lucide-react";
-import React, { useState } from "react";
+import {
+  Sparkles,
+  LogOut,
+  LogIn,
+  Menu,
+  X,
+  Home as HomeIcon,
+  Info as InfoIcon,
+  Calendar,
+  ShieldCheck,
+} from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import api, { fullUrl } from "../api.js";
 import { Link, useLocation } from "react-router-dom";
 
 // Header now expects `user` (object) instead of separate token/picture props.
 // App.jsx passes `user` and `setAuthModal` and `handleLogout`.
 export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const location = useLocation();
+  const profileRef = useRef(null);
   // Derive token/picture from user object for backward compatibility
   const token = !!user;
-  const picture = user?.personalInformation?.picture || user?.picture || null;
-  const displayName = user?.personalInformation?.name || user?.name || "";
+  const picture = user?.personalInformation?.picture || user?.profilePicture || user?.picture || null;
+  const displayName = user?.personalInformation?.name || user?.userName || user?.name || "";
   const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "";
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setProfileOpen(false);
+  }, [location.pathname]);
 
   // Provide default pages if parent doesn't pass PAGES
   const defaultPages = [
     token
       ? { key: "Dashboard", path: "/dashboard", icon: HomeIcon }
       : { key: "Home", path: "/", icon: HomeIcon },
-    ...(token ? [{ key: "Information", path: "/information", icon: InfoIcon }] : []),
     { key: "Events", path: "/events", icon: Calendar },
     { key: "About Us", path: "/about", icon: InfoIcon },
     ...(token && user.role === 'admin' ? [{ key: "Admin", path: "/admin/dashboard", icon: ShieldCheck }] : []),
+    ...(token && user.role === 'manager' ? [{ key: "Manager", path: "/manager/dashboard", icon: ShieldCheck }] : []),
   ];
   PAGES = PAGES && PAGES.length ? PAGES : defaultPages;
   return (
-    <header className="sticky top-0 z-30 backdrop-blur-xl supports-[backdrop-filter]:bg-white/40 bg-white/50 border-white/40">
-      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+    <header className="sticky top-0 z-30 border-b border-white/30 bg-surface-base/80 backdrop-blur-xl supports-[backdrop-filter]:bg-surface-base/70">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-3">
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
             <div className="relative">
-              <Sparkles className="absolute -top-2 -right-2 h-4 w-4 text-[#FFC107]" />
+              <Sparkles className="absolute -top-2 -right-2 h-4 w-4 text-brand-accent" />
               <img 
                 src="/logo.svg" 
                 alt="VolunteerHub Logo" 
@@ -41,10 +69,10 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
             </div>
           </motion.div>
           <div>
-            <p className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-[#005A9C] via-[#0077CC] to-[#F4A261]">
+            <p className="bg-gradient-to-r from-brand-primary via-brand-secondary/90 to-brand-accent bg-clip-text text-xl font-extrabold text-transparent">
               VolunteerHub
             </p>
-            <h1 className="text-sm uppercase tracking-widest text-slate-600">for community</h1>
+            <h1 className="text-xs uppercase tracking-[0.4em] text-slate-600">for community</h1>
           </div>
         </div>
 
@@ -64,8 +92,8 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                   to={page.path}
                   className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-medium transition ${
                     isActive
-                      ? "bg-gradient-to-r from-[#A8D0E6]/70 to-[#A8D0E6]/50 text-[#005A9C]"
-                      : "text-slate-700 hover:bg-white/60"
+                      ? "bg-brand-primary/10 text-brand-primary shadow-sm"
+                      : "text-slate-600 hover:bg-surface-muted"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -78,47 +106,86 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
           {/* Mobile menu button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-white/60"
+            className="rounded-xl p-2 text-slate-600 transition hover:bg-surface-muted md:hidden"
           >
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
           {token ? (
             <div className="flex items-center gap-3">
-              <div className="flex flex-col items-end leading-tight">
-                {displayName ? (
-                  <span className="text-sm font-semibold text-slate-900">{displayName}</span>
-                ) : null}
-                {roleLabel ? (
-                  <span className="text-xs font-medium text-slate-500">{roleLabel}</span>
-                ) : null}
-              </div>
-              <div className="h-10 w-10 rounded-full overflow-hidden border border-slate-300 bg-white">
-                {picture ? (
-                  <img
-                    src={picture.startsWith("http") ? picture : `http://localhost:5000${picture}`}
-                    alt="Avatar"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-slate-600">
-                    {displayName ? displayName.charAt(0).toUpperCase() : "U"}
+              <div className="relative" ref={profileRef}>
+                <button
+                  type="button"
+                  onClick={() => setProfileOpen((open) => !open)}
+                  aria-haspopup="true"
+                  aria-expanded={profileOpen}
+                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-brand-primary/20 bg-surface-base shadow-sm transition hover:border-brand-primary/60"
+                >
+                  {picture ? (
+                    <img
+                      src={fullUrl(picture)}
+                      alt="Ảnh đại diện"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-semibold text-slate-600">
+                      {displayName ? displayName.charAt(0).toUpperCase() : "U"}
+                    </span>
+                  )}
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute right-0 z-40 mt-3 w-64 rounded-2xl border border-brand-primary/10 bg-surface-base/95 p-4 shadow-xl backdrop-blur">
+                    <div className="flex items-start gap-3">
+                      <div className="h-12 w-12 overflow-hidden rounded-full border border-brand-primary/20 bg-surface-muted">
+                        {picture ? (
+                          <img
+                            src={fullUrl(picture)}
+                            alt="Ảnh đại diện"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-500">
+                            {displayName ? displayName.charAt(0).toUpperCase() : "U"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900">{displayName || "Tài khoản"}</p>
+                        {roleLabel ? (
+                          <p className="text-xs font-medium text-brand-primary/80">{roleLabel}</p>
+                        ) : null}
+                        <p className="truncate text-xs text-slate-500">{user.userEmail || user.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-2 text-sm">
+                      <Link
+                        to="/information"
+                        onClick={() => setProfileOpen(false)}
+                        className="block rounded-xl bg-surface-muted px-3 py-2 font-medium text-slate-700 transition hover:bg-brand-primary/10 hover:text-brand-primary"
+                      >
+                        Xem thông tin cá nhân
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileOpen(false);
+                          handleLogout();
+                        }}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-feedback-danger/30 bg-feedback-danger/10 px-3 py-2 font-semibold text-feedback-danger transition hover:bg-feedback-danger/20"
+                      >
+                        <LogOut className="h-4 w-4" /> Đăng xuất
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
-
-              <button
-                onClick={handleLogout}
-                className={`px-3 py-2 flex items-center gap-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-2xl transition-colors duration-200 text-base border border-red-200`}
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
             </div>
           ) : (
             <>
               <button
                 onClick={() => setAuthModal("login")}
-                className={`px-3 py-2 flex items-center gap-1 bg-[#A8D0E6] hover:bg-[#8CBCD9] text-[#005A9C] rounded-2xl transition-colors duration-200 text-base font-medium`}
+                className="flex items-center gap-2 rounded-2xl border border-brand-primary/40 bg-surface-base px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/10"
               >
                 <LogIn className="h-4 w-4" />
                 Login
@@ -126,7 +193,7 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
 
               <button
                 onClick={() => setAuthModal("register")}
-                className={`px-3 py-2 flex items-center gap-1 bg-gradient-to-r from-[#F4A261] to-[#FFC107] hover:from-[#E08B3E] hover:to-[#FFB300] text-white rounded-2xl transition-colors duration-200 text-base font-medium shadow-md`}
+                className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-secondary via-brand-secondary to-brand-accent px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:from-brand-secondary/90 hover:to-brand-accent/90"
               >
                 Register
               </button>
@@ -136,7 +203,7 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
       </div>
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-white/40 shadow-lg">
+        <div className="absolute left-0 right-0 top-16 border-b border-white/40 bg-surface-base/95 backdrop-blur-xl shadow-lg md:hidden">
           <nav className="px-4 py-3 space-y-2">
             {PAGES.map((page) => {
               if (page.requiresAuth && !token) {
@@ -149,10 +216,10 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                   key={page.key}
                   to={page.path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition ${
                     isActive
-                      ? "bg-gradient-to-r from-[#A8D0E6]/70 to-[#A8D0E6]/50 text-[#005A9C]"
-                      : "text-slate-700 hover:bg-white/80"
+                      ? "bg-brand-primary/10 text-brand-primary"
+                      : "text-slate-600 hover:bg-surface-muted"
                   }`}
                 >
                   <Icon className="h-5 w-5" />

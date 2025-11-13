@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
-import axios from "axios"; // HTTP client
+import api from "../api.js"; // centralized API client
 import FirebaseLogin from "../components/FirebaseLogin"; // Component login bằng Firebase
 import { USE_MOCK, MOCK_USER } from "../utils/mockUser.js";
 
@@ -13,6 +13,10 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
   const [role, setRole] = useState("volunteer"); // Vai trò: "volunteer" hoặc "admin"
   const [biography, setBiography] = useState(""); // Tiểu sử (optional)
   const [registeredPicture, setRegisteredPicture] = useState(null); // File ảnh đại diện
+  // Extra fields shown when role === 'admin' or 'manager'
+  const [roleOrg, setRoleOrg] = useState("");
+  const [rolePhone, setRolePhone] = useState("");
+  const [roleNote, setRoleNote] = useState("");
 
   // States cho flow đăng ký (3 bước)
   // Step 0: Nhập email → Gửi mã xác thực
@@ -51,8 +55,8 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         return;
       }
 
-      // Gọi API gửi verification code
-      await axios.post("http://localhost:5000/auth/sendVerificationCode", { email });
+  // Gọi API gửi verification code
+  await api.post("/auth/sendVerificationCode", { email });
       setStep(1); // Chuyển sang step 1 (nhập code)
       setError(""); // Clear error
     } catch (err) {
@@ -81,8 +85,8 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         return;
       }
 
-      // Gọi API verify code
-      await axios.post("http://localhost:5000/auth/verifyCode", { email, code });
+  // Gọi API verify code
+  await api.post("/auth/verifyCode", { email, code });
       setStep(2); // Chuyển sang step 2 (hoàn tất profile)
       setError("");
     } catch (err) {
@@ -111,16 +115,15 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
 
     try {
         if (USE_MOCK) {
-          const isAdminMock = MOCK_USER.role === "admin";
-          const successMessage = isAdminMock
-            ? "Chế độ mô phỏng: đang sử dụng tài khoản Quản trị viên."
-            : "Chế độ mô phỏng: đang sử dụng tài khoản Tình nguyện viên.";
+          const roleLabel = MOCK_USER.role === "admin" ? "Quản trị viên" : MOCK_USER.role === "manager" ? "Người quản lý" : "Tình nguyện viên";
+          const delay = MOCK_USER.role === "admin" ? 4000 : MOCK_USER.role === "manager" ? 3000 : 2000;
+          const successMessage = `Chế độ mô phỏng: đang sử dụng tài khoản ${roleLabel}.`;
 
           setSuccess(successMessage);
           setError("");
           setTimeout(() => {
             onSuccess({ user: MOCK_USER });
-          }, isAdminMock ? 4000 : 2000);
+          }, delay);
           return;
         }
 
@@ -139,9 +142,9 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         }
         
         // Gọi API register với multipart/form-data header
-        const res = await axios.post("http://localhost:5000/auth/register", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        });
+  const res = await api.post("/auth/register", formData, {
+  headers: { "Content-Type": "multipart/form-data" },
+  });
 
         // Xác định success message dựa trên role
         const successMessage = role === 'admin' 
@@ -180,21 +183,18 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
 
     try {
       if (USE_MOCK) {
-        const isAdminMock = MOCK_USER.role === "admin";
-        setSuccess(
-          isAdminMock
-            ? "Chế độ mô phỏng: đăng nhập với quyền Quản trị viên."
-            : "Chế độ mô phỏng: đăng nhập với quyền Tình nguyện viên."
-        );
+        const roleLabel = MOCK_USER.role === "admin" ? "Quản trị viên" : MOCK_USER.role === "manager" ? "Người quản lý" : "Tình nguyện viên";
+        const delay = MOCK_USER.role === "admin" ? 1500 : MOCK_USER.role === "manager" ? 1200 : 1000;
+        setSuccess(`Chế độ mô phỏng: đăng nhập với quyền ${roleLabel}.`);
         setError("");
         setTimeout(() => {
           onSuccess({ user: MOCK_USER });
-        }, isAdminMock ? 1500 : 1000);
+        }, delay);
         return;
       }
 
       // Gọi API login
-      const res = await axios.post("http://localhost:5000/auth/login", { email, password });
+  const res = await api.post("/auth/login", { email, password });
       
       // Hiển thị success message NGAY LẬP TỨC
       setSuccess("Login successful!");
@@ -260,7 +260,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
             Chế độ mô phỏng đang bật: tài khoản sẽ có quyền
             {" "}
             <span className="font-semibold">
-              {MOCK_USER.role === "admin" ? "Quản trị viên" : "Tình nguyện viên"}
+              {MOCK_USER.role === "admin" ? "Quản trị viên" : MOCK_USER.role === "manager" ? "Người quản lý" : "Tình nguyện viên"}
             </span>
             .
           </div>
@@ -394,6 +394,16 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                     className="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent transition-all outline-none resize-none text-sm sm:text-base"
                   />
                 </div>
+                   <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Số điện thoại liên hệ</label>
+                  <input
+                    type="tel"
+                    placeholder="Ví dụ: 0987654321"
+                    value={rolePhone}
+                    onChange={(e) => setRolePhone(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent text-sm"
+                  />
+                </div>  
                 {/* === BƯỚC 2: Thêm UI chọn vai trò === */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Vai trò của bạn</label>
@@ -420,8 +430,75 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                   />
                   <span className="text-sm text-gray-700">Quản trị viên</span>
                 </label>
+                <label className="flex items-center gap-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="manager"
+                    checked={role === "manager"}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="h-4 w-4 text-[#005A9C] focus:ring-[#0077CC] border-gray-300"
+                  />
+                  <span className="text-sm text-gray-700">Người quản lý</span>
+                </label>
               </div>
             </div>
+            {/* Conditional role-request details form */}
+            {(role === 'admin' || role === 'manager') && (
+              <div className="mt-3 space-y-3">
+                <p className="text-sm text-slate-600">Bạn đã chọn vai trò <strong>{role === 'admin' ? 'Quản trị viên' : 'Người quản lý'}</strong>. Vui lòng cung cấp thêm thông tin để chúng tôi xem xét yêu cầu.</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Tên tổ chức / Đơn vị</label>
+                  <input
+                    type="text"
+                    placeholder={role === 'admin' ? 'Tên tổ chức / cơ quan' : 'Tên đội / đơn vị quản lý'}
+                    value={roleOrg}
+                    onChange={(e) => setRoleOrg(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent text-sm"
+                  />
+                </div>
+             
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Ghi chú / Lý do</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Nêu lý do hoặc chứng minh năng lực (ví dụ: tư cách tổ chức, kinh nghiệm quản lý...)"
+                    value={roleNote}
+                    onChange={(e) => setRoleNote(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent text-sm resize-none"
+                  />
+                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Minh chứng hoặc chứng chỉ</label>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={(e) => {
+                        const f = e.target.files && e.target.files[0];
+                        if (!f) return;
+                        const ok = f.type.startsWith("image/") || f.type === "application/pdf";
+                        if (!ok) {
+                          setError("Vui lòng chọn file ảnh (jpg/png/...) hoặc PDF.");
+                          // reset the input so user can pick again
+                          e.target.value = "";
+                          return;
+                        }
+                        // optional: limit size to 5MB
+                        const maxBytes = 5 * 1024 * 1024;
+                        if (f.size > maxBytes) {
+                          setError("File quá lớn. Vui lòng chọn file nhỏ hơn 5MB.");
+                          e.target.value = "";
+                          return;
+                        }
+                        setError("");
+                        setRegisteredPicture(f);
+                      }}
+                      className="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent transition-all outline-none file:mr-2 sm:file:mr-4 file:py-1.5 sm:file:py-2 file:px-3 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-[#A8D0E6] file:text-[#005A9C] hover:file:bg-[#8CBCD9] text-sm sm:text-base"
+                    />
+                  </div>
+
+              </div>
+            )}
               </div>
             )}
 
