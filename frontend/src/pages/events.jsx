@@ -21,9 +21,16 @@ export default function EventsPage({ user, openAuth }) {
       registered: Number.isFinite(event.registered) ? event.registered : 0,
     }))
   );
-  const [registeredEventIds, setRegisteredEventIds] = useState([]);
+  const [registeredEventIds, setRegisteredEventIds] = useState(() => {
+    const saved = localStorage.getItem("registeredEvents");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [participationHistory, setParticipationHistory] = useState([]);
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    localStorage.setItem("registeredEvents", JSON.stringify(registeredEventIds));
+  }, [registeredEventIds]);
 
   useEffect(() => {
     if (!toast) return undefined;

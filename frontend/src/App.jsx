@@ -165,7 +165,11 @@ export default function App() {
             />
             <Route
               path="/media"
-              element={<Media user={user} openAuth={setAuthModal} />}
+              element={
+                <ProtectedRoute user={user}>
+                  <Media user={user} openAuth={setAuthModal} />
+                </ProtectedRoute>
+              }
             />
              <Route element={<ProtectedRoute user={user} requiredRole="admin" />}>
               <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />

@@ -54,15 +54,15 @@ const Hero = ({
 
   return (
     <section
-      className={`relative flex min-h-screen w-full items-center justify-center overflow-hidden ${alignment.section}`}
+      className={`relative flex min-h-screen w-full items-center justify-center ${alignment.section}`}
+      style={{
+        backgroundImage: `url(${heroImage})`,
+        backgroundAttachment: 'fixed',
+        backgroundPosition: 'center',
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat'
+      }}
     >
-      <img
-        src={heroImage}
-        alt="Volunteer hero background"
-        className="absolute inset-0 h-full w-full object-cover"
-      />
-  <div className="absolute inset-0 bg-gradient-to-b from-brand-primary/70 via-slate-950/60 to-slate-950/80 mix-blend-multiply" />
-
       <motion.div
         className={`relative z-10 flex w-full max-w-4xl flex-col items-center text-center px-6 ${alignment.content}`}
         variants={contentVariants}

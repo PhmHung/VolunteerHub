@@ -15,7 +15,7 @@ export default function Card({ icon, title, description, src }) {
         <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
       </div>
       {src ? (
-        <img src={src} alt={title} className="mt-4 h-45  w-full rounded-2xl object-cover" />
+        <img src={src} alt={title} className="mt-4 h-48 w-full rounded-2xl object-cover" />
       ) : null}
       <p className="mt-4 text-sm text-slate-600 sm:text-base">{description}</p>
     </motion.div>

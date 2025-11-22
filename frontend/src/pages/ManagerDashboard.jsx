@@ -14,7 +14,7 @@ const ASSIGNED_EVENTS = [
     status: 'Open',
     description: 'Thu gom rác tại khu vực bờ sông, cung cấp găng tay và túi rác.',
     maxParticipants: 30,
-    tags: ['Môi trường', 'ngoài trời'],
+    tags: ['Môi trường', 'Giáo dục'],
     image: '',
     attendees: [
       { id: 'a1', name: 'Alice Johnson', email: 'alice.j@example.com', phone: '0912345678', avatarUrl: '', requestStatus: AttendeeRequestStatus.APPROVED, completionStatus: AttendeeCompletionStatus.COMPLETED },
@@ -31,7 +31,7 @@ const ASSIGNED_EVENTS = [
     status: 'Pending',
     description: 'Trồng 200 cây xanh dọc theo lối đi bộ.',
     maxParticipants: 50,
-    tags: ['Môi trường', 'cây xanh'],
+    tags: ['Môi trường', 'Cộng đồng'],
     image: '',
     attendees: [],
   },
@@ -44,7 +44,7 @@ const ASSIGNED_EVENTS = [
     status: 'Open',
     description: 'Buổi hội thảo nâng cao kỹ năng mềm cho sinh viên.',
     maxParticipants: 120,
-    tags: ['Đào tạo', 'kỹ năng'],
+    tags: ['Cộng đồng', 'Trẻ em'],
     image: '',
     attendees: [],
   },
@@ -204,7 +204,7 @@ export default function ManagerDashboard({ user }) {
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <p className="text-sm font-semibold text-slate-900 line-clamp-2 flex-1">{e.title}</p>
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${
-                          e.status === 'Open' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                          ['Open', 'Approved', 'approved'].includes(e.status) ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                         }`}>
                           {e.status}
                         </span>

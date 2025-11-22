@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import {
+  Users,
   Sparkles,
   LogOut,
   LogIn,
@@ -11,7 +12,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
-import api, { fullUrl } from "../api.js";
+import { fullUrl } from "../api.js";
 import { Link, useLocation } from "react-router-dom";
 
 // Header now expects `user` (object) instead of separate token/picture props.
@@ -49,8 +50,9 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
       : { key: "Home", path: "/", icon: HomeIcon },
     { key: "Events", path: "/events", icon: Calendar },
     { key: "About Us", path: "/about", icon: InfoIcon },
-    ...(token && user.role === 'admin' ? [{ key: "Admin", path: "/admin/dashboard", icon: ShieldCheck }] : []),
-    ...(token && user.role === 'manager' ? [{ key: "Manager", path: "/manager/dashboard", icon: ShieldCheck }] : []),
+    ...(token ? [{ key: "Social Media", path: "/media", icon: Users }] : []),
+    ...(token && user?.role === 'admin' ? [{ key: "Admin", path: "/admin/dashboard", icon: ShieldCheck }] : []),
+    ...(token && user?.role === 'manager' ? [{ key: "Manager", path: "/manager/dashboard", icon: ShieldCheck }] : []),
   ];
   PAGES = PAGES && PAGES.length ? PAGES : defaultPages;
   return (
