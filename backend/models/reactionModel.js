@@ -6,7 +6,8 @@ const reactionSchema = new mongoose.Schema(
   {
     type: { type: String, enum: ["like", "love", "haha", "wow", "sad", "angry"] },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    post: { type: mongoose.Schema.Types.ObjectId, ref: "Post" }
+    post: { type: mongoose.Schema.Types.ObjectId, ref: "Post" },
+    comment: { type: mongoose.Schema.Types.ObjectId, ref: "Comment" }
   },
   { timestamps: true }
 );

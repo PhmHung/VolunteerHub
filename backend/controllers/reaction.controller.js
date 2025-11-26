@@ -1,67 +1,145 @@
+/** @format */
 import asyncHandler from "express-async-handler";
-import Reaction from "../models/Reaction.js";
-import Post from "../models/Post.js";
+import Reaction from "../models/reactionModel.js";
+import Post from "../models/postModel.js";
+import Comment from "../models/commentModel.js";
+import Channel from "../models/channelModel.js";
+import Event from "../models/eventModel.js";
 
-// Kiểm tra quyền user theo event của post
-const checkEventAccessByPostId = async (userId, postId) => {
-  const post = await Post.findById(postId).populate({
-    path: "channel",
-    populate: { path: "event" },
-  });
-  if (!post) throw new Error("Post not found");
-  const event = post.channel.event;
-  const isParticipant = event.participants.some(p => p.equals(userId));
-  const isCreator = event.createdBy.equals(userId);
-  return isParticipant || isCreator;
-};
-
-// Thêm reaction
+// ================================
+// ADD REACTION (with permission check)
+// ================================
 export const addReaction = asyncHandler(async (req, res) => {
-  const { post: postId, type } = req.body;
-  if (!postId || !type) {
-    res.status(400);
-    throw new Error("postId and type are required");
+  const { type, post: postId, comment: commentId } = req.body;
+  const userId = req.user._id.toString();
+
+  if (!type || (!postId && !commentId)) {
+    return res.status(400).json({ message: "Reaction type and target (post or comment) required" });
   }
 
-  const hasAccess = await checkEventAccessByPostId(req.user._id, postId);
-  if (!hasAccess && req.user.role !== "admin") {
-    res.status(403);
-    throw new Error("You do not have access to this post");
+  if (postId && commentId) {
+    return res.status(400).json({ message: "Reaction can only be added to post OR comment, not both" });
   }
 
-  let reaction = await Reaction.findOne({ post: postId, user: req.user._id });
+  let post = null;
+
+  // Lấy post liên quan để check quyền
+  if (postId) {
+    post = await Post.findById(postId).populate("channel");
+    if (!post || post.isDeleted) return res.status(404).json({ message: "Post not found" });
+  }
+
+  if (commentId) {
+    const comment = await Comment.findById(commentId).populate("post");
+    if (!comment || comment.isDeleted) return res.status(404).json({ message: "Comment not found" });
+    post = await Post.findById(comment.post._id).populate("channel");
+    if (!post || post.isDeleted) return res.status(404).json({ message: "Post not found for this comment" });
+  }
+
+  // Check quyền: admin hoặc thành viên event
+  const channel = await Channel.findById(post.channel._id).populate("event");
+  const event = channel.event;
+  const isAdmin = req.user.role === "admin";
+  const isEventMember =
+    event.managers.map(id => id.toString()).includes(userId) ||
+    event.volunteers.map(id => id.toString()).includes(userId);
+
+  if (!isAdmin && !isEventMember) {
+    return res.status(403).json({ message: "You are not allowed to react to this post/comment" });
+  }
+
+  // Tạo query động để check nếu user đã react trước đó
+  const query = { user: userId };
+  if (postId) query.post = postId;
+  if (commentId) query.comment = commentId;
+
+  let reaction = await Reaction.findOne(query);
+
   if (reaction) {
+    // Nếu đã có reaction trước, update type
     reaction.type = type;
     await reaction.save();
-  } else {
-    reaction = await Reaction.create({ post: postId, user: req.user._id, type });
+    return res.json(reaction);
   }
+
+  // Nếu chưa có, tạo mới reaction
+  const newReactionData = { type, user: userId };
+  if (postId) newReactionData.post = postId;
+  if (commentId) newReactionData.comment = commentId;
+
+  reaction = await Reaction.create(newReactionData);
 
   res.status(201).json(reaction);
 });
 
-// Xóa reaction
+
+// ================================
+// REMOVE REACTION
+// ================================
 export const removeReaction = asyncHandler(async (req, res) => {
-  const reaction = await Reaction.findById(req.params.id).populate({
-    path: "post",
-    populate: { path: "channel", populate: { path: "event" } },
-  });
+  const reaction = await Reaction.findById(req.params.id);
 
-  if (!reaction) {
-    res.status(404);
-    throw new Error("Reaction not found");
+  if (!reaction) return res.status(404).json({ message: "Reaction not found" });
+  if (reaction.user.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "You can only remove your own reaction" });
   }
 
-  const event = reaction.post.channel.event;
-  const isParticipant = event.participants.some(p => p.equals(req.user._id));
-  const isCreator = event.createdBy.equals(req.user._id);
-  const isAdmin = req.user.role === "admin";
-
-  if (!reaction.user.equals(req.user._id) && !isCreator && !isAdmin) {
-    res.status(403);
-    throw new Error("Not authorized to remove this reaction");
-  }
-
-  await reaction.remove();
-  res.json({ message: "Reaction removed" });
+  await reaction.deleteOne(); 
+  res.json({ message: "Reaction removed successfully" });
 });
+
+// ================================
+// GET REACTIONS OF POST OR COMMENT (with permission)
+// ================================
+export const getReactions = asyncHandler(async (req, res) => {
+  const { post: postId, comment: commentId } = req.query;
+
+  if (!postId && !commentId) {
+    return res.status(400).json({ message: "post or comment query param required" });
+  }
+
+  let post = null;
+
+  // Xác định post liên quan
+  if (postId) {
+    post = await Post.findById(postId).populate("channel");
+    if (!post || post.isDeleted) return res.status(404).json({ message: "Post not found" });
+  }
+
+  if (commentId) {
+    const comment = await Comment.findById(commentId).populate("post");
+    if (!comment || comment.isDeleted) return res.status(404).json({ message: "Comment not found" });
+    post = await Post.findById(comment.post._id).populate("channel");
+    if (!post || post.isDeleted) return res.status(404).json({ message: "Post not found for this comment" });
+  }
+
+  // Lấy event để check quyền
+  const channel = await Channel.findById(post.channel._id).populate("event");
+  const event = channel.event;
+  const userId = req.user._id.toString();
+  const isAdmin = req.user.role === "admin";
+  const isEventMember =
+    event.managers.map(id => id.toString()).includes(userId) ||
+    event.volunteers.map(id => id.toString()).includes(userId);
+
+  if (!isAdmin && !isEventMember) {
+    return res.status(403).json({ message: "You are not allowed to view reactions for this post/comment" });
+  }
+
+  const filter = {};
+  if (postId) filter.post = postId;
+  if (commentId) filter.comment = commentId;
+
+  console.log("Reaction filter:", filter);
+
+  const reactions = await Reaction.find(filter).populate("user", "userName role");
+
+  // Thống kê số lượng theo type
+  const summary = reactions.reduce((acc, r) => {
+    acc[r.type] = (acc[r.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  res.json({ reactions, summary });
+});
+

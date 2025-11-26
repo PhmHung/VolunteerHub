@@ -1,184 +1,181 @@
+/** @format */
 import asyncHandler from "express-async-handler";
-import Post from "../models/Post.js";
-import Channel from "../models/Channel.js";
-import Event from "../models/Event.js";
-import { uploadPicture } from "../config/cloudinarystorage.js";
+import Post from "../models/postModel.js";
+import Channel from "../models/channelModel.js";
+import Event from "../models/eventModel.js";
+import User from "../models/userModel.js";
 
-// Kiểm tra quyền của user: là participant hoặc createdBy của event
-const checkEventAccess = async (userId, eventId) => {
-  const event = await Event.findById(eventId);
-  if (!event) throw new Error("Event not found");
-
-  // user là participant
-  const isParticipant = event.participants.some(p => p.equals(userId));
-
-  // user là creator
-  const isCreator = event.createdBy.equals(userId);
-
-  return isParticipant || isCreator;
-};
-
-// @desc    Tạo bài viết mới
-// @route   POST /api/posts
-// @access  Protected
+// ================================
+// CREATE POST
+// ================================
 export const createPost = asyncHandler(async (req, res) => {
   const { content, channel: channelId } = req.body;
+  const image = req.file?.path || null; // nếu upload ảnh
 
-  if (!content || !channelId) {
-    res.status(400);
-    throw new Error("Content and channel are required");
+  if (!content && !image) {
+    return res.status(400).json({ message: "Post content or image required" });
   }
 
-  // Lấy channel và event
+  // Lấy thông tin channel và event liên quan
   const channel = await Channel.findById(channelId).populate("event");
   if (!channel) {
-    res.status(404);
-    throw new Error("Channel not found");
+    return res.status(404).json({ message: "Channel not found" });
   }
 
-  const hasAccess = await checkEventAccess(req.user._id, channel.event._id);
-  if (!hasAccess && req.user.role !== "admin") {
-    res.status(403);
-    throw new Error("You are not a participant of this event");
+  const event = await Event.findById(channel.event._id);
+  if (!event) {
+    return res.status(404).json({ message: "Event not found" });
   }
 
-  if (req.file && req.file.path) {
-    imageUrl = req.file.path
+  // Kiểm tra quyền: admin hoặc thuộc event
+  const userId = req.user._id.toString();
+  const isAdmin = req.user.role === "admin";
+  const isEventMember =
+    event.managers.map(id => id.toString()).includes(userId) ||
+    event.volunteers.map(id => id.toString()).includes(userId);
+
+  if (!isAdmin && !isEventMember) {
+    return res.status(403).json({ message: "You are not allowed to post in this channel" });
   }
 
+  // Tạo post
   const post = await Post.create({
     content,
-    channel: channelId,
-    image: imageUrl,
+    image,
     author: req.user._id,
+    channel: channelId,
   });
 
   res.status(201).json(post);
 });
 
-// @desc    Lấy danh sách bài viết (có tìm kiếm)
-// @route   GET /api/posts
-// @access  Protected (user phải thuộc event hoặc admin)
+
+// ================================
+// GET ALL POSTS (ADMIN ONLY)
+// ================================
 export const getPosts = asyncHandler(async (req, res) => {
-  const { search, channel: channelId } = req.query;
-  let query = { isDeleted: false };
-
-  if (search) query.content = { $regex: search, $options: "i" };
-  if (channelId) query.channel = channelId;
-
-  let posts = await Post.find(query)
-    .populate("author", "name userEmail")
+  // admin check đã có ở route
+  const posts = await Post.find({})
+    .populate("author", "userName role")
+    .populate("channel")
     .populate({
-      path: "channel",
-      populate: { path: "event" },
+      path: "comments",
+      populate: { path: "author", select: "userName role" },
     })
-    .populate("comments")
-    .populate("reactions");
-
-  // Lọc các post theo quyền user
-  posts = posts.filter(post => {
-    const event = post.channel.event;
-    const isParticipant = event.participants.some(p => p.equals(req.user._id));
-    const isCreator = event.createdBy.equals(req.user._id);
-    const isAdmin = req.user.role === "admin";
-    return isParticipant || isCreator || isAdmin;
-  });
+    .sort({ createdAt: -1 });
 
   res.json(posts);
 });
 
-// @desc    Lấy bài viết theo ID
-// @route   GET /api/posts/:id
-// @access  Protected
-export const getPostById = asyncHandler(async (req, res) => {
-  const post = await Post.findById(req.params.id)
-    .populate("author", "name userEmail")
+// ================================
+// GET ALL POSTS OF A CHANNEL (Admin or event member)
+// ================================
+export const getPostsByChannel = asyncHandler(async (req, res) => {
+  const channelId = req.params.channelId;
+
+  const channel = await Channel.findById(channelId)
     .populate({
-      path: "channel",
-      populate: { path: "event" },
+      path: "event",
+      populate: [
+        { path: "volunteers", select: "_id userName role" },
+        { path: "managers", select: "_id userName role" },
+      ],
+    });
+
+  if (!channel) {
+    return res.status(404).json({ message: "Channel not found" });
+  }
+
+  const event = channel.event;
+  const userId = req.user?._id?.toString();
+  const userRole = req.user?.role;
+
+  // Admin luôn có quyền
+  if (userRole !== "admin") {
+    // Nếu không phải admin, phải là thành viên event
+    const isVolunteer = event?.volunteers?.some(v => v._id.toString() === userId) || false;
+    const isManager = event?.managers?.some(m => m._id.toString() === userId) || false;
+
+    if (!isVolunteer && !isManager) {
+      return res.status(403).json({ message: "Access denied — you are not in this channel" });
+    }
+  }
+
+  // Lấy tất cả post của channel (không lấy isDeleted)
+  const posts = await Post.find({ channel: channelId, isDeleted: false })
+    .populate("author", "userName role")
+    .populate({
+      path: "comments",
+      populate: { path: "author", select: "userName role" },
     })
-    .populate("comments")
-    .populate("reactions");
+    .sort({ createdAt: -1 });
 
-  if (!post || post.isDeleted) {
-    res.status(404);
-    throw new Error("Post not found");
-  }
-
-  const event = post.channel.event;
-  const isParticipant = event.participants.some(p => p.equals(req.user._id));
-  const isCreator = event.createdBy.equals(req.user._id);
-  const isAdmin = req.user.role === "admin";
-
-  if (!isParticipant && !isCreator && !isAdmin) {
-    res.status(403);
-    throw new Error("You do not have access to this post");
-  }
-
-  res.json(post);
+  res.json(posts);
 });
 
-// @desc    Cập nhật bài viết
-// @route   PUT /api/posts/:id
-// @access  Protected
+
+// ================================
+// UPDATE POST (OWNER ONLY)
+// ================================
 export const updatePost = asyncHandler(async (req, res) => {
-  const post = await Post.findById(req.params.id).populate({
-    path: "channel",
-    populate: { path: "event" },
-  });
+  const post = await Post.findById(req.params.id);
 
   if (!post || post.isDeleted) {
     res.status(404);
     throw new Error("Post not found");
   }
 
-  const event = post.channel.event;
-  const isParticipant = event.participants.some(p => p.equals(req.user._id));
-  const isCreator = event.createdBy.equals(req.user._id);
-  const isAdmin = req.user.role === "admin";
-
-  if (!req.user._id.equals(post.author) && !isCreator && !isAdmin) {
-    res.status(403);
-    throw new Error("Not authorized to update this post");
+  if (post.author.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "You can only update your own post" });
   }
 
   const { content } = req.body;
-  if (content) post.content = content;
-  if (req.file && req.file.path) {
-    post.image = req.file.path
-  }
+  const image = req.file?.path || post.image;
 
-  await post.save();
-  res.json(post);
+  post.content = content || post.content;
+  post.image = image;
+
+  const updatedPost = await post.save();
+  res.json(updatedPost);
 });
 
-// @desc    Xóa bài viết (soft delete)
-// @route   DELETE /api/posts/:id
-// @access  Protected
+// ================================
+// DELETE POST (ROLE BASED)
+// ================================
 export const deletePost = asyncHandler(async (req, res) => {
-  const post = await Post.findById(req.params.id).populate({
-    path: "channel",
-    populate: { path: "event" },
-  });
+  const post = await Post.findById(req.params.id).populate("author", "role");
 
   if (!post || post.isDeleted) {
     res.status(404);
     throw new Error("Post not found");
   }
 
-  const event = post.channel.event;
-  const isParticipant = event.participants.some(p => p.equals(req.user._id));
-  const isCreator = event.createdBy.equals(req.user._id);
-  const isAdmin = req.user.role === "admin";
+  const userRole = req.user.role;
+  const authorRole = post.author.role;
+  const userId = req.user._id.toString();
+  const authorId = post.author._id.toString();
 
-  if (!req.user._id.equals(post.author) && !isCreator && !isAdmin) {
-    res.status(403);
-    throw new Error("Not authorized to delete this post");
+  // ROLE-BASED DELETE
+  if (userRole === "volunteer") {
+    if (userId !== authorId) {
+      return res.status(403).json({ message: "Volunteers can only delete their own posts" });
+    }
+  } else if (userRole === "manager") {
+    if (authorRole !== "volunteer") {
+      return res.status(403).json({ message: "Managers can only delete volunteer posts" });
+    }
+  } else if (userRole === "admin") {
+    // Admin can delete volunteer and manager posts
+    if (!["volunteer", "manager"].includes(authorRole)) {
+      return res.status(403).json({ message: "Admin cannot delete another admin's post" });
+    }
+  } else {
+    return res.status(403).json({ message: "Unauthorized" });
   }
 
+  // SOFT DELETE
   post.isDeleted = true;
-  post.deletedAt = new Date();
   await post.save();
 
-  res.json({ message: "Post deleted" });
+  res.json({ message: "Post deleted successfully" });
 });
