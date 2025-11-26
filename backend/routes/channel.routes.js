@@ -8,12 +8,9 @@ import { protect, allowAdminOnly } from "../middlewares/auth.middleware.js";
 const router = express.Router();
 
 router.route("/")
-  .get(getChannels)
-  .post(protect, allowAdminOnly, createChannel);
+  .get(protect, getChannels)
 
 router.route("/:id")
-  .get(getChannelById)
-  .put(protect, allowAdminOnly, updateChannel)
-  .delete(protect, allowAdminOnly, deleteChannel);
+  .get(protect, getChannelById)
 
 export default router;

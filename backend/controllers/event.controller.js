@@ -207,6 +207,4 @@ const approveEvent = asyncHandler(async (req, res) => {
   });
 });
 
-registrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
-
 export { getEvents, getEventById, createEvent, updateEvent, approveEvent };

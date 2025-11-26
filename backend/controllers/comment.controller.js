@@ -1,119 +1,161 @@
+/** @format */
 import asyncHandler from "express-async-handler";
-import Comment from "../models/Comment.js";
-import Post from "../models/Post.js";
-import { uploadPicture } from "../config/cloudinarystorage.js";
+import Comment from "../models/commentModel.js";
+import Post from "../models/postModel.js";
+import Event from "../models/eventModel.js";
+import Channel from "../models/channelModel.js";
 
-// Kiểm tra quyền user theo event của post
-const checkEventAccessByPostId = async (userId, postId) => {
-  const post = await Post.findById(postId).populate({
-    path: "channel",
-    populate: { path: "event" },
-  });
-  if (!post) throw new Error("Post not found");
-  const event = post.channel.event;
-  const isParticipant = event.participants.some(p => p.equals(userId));
-  const isCreator = event.createdBy.equals(userId);
-  return isParticipant || isCreator;
-};
-
-// Tạo comment
+// ================================
+// CREATE COMMENT
+// ================================
 export const createComment = asyncHandler(async (req, res) => {
   const { content, post: postId, parentComment } = req.body;
-  if (!content || !postId) {
-    res.status(400);
-    throw new Error("Content and postId are required");
+  const image = req.file?.path || null;
+
+  if (!content && !image) {
+    return res.status(400).json({ message: "Comment content or image required" });
   }
 
-  const hasAccess = await checkEventAccessByPostId(req.user._id, postId);
-  if (!hasAccess && req.user.role !== "admin") {
-    res.status(403);
-    throw new Error("You do not have access to this post");
+  let post = null;
+
+  // Nếu parentComment tồn tại, lấy post từ parentComment
+  if (parentComment) {
+    const parent = await Comment.findById(parentComment);
+    if (!parent || parent.isDeleted) {
+      return res.status(404).json({ message: "Parent comment not found" });
+    }
+    post = await Post.findById(parent.post).populate("channel");
+    if (!post || post.isDeleted) {
+      return res.status(404).json({ message: "Post not found for this parent comment" });
+    }
+  } else if (postId) {
+    post = await Post.findById(postId).populate("channel");
+    if (!post || post.isDeleted) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+  } else {
+    return res.status(400).json({ message: "post or parentComment is required" });
   }
 
-  if (req.file && req.file.path) {
-    imageUrl = req.file.path
+  // Kiểm tra quyền: giống post
+  const channel = await Channel.findById(post.channel._id).populate("event");
+  const event = channel.event;
+  const userId = req.user._id.toString();
+  const isAdmin = req.user.role === "admin";
+  const isEventMember =
+    event.managers.map(id => id.toString()).includes(userId) ||
+    event.volunteers.map(id => id.toString()).includes(userId);
+
+  if (!isAdmin && !isEventMember) {
+    return res.status(403).json({ message: "You are not allowed to comment on this post" });
   }
 
+  // Tạo comment
   const comment = await Comment.create({
     content,
-    post: postId,
-    parentComment: parentComment || null,
-    image: imageUrl,
+    image,
     author: req.user._id,
+    post: post._id,
+    parentComment: parentComment || null,
   });
 
   res.status(201).json(comment);
 });
 
-// Lấy comment theo post
+
+// ================================
+// GET COMMENTS OF A POST
+// ================================
 export const getCommentsByPost = asyncHandler(async (req, res) => {
   const postId = req.params.postId;
-  const hasAccess = await checkEventAccessByPostId(req.user._id, postId);
-  if (!hasAccess && req.user.role !== "admin") {
-    res.status(403);
-    throw new Error("You do not have access to this post");
+
+  const post = await Post.findById(postId).populate("channel");
+  if (!post || post.isDeleted) {
+    return res.status(404).json({ message: "Post not found" });
   }
 
-  const comments = await Comment.find({ post: postId })
-    .populate("author", "name userEmail")
-    .populate("parentComment");
+  // Kiểm tra quyền: giống post
+  const channel = await Channel.findById(post.channel._id).populate("event");
+  const event = channel.event;
+  const userId = req.user._id.toString();
+  const userRole = req.user.role;
+
+  if (userRole !== "admin") {
+    const isVolunteer = event.volunteers.some(v => v.toString() === userId);
+    const isManager = event.managers.some(m => m.toString() === userId);
+    if (!isVolunteer && !isManager) {
+      return res.status(403).json({ message: "Access denied — you are not in this post's channel" });
+    }
+  }
+
+  const comments = await Comment.find({ post: postId, isDeleted: false })
+    .populate("author", "userName role")
+    .populate({
+      path: "parentComment",
+      populate: { path: "author", select: "userName role" },
+    })
+    .sort({ createdAt: -1 });
 
   res.json(comments);
 });
 
-// Update comment
+// ================================
+// UPDATE COMMENT (OWNER ONLY)
+// ================================
 export const updateComment = asyncHandler(async (req, res) => {
-  const comment = await Comment.findById(req.params.id).populate({
-    path: "post",
-    populate: { path: "channel", populate: { path: "event" } },
-  });
-
-  if (!comment) {
-    res.status(404);
-    throw new Error("Comment not found");
+  const comment = await Comment.findById(req.params.id);
+  if (!comment || comment.isDeleted) {
+    return res.status(404).json({ message: "Comment not found" });
   }
 
-  const event = comment.post.channel.event;
-  const isParticipant = event.participants.some(p => p.equals(req.user._id));
-  const isCreator = event.createdBy.equals(req.user._id);
-  const isAdmin = req.user.role === "admin";
-
-  if (!req.user._id.equals(comment.author) && !isCreator && !isAdmin) {
-    res.status(403);
-    throw new Error("Not authorized to update this comment");
+  if (comment.author.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "You can only update your own comment" });
   }
 
-  if (req.body.content) comment.content = req.body.content;
-  if (req.file && req.file.path) {
-    comment.image = req.file.path
-  }
+  const { content } = req.body;
+  const image = req.file?.path || comment.image;
 
-  await comment.save();
-  res.json(comment);
+  comment.content = content || comment.content;
+  comment.image = image;
+
+  const updatedComment = await comment.save();
+  res.json(updatedComment);
 });
 
-// Delete comment
+// ================================
+// DELETE COMMENT (ROLE-BASED)
+// ================================
 export const deleteComment = asyncHandler(async (req, res) => {
-  const comment = await Comment.findById(req.params.id).populate({
-    path: "post",
-    populate: { path: "channel", populate: { path: "event" } },
-  });
-
-  if (!comment) {
-    res.status(404);
-    throw new Error("Comment not found");
+  const comment = await Comment.findById(req.params.id).populate("author", "role");
+  if (!comment || comment.isDeleted) {
+    return res.status(404).json({ message: "Comment not found" });
   }
 
-  const event = comment.post.channel.event;
-  const isParticipant = event.participants.some(p => p.equals(req.user._id));
-  const isCreator = event.createdBy.equals(req.user._id);
-  const isAdmin = req.user.role === "admin";
+  const userRole = req.user.role;
+  const authorRole = comment.author.role;
+  const userId = req.user._id.toString();
+  const authorId = comment.author._id.toString();
 
-  if (!req.user._id.equals(comment.author) && !isCreator && !isAdmin) {
-    res.status(403);
-    throw new Error("Not authorized to delete this comment");
+  // ROLE-BASED DELETE
+  if (userRole === "volunteer") {
+    if (userId !== authorId) {
+      return res.status(403).json({ message: "Volunteers can only delete their own comments" });
+    }
+  } else if (userRole === "manager") {
+    if (authorRole !== "volunteer") {
+      return res.status(403).json({ message: "Managers can only delete volunteer comments" });
+    }
+  } else if (userRole === "admin") {
+    if (!["volunteer", "manager"].includes(authorRole)) {
+      return res.status(403).json({ message: "Admin cannot delete another admin's comment" });
+    }
+  } else {
+    return res.status(403).json({ message: "Unauthorized" });
   }
 
-  await comment.remove();
-  res.json({ message: "Comment deleted" });
+  // SOFT DELETE
+  comment.isDeleted = true;
+  await comment.save();
+
+  res.json({ message: "Comment deleted successfully" });
 });

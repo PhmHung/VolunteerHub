@@ -6,6 +6,12 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.development.local" });
 
 import authRoutes from "./routes/auth.routes.js";
+import channelRoutes from "./routes/channel.routes.js";
+import commentRoutes from "./routes/comment.routes.js";
+import eventRoutes from "./routes/event.routes.js";
+import postRoutes from "./routes/post.routes.js";
+import reactionRoutes from "./routes/reaction.routes.js";
+// import reportRoutes from "./routes/report.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
 import connectDB from "./config/mongodb.js";
@@ -20,6 +26,14 @@ app.use(cookieParser());
 app.use(cors());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/channel", channelRoutes);
+app.use("/api/comment", commentRoutes);
+app.use("/api/event", eventRoutes);
+app.use("/api/post", postRoutes);
+app.use("/api/reaction", reactionRoutes);
+// app.use("/api/report", reportRoutes);
+app.use("/api/user", userRoutes);
+
 app.use("/api/user", userRoutes);
 
 app.use(errorMiddleware);
