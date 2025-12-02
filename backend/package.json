@@ -6,13 +6,20 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "dev:full": "concurrently \"npm run start:be\" \"npm run start:fe\"",
     "seed:user": "node seeder/seederUser.js",
     "seed:event": "node seeder/seederEvent.js",
     "seed:registration": "node seeder/seederRegistration.js",
     "seed:attendance": "node seeder/seederAttendance.js",
 
+    "seed:user:destroy": "node seeder/destroyUser.js",
+    "seed:event:destroy": "node seeder/destroyEvent.js",
+    "seed:registration:destroy": "node seeder/destroyRegistration.js",
+    "seed:attendance:destroy": "node seeder/destroyAttendance.js",
+
     "seed:all": "node seeder/seedAll.js",
     "seed:destroy:all": "npm run seed:user:destroy && npm run seed:event:destroy && npm run seed:registration:destroy && npm run seed:attendance:destroy",
+
     "seed:reset": "npm run seed:destroy:all && npm run seed:all"
   },
   "dependencies": {
@@ -35,6 +42,7 @@
     "nodemailer": "^7.0.9"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.10"
   }
 }
