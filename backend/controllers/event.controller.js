@@ -20,6 +20,7 @@ const getEvents = asyncHandler(async (req, res) => {
     filter.$or = [
       { title: { $regex: req.query.search, $options: "i" } },
       { description: { $regex: req.query.search, $options: "i" } },
+      { location: { $regex: req.query.search, $options: "i" } }, // Thêm tìm kiếm theo địa điểm
     ];
   }
 
@@ -76,10 +77,12 @@ const getEventById = asyncHandler(async (req, res) => {
 // @route   POST /api/events
 // @access  Private/Manager
 const createEvent = asyncHandler(async (req, res) => {
+  // 1. Thêm coordinates vào destructuring
   const {
     title,
     description,
     location,
+    coordinates,
     startDate,
     endDate,
     maxParticipants,
@@ -97,10 +100,12 @@ const createEvent = asyncHandler(async (req, res) => {
     throw new Error("Ngày bắt đầu phải trước ngày kết thúc");
   }
 
+  // 2. Tạo sự kiện với coordinates
   const event = await Event.create({
     title,
     description,
     location,
+    coordinates,
     startDate,
     endDate,
     maxParticipants,
@@ -156,6 +161,7 @@ const updateEvent = asyncHandler(async (req, res) => {
     throw new Error("Ngày bắt đầu phải trước ngày kết thúc");
   }
 
+  // Lưu ý: req.body chứa coordinates thì nó sẽ tự update nhờ findByIdAndUpdate
   const updatedEvent = await Event.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,

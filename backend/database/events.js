@@ -4,6 +4,7 @@ const events = [
     title: "Dọn rác công viên Tao Đàn",
     description: "Thu gom rác, làm sạch công viên, trồng cây xanh",
     location: "Công viên Tao Đàn, Q1, TP.HCM",
+    coordinates: { lat: 10.7745, lng: 106.6923 }, // Công viên Tao Đàn
     startDate: "2025-11-15T08:00:00+07:00",
     endDate: "2025-11-15T12:00:00+07:00",
     maxParticipants: 50,
@@ -15,6 +16,7 @@ const events = [
     title: "Hiến máu nhân đạo",
     description: "Hiến máu cứu người tại Bệnh viện Chợ Rẫy",
     location: "Bệnh viện Chợ Rẫy, Q5, TP.HCM",
+    coordinates: { lat: 10.7578, lng: 106.6597 }, // Bệnh viện Chợ Rẫy
     startDate: "2025-11-20T07:30:00+07:00",
     endDate: "2025-11-20T11:30:00+07:00",
     maxParticipants: 100,
@@ -27,6 +29,7 @@ const events = [
     description:
       "Tham gia cùng chúng tôi trồng 500 cây xanh nhằm cải thiện môi trường đô thị. Mang theo tinh thần nhiệt huyết và sẵn sàng làm việc ngoài trời.",
     location: "Công viên Thống Nhất, Hai Bà Trưng, Hà Nội",
+    coordinates: { lat: 21.0175, lng: 105.8427 }, // Công viên Thống Nhất
     startDate: "2025-11-15T07:00:00.000Z",
     endDate: "2025-11-15T11:00:00.000Z",
     maxParticipants: 50,
@@ -39,6 +42,7 @@ const events = [
     description:
       "Chương trình giáo dục 2 tuần dành cho học sinh tiểu học tại các bản làng vùng cao. Yêu cầu có kinh nghiệm giảng dạy hoặc đã qua đào tạo.",
     location: "Xã Tả Van, Sapa, Lào Cai",
+    coordinates: { lat: 22.3224, lng: 103.8925 }, // Khu vực bản Tả Van
     startDate: "2025-12-01T08:00:00.000Z",
     endDate: "2025-12-01T17:00:00.000Z",
     maxParticipants: 15,
@@ -51,6 +55,7 @@ const events = [
     description:
       "Đến thăm, trò chuyện và tổ chức các hoạt động giải trí cho các cụ cao tuổi. Mang theo sự ấm áp và tinh thần lạc quan.",
     location: "Viện Dưỡng lão Hà Đông, Quang Trung, Hà Đông",
+    coordinates: { lat: 20.9692, lng: 105.7727 }, // Khu vực P. Quang Trung, Hà Đông
     startDate: "2025-10-28T14:00:00.000Z",
     endDate: "2025-10-28T17:00:00.000Z",
     maxParticipants: 20,
@@ -63,6 +68,7 @@ const events = [
     description:
       "Cùng nhau làm sạch bãi biển, thu gom rác thải nhựa và nâng cao nhận thức về bảo vệ môi trường biển.",
     location: "Bãi biển Sầm Sơn, Thanh Hóa",
+    coordinates: { lat: 19.7423, lng: 105.9038 }, // Bãi biển Sầm Sơn
     startDate: "2025-11-08T06:00:00.000Z",
     endDate: "2025-11-08T10:00:00.000Z",
     maxParticipants: 100,
@@ -75,6 +81,7 @@ const events = [
     description:
       "Mang niềm vui Trung thu đến các em nhỏ tại Làng trẻ SOS. Tham gia tổ chức trò chơi, tặng quà và múa lân.",
     location: "Làng trẻ SOS Hà Nội, Từ Liêm",
+    coordinates: { lat: 21.0396, lng: 105.782 }, // Làng trẻ SOS Hà Nội (Phạm Thận Duật)
     startDate: "2025-10-25T15:00:00.000Z",
     endDate: "2025-10-25T19:00:00.000Z",
     maxParticipants: 30,
@@ -87,6 +94,7 @@ const events = [
     description:
       "Tham gia hiến máu nhân đạo giúp cứu sống bệnh nhân. Được kiểm tra sức khỏe miễn phí và nhận quà lưu niệm.",
     location: "Bệnh viện Bạch Mai, Đống Đa, Hà Nội",
+    coordinates: { lat: 21.0025, lng: 105.8415 }, // Bệnh viện Bạch Mai
     startDate: "2025-11-20T08:00:00.000Z",
     endDate: "2025-11-20T12:00:00.000Z",
     maxParticipants: 20,

@@ -6,6 +6,16 @@ const eventSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true },
+    coordinates: {
+      lat: {
+        type: Number,
+        required: false,
+      },
+      lng: {
+        type: Number,
+        required: false,
+      },
+    },
     location: { type: String, required: true },
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
@@ -14,7 +24,7 @@ const eventSchema = new mongoose.Schema(
 
     volunteers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     managers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    
+
     channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel" }, // 1–1
     status: {
       type: String,

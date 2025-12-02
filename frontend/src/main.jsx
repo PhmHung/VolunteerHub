@@ -3,8 +3,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { Provider } from "react-redux"; // 1. Import Provider
-import { store } from "./app/store"; // 2. Import store (Đảm bảo bạn đã tạo file này)
+import { Provider } from "react-redux";
+import { store } from "./app/store";
 import "leaflet/dist/leaflet.css";
 import "./index.css";
 import App from "./App.jsx";

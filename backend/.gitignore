@@ -56,6 +56,6 @@ typings/
 
 # dotenv environment variables file
 
-# next.js build output
+# next.js build output  
 .next
 .env.development.local

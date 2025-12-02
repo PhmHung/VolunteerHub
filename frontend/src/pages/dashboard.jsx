@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { fetchEvents } from "../features/event/eventSlice";
+
 import {
   ArrowUpRight,
   BellRing,
@@ -10,7 +12,6 @@ import {
   MapPin,
   Ticket,
 } from "lucide-react";
-import { fetchEvents } from "../features/event/eventSlice";
 import {
   Circle,
   MapContainer,
@@ -21,7 +22,6 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import { Icon } from "leaflet";
-//import { MOCK_EVENTS } from "../data/mockEvents";
 
 const userProfile = {
   name: "Cecillia Yo",
@@ -46,7 +46,13 @@ const EARTH_RADIUS_KM = 6371;
 const toRadians = (value) => (value * Math.PI) / 180;
 
 const calculateDistanceKm = (pointA, pointB) => {
-  if (!pointA || !pointB) {
+  // Thêm kiểm tra an toàn để tránh lỗi NaN
+  if (
+    !pointA ||
+    !pointB ||
+    typeof pointA.lat !== "number" ||
+    typeof pointB.lat !== "number"
+  ) {
     return Number.POSITIVE_INFINITY;
   }
 
@@ -122,10 +128,11 @@ const formatDateRange = (dateString, startTime, endTime) => {
 };
 
 const formatAvailability = (registered, slots) => {
-  if (typeof registered !== "number" || typeof slots !== "number") {
-    return "Thông tin đăng ký";
-  }
-  return `${registered}/${slots} người đăng ký`;
+  // Handle trường hợp API trả về null/undefined
+  const reg = typeof registered === "number" ? registered : 0;
+  const total = typeof slots === "number" ? slots : 0;
+  if (total === 0) return `${reg} người đăng ký`;
+  return `${reg}/${total} người đăng ký`;
 };
 
 const formatScheduleDate = (eventDate, fallbackLabel) => {
@@ -139,7 +146,9 @@ const formatScheduleDate = (eventDate, fallbackLabel) => {
 };
 
 const buildCalendarData = (events) => {
-  const firstValidEvent = events.find((event) => event.eventDate);
+  // Lọc sự kiện hợp lệ trước
+  const validEvents = events.filter((e) => e.eventDate);
+  const firstValidEvent = validEvents[0];
   const baseDate = firstValidEvent?.eventDate ?? new Date();
   const year = baseDate.getFullYear();
   const month = baseDate.getMonth();
@@ -165,7 +174,7 @@ const buildCalendarData = (events) => {
     }
   }
 
-  const highlights = events.reduce((accumulator, event) => {
+  const highlights = validEvents.reduce((accumulator, event) => {
     if (
       event.eventDate &&
       event.eventDate.getMonth() === month &&
@@ -190,74 +199,83 @@ const buildCalendarData = (events) => {
 };
 
 const Dashboard = ({ user }) => {
+  const dispatch = useDispatch();
+  // 2. Lấy dữ liệu từ Store
+  const { list: eventsList, loading } = useSelector((state) => state.event);
+
+  // 3. Gọi API khi mount
+  useEffect(() => {
+    dispatch(fetchEvents({ limit: 50 })); // Lấy 50 sự kiện gần nhất
+  }, [dispatch]);
+
   const displayName = user?.personalInformation?.name ?? userProfile.name;
   const avatar = user?.personalInformation?.avatarUrl ?? userProfile.avatar;
 
-  // --- KẾT NỐI REDUX ---
-  const dispatch = useDispatch();
-  // Lấy danh sách sự kiện và trạng thái loading từ Redux Store
-  const { list: events, loading } = useSelector((state) => state.event);
-
-  // --- GỌI API ---
-  useEffect(() => {
-    // Gọi API lấy 50 sự kiện đã được duyệt (approved) khi vào trang
-    dispatch(fetchEvents({ limit: 50, status: "approved" }));
-  }, [dispatch]);
-
-  // --- XỬ LÝ DỮ LIỆU (Mapping Backend -> Frontend) ---
   const eventSummaries = useMemo(() => {
-    // Nếu chưa có dữ liệu hoặc đang tải, trả về mảng rỗng để tránh lỗi
-    if (!events || events.length === 0) return [];
+    // Nếu chưa có dữ liệu hoặc đang load, trả về mảng rỗng
+    if (!eventsList || !Array.isArray(eventsList)) return [];
 
-    const enriched = events
-      // BƯỚC QUAN TRỌNG: Lọc bỏ các sự kiện không có tọa độ để tránh lỗi map crash (NaN)
-      .filter(
-        (event) =>
-          event.coordinates && typeof event.coordinates.lat === "number"
-      )
+    // 4. Map dữ liệu API sang định dạng UI cần
+    const enriched = eventsList
       .map((event) => {
-        const eventDate = event.startDate ? new Date(event.startDate) : null;
+        // --- XỬ LÝ TỌA ĐỘ AN TOÀN ---
+        let coordinates = null;
+        // Case 1: API trả về object coordinates { lat, lng }
+        if (
+          event.coordinates &&
+          typeof event.coordinates.lat === "number" &&
+          typeof event.coordinates.lng === "number"
+        ) {
+          coordinates = event.coordinates;
+        }
+        // Case 2: API trả về các trường riêng lẻ latitude/longitude hoặc lat/lng
+        else if (event.latitude && event.longitude) {
+          coordinates = {
+            lat: Number(event.latitude),
+            lng: Number(event.longitude),
+          };
+        } else if (event.lat && event.lng) {
+          coordinates = { lat: Number(event.lat), lng: Number(event.lng) };
+        }
+        // Nếu không có tọa độ, bỏ qua (sẽ được filter bên dưới) hoặc gán mặc định (tùy nhu cầu)
+
+        const eventDate = event.date ? new Date(event.date) : null;
         const isValidDate =
           eventDate instanceof Date && !Number.isNaN(eventDate.getTime());
+        const registered =
+          typeof event.registered === "number"
+            ? event.registered
+            : event.participants?.length || 0; // Fallback nếu API trả về mảng participants
+        const slots = typeof event.slots === "number" ? event.slots : null;
 
-        // Mapping các trường dữ liệu từ Backend sang chuẩn của Dashboard
         return {
-          id: event._id, // Backend dùng _id
-          name: event.title, // Backend dùng title
-          category: event.category || "Cộng đồng",
-          organizer: event.organizer || "BTC",
-
+          id: event._id || event.id, // MongoDB thường dùng _id
+          name: event.title || event.name, // API có thể dùng title hoặc name
+          category: event.category || "General",
+          organizer: event.organizer || "Unknown Organizer",
           city: resolveCityLabel(event.city, event.location),
-          location: event.location,
-
-          // Format ngày giờ: dùng hàm helper có sẵn
+          location: event.location || "Online / Chưa cập nhật",
           formattedDate: formatDateRange(
             event.date,
             event.startTime,
             event.endTime
           ),
-
-          // Số lượng đăng ký
-          registered: event.currentParticipants || 0,
-          slots: event.maxParticipants || 0,
-          availability: formatAvailability(
-            event.currentParticipants || 0,
-            event.maxParticipants
-          ),
-
-          // Hình ảnh (Nếu backend không có ảnh thì dùng ảnh mặc định)
+          availability: formatAvailability(registered, slots),
+          registered,
+          slots,
           image:
             event.imageUrl ||
+            event.image ||
             "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=400&q=80",
-
-          coordinates: event.coordinates, // { lat: ..., lng: ... }
+          coordinates: coordinates,
           tags: event.tags ?? [],
           eventDate: isValidDate ? eventDate : null,
           isValid: isValidDate,
         };
-      });
+      })
+      // Quan trọng: Chỉ lấy các sự kiện có tọa độ hợp lệ để tránh lỗi Map NaN
+      .filter((event) => event.coordinates !== null);
 
-    // Giữ nguyên logic sắp xếp cũ
     return enriched
       .sort((a, b) => {
         const registrationDelta = (b.registered ?? 0) - (a.registered ?? 0);
@@ -271,30 +289,32 @@ const Dashboard = ({ user }) => {
         if (b.eventDate) return 1;
         return a.name.localeCompare(b.name);
       })
-      .slice(0, 50); // Giới hạn hiển thị 50 sự kiện tốt nhất
-  }, [events]); // Chạy lại khi danh sách events từ Redux thay đổi
+      .slice(0, 50); // Giới hạn hiển thị
+  }, [eventsList]);
 
-  // --- STATE QUẢN LÝ BẢN ĐỒ ---
-  // Lưu ý: Mặc định sẽ dùng tọa độ Fallback trước, sau đó useEffect sẽ cập nhật lại khi có dữ liệu
-  const defaultCoordinate = FALLBACK_COORDINATE;
+  // Xử lý loading ban đầu hoặc khi không có data
+  const defaultCoordinate =
+    eventSummaries[0]?.coordinates ?? FALLBACK_COORDINATE;
+  const defaultEventId = eventSummaries[0]?.id ?? null;
 
   const [selectedLocation, setSelectedLocation] = useState(defaultCoordinate);
   const [radiusKm, setRadiusKm] = useState(200);
-  const [activeEventId, setActiveEventId] = useState(null);
+  const [activeEventId, setActiveEventId] = useState(defaultEventId);
 
-  const mapZoom = useMemo(() => radiusToZoomLevel(radiusKm), [radiusKm]);
-
-  // --- CẬP NHẬT TRẠNG THÁI KHI CÓ DỮ LIỆU API ---
+  // Reset state khi data thay đổi (quan trọng khi chuyển từ loading -> có data)
   useEffect(() => {
-    // Khi dữ liệu tải xong và có ít nhất 1 sự kiện, tự động focus vào sự kiện đầu tiên
     if (eventSummaries.length > 0 && !activeEventId) {
-      setSelectedLocation(eventSummaries[0].coordinates);
-      setActiveEventId(eventSummaries[0].id);
+      setSelectedLocation(
+        eventSummaries[0]?.coordinates ?? FALLBACK_COORDINATE
+      );
+      setActiveEventId(eventSummaries[0]?.id);
     }
   }, [eventSummaries, activeEventId]);
 
-  // --- CÁC LOGIC TÍNH TOÁN KHOẢNG CÁCH (Giữ nguyên) ---
+  const mapZoom = useMemo(() => radiusToZoomLevel(radiusKm), [radiusKm]);
+
   const eventsWithDistance = useMemo(() => {
+    if (!selectedLocation) return [];
     return eventSummaries
       .map((event) => ({
         ...event,
@@ -324,7 +344,13 @@ const Dashboard = ({ user }) => {
     return new Set(eventSummaries.map((event) => event.city)).size;
   }, [eventSummaries]);
 
-  // --- EFFECTS XỬ LÝ MAP INTERACTION (Giữ nguyên) ---
+  // Handler useEffect giữ nguyên...
+  useEffect(() => {
+    if (!activeEventId && defaultEventId) {
+      setActiveEventId(defaultEventId);
+    }
+  }, [activeEventId, defaultEventId]);
+
   useEffect(() => {
     const matchedEvent = eventsWithDistance.find((event) =>
       isSameCoordinate(event.coordinates, selectedLocation)
@@ -334,14 +360,13 @@ const Dashboard = ({ user }) => {
     }
   }, [eventsWithDistance, selectedLocation, activeEventId]);
 
-  // --- CÁC HIGHLIGHT DATA (Giữ nguyên logic, chỉ đổi nguồn data) ---
+  // Các logic render bên dưới giữ nguyên...
   const ticketHighlights = useMemo(
     () =>
       eventsWithDistance
         .slice(0, Math.min(3, eventsWithDistance.length))
         .map((event) => ({
           ...event,
-          image: event.image,
           qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(
             event.id
           )}`,
@@ -366,7 +391,9 @@ const Dashboard = ({ user }) => {
         uniqueDestinations.set(key, {
           id: event.id,
           name: key,
-          image: event.image,
+          image:
+            event.image ??
+            "https://images.unsplash.com/photo-1528909514045-2fa4ac7a08ba?auto=format&fit=crop&w=400&q=80",
         });
       }
     });
@@ -388,24 +415,24 @@ const Dashboard = ({ user }) => {
     [eventSummaries]
   );
 
-  // --- EVENT HANDLERS (Giữ nguyên) ---
   const handleEventFocus = (event) => {
-    if (!event) return;
+    if (!event || !event.coordinates) return;
     setActiveEventId(event.id);
     setSelectedLocation(event.coordinates);
   };
 
   const handleLocationPick = (coords) => {
-    setSelectedLocation(coords);
-    setActiveEventId(null);
+    if (coords && typeof coords.lat === "number") {
+      setSelectedLocation(coords);
+      setActiveEventId(null);
+    }
   };
 
-  // --- RENDER ---
-  // (Thêm Loading state để UX tốt hơn)
+  // Render UI
   if (loading && eventSummaries.length === 0) {
     return (
-      <div className='min-h-screen flex items-center justify-center bg-slate-50 text-slate-500'>
-        Đang tải dữ liệu...
+      <div className='flex min-h-screen items-center justify-center bg-slate-50'>
+        <p className='text-slate-500'>Đang tải dữ liệu sự kiện...</p>
       </div>
     );
   }
@@ -413,6 +440,7 @@ const Dashboard = ({ user }) => {
   return (
     <div className='min-h-screen bg-slate-50 px-6 py-10'>
       <div className='mx-auto max-w-6xl space-y-8'>
+        {/* Header Section */}
         <header className='flex flex-col gap-6 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100 sm:flex-row sm:items-center sm:justify-between'>
           <div className='flex items-center gap-4'>
             <img
@@ -464,6 +492,7 @@ const Dashboard = ({ user }) => {
           </div>
         </header>
 
+        {/* Main Content Grid */}
         <div className='grid gap-6 lg:grid-cols-12'>
           <div className='space-y-6 lg:col-span-7'>
             <TicketStack events={ticketHighlights} />
@@ -495,6 +524,8 @@ const Dashboard = ({ user }) => {
     </div>
   );
 };
+
+// --- CÁC COMPONENT CON GIỮ NGUYÊN (Chỉ copy lại để code hoàn chỉnh) ---
 
 const TicketStack = ({ events }) => (
   <section className='rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-slate-100'>
@@ -582,7 +613,7 @@ const TicketCard = ({ event }) => (
       />
       <div className='text-center'>
         <p className='font-mono text-xs uppercase tracking-wide text-slate-400'>
-          {event.id}
+          {typeof event.id === "string" ? event.id.slice(-6) : event.id}
         </p>
         <button className='mt-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800'>
           Xem vé
@@ -632,12 +663,10 @@ const PopularEvents = ({
       </header>
 
       <div className='mt-6 grid gap-4 sm:grid-cols-[1.2fr_1fr]'>
-        <ul className='space-y-4'>
+        <ul className='space-y-4 max-h-[500px] overflow-y-auto pr-2'>
           {events.map((event) => {
             const isActive = activeEventId === event.id;
-            const imageSource =
-              event.image ??
-              "https://images.unsplash.com/photo-1520004434532-668416a08753?auto=format&fit=crop&w=400&q=80";
+            const imageSource = event.image;
             return (
               <li
                 key={event.id}
@@ -654,10 +683,10 @@ const PopularEvents = ({
                 />
                 <div className='flex flex-1 flex-col'>
                   <div className='flex items-center justify-between'>
-                    <p className='text-sm font-semibold text-slate-900'>
+                    <p className='text-sm font-semibold text-slate-900 line-clamp-1'>
                       {event.name}
                     </p>
-                    <span className='text-xs font-medium text-indigo-600'>
+                    <span className='text-xs font-medium text-indigo-600 whitespace-nowrap ml-2'>
                       {formatDistance(event.distance)}
                     </span>
                   </div>
@@ -675,10 +704,6 @@ const PopularEvents = ({
                     <Ticket className='h-3 w-3' />
                     {event.availability}
                   </div>
-                  <p className='mt-1 text-xs text-slate-500'>
-                    Đã đăng ký: {event.registered.toLocaleString("vi-VN")} tình
-                    nguyện viên
-                  </p>
                 </div>
               </li>
             );
@@ -732,6 +757,11 @@ const InteractiveMap = ({
     );
   }
 
+  // Double check tọa độ trước khi render MapContainer để tránh lỗi NaN
+  if (typeof selection.lat !== "number" || typeof selection.lng !== "number") {
+    return null;
+  }
+
   return (
     <MapContainer
       center={selection}
@@ -761,23 +791,35 @@ const InteractiveMap = ({
           <Popup>Điểm đang chọn</Popup>
         </Marker>
       )}
-      {events.map((event) => (
-        <Marker
-          key={event.id}
-          position={event.coordinates}
-          icon={DEFAULT_MARKER_ICON}
-          eventHandlers={{
-            click: () => onEventFocus(event),
-          }}>
-          <Popup>
-            <p className='text-sm font-semibold text-slate-900'>{event.name}</p>
-            <p className='text-xs text-slate-600'>{event.location}</p>
-            <p className='mt-1 text-xs font-medium text-indigo-600'>
-              Cách bạn: {formatDistance(event.distance)}
-            </p>
-          </Popup>
-        </Marker>
-      ))}
+      {events.map((event) => {
+        // Double check từng marker
+        if (
+          !event.coordinates ||
+          typeof event.coordinates.lat !== "number" ||
+          typeof event.coordinates.lng !== "number"
+        )
+          return null;
+
+        return (
+          <Marker
+            key={event.id}
+            position={event.coordinates}
+            icon={DEFAULT_MARKER_ICON}
+            eventHandlers={{
+              click: () => onEventFocus(event),
+            }}>
+            <Popup>
+              <p className='text-sm font-semibold text-slate-900'>
+                {event.name}
+              </p>
+              <p className='text-xs text-slate-600'>{event.location}</p>
+              <p className='mt-1 text-xs font-medium text-indigo-600'>
+                Cách bạn: {formatDistance(event.distance)}
+              </p>
+            </Popup>
+          </Marker>
+        );
+      })}
     </MapContainer>
   );
 };
@@ -786,7 +828,14 @@ const MapViewUpdater = ({ center, zoom }) => {
   const map = useMap();
 
   useEffect(() => {
-    if (center) {
+    // Kiểm tra Lat/Lng hợp lệ trước khi FlyTo
+    if (
+      center &&
+      typeof center.lat === "number" &&
+      typeof center.lng === "number" &&
+      !isNaN(center.lat) &&
+      !isNaN(center.lng)
+    ) {
       map.flyTo(center, zoom, { duration: 0.4 });
     }
   }, [center, zoom, map]);
@@ -839,8 +888,10 @@ const UpcomingEvents = ({ events }) => {
                 />
               </div>
               <div className='flex flex-col gap-2 text-sm'>
-                <p className='font-semibold text-slate-900'>{event.name}</p>
-                <p className='inline-flex items-center gap-1 text-slate-500'>
+                <p className='font-semibold text-slate-900 line-clamp-1'>
+                  {event.name}
+                </p>
+                <p className='inline-flex items-center gap-1 text-slate-500 line-clamp-1'>
                   <MapPin className='h-3 w-3' />
                   {event.location}
                 </p>
@@ -903,7 +954,7 @@ const EventSchedule = ({ schedule }) => {
         <div>
           <p className='text-sm font-medium text-slate-500'>Japan Event</p>
           <h3 className='text-lg font-semibold text-slate-900'>
-            Lịch sự kiện nổi bật tại Tokyo
+            Lịch sự kiện nổi bật
           </h3>
         </div>
         <button className='text-sm font-semibold text-indigo-600 hover:text-indigo-700'>
@@ -918,7 +969,9 @@ const EventSchedule = ({ schedule }) => {
               <span className='flex h-10 w-16 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white'>
                 {item.date}
               </span>
-              <span className='text-sm text-slate-600'>{item.detail}</span>
+              <span className='text-sm text-slate-600 line-clamp-1'>
+                {item.detail}
+              </span>
             </li>
           ))
         ) : (
@@ -982,7 +1035,7 @@ const MiniCalendar = ({ monthLabel, matrix, highlights }) => {
               <span
                 className={`inline-flex h-3 w-3 items-center justify-center rounded-full ${meta.color}`}
               />
-              <span>
+              <span className='line-clamp-1'>
                 Ngày {day}: {meta.label}
               </span>
             </li>
