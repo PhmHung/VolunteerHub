@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito+Sans:wght@600;700;800&display=swap");
+@import "./styles/common.css";
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +7,7 @@
 
 @layer base {
 	body {
-		@apply bg-surface-muted text-slate-900 font-body antialiased;
+		@apply bg-surface-muted text-text-main font-body antialiased;
 	}
 
 	h1,
@@ -15,14 +16,14 @@
 	h4,
 	h5,
 	h6 {
-		@apply font-heading text-slate-950;
+		@apply font-heading text-text-main;
 	}
 
 	a {
-		@apply text-brand-primary transition-colors duration-200;
+		@apply text-primary-600 transition-colors duration-200;
 	}
 
 	a:hover {
-		@apply text-brand-secondary;
+		@apply text-primary-700;
 	}
 }

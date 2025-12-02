@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { EventStatus } from '../types';
-import { EVENT_CATEGORIES } from '../data/mockEvents';
+import { EVENT_CATEGORIES } from '../utils/constants';
 import { eventValidationSchema } from '../utils/validationSchemas';
 
 // Icons for the form
@@ -119,16 +119,16 @@ export const EventFormModal = ({ eventToEdit, onSave, onClose }) => {
     };
     
     return (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose} aria-modal="true">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-scale-up" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose} aria-modal="true">
+            <div className="bg-surface-base rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-scale-up" onClick={e => e.stopPropagation()}>
                 <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
-                    <header className="p-6 border-b border-slate-200 flex items-center gap-4">
-                        <div className="bg-indigo-100 text-indigo-600 rounded-lg p-3 flex-shrink-0">
+                    <header className="p-6 border-b border-border flex items-center gap-4">
+                        <div className="bg-primary-100 text-primary-600 rounded-lg p-3 flex-shrink-0">
                            {eventToEdit ? <PencilIcon /> : <PlusIcon />}
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-800">{eventToEdit ? 'Edit Event' : 'Create New Event'}</h2>
-                            <p className="text-slate-500 text-sm mt-0.5">Fill out the details below to {eventToEdit ? 'update' : 'create'} your event.</p>
+                            <h2 className="text-xl font-bold text-text-main">{eventToEdit ? 'Edit Event' : 'Create New Event'}</h2>
+                            <p className="text-text-muted text-sm mt-0.5">Fill out the details below to {eventToEdit ? 'update' : 'create'} your event.</p>
                         </div>
                     </header>
 
@@ -180,7 +180,7 @@ export const EventFormModal = ({ eventToEdit, onSave, onClose }) => {
                                             type="button"
                                             key={cat}
                                             onClick={() => toggleTag(cat)}
-                                            className={`px-3 py-1.5 text-sm rounded-full transition-colors border ${selected ? 'bg-indigo-600 text-white border-transparent' : 'bg-slate-100 text-slate-700 border-slate-200'}`}
+                                            className={`px-3 py-1.5 text-sm rounded-full transition-colors border ${selected ? 'bg-primary-600 text-white border-transparent' : 'bg-surface-muted text-text-secondary border-border'}`}
                                             disabled={!selected && (formData.tags || []).length >= 5}
                                         >
                                             {selected ? <span className="inline-flex items-center gap-2"><CheckIcon />{cat}</span> : cat}
@@ -188,7 +188,7 @@ export const EventFormModal = ({ eventToEdit, onSave, onClose }) => {
                                     );
                                 })}
                             </div>
-                            <p className="mt-2 text-xs text-slate-500">Selected: {(formData.tags || []).length}/5</p>
+                            <p className="mt-2 text-xs text-text-muted">Selected: {(formData.tags || []).length}/5</p>
                         </InputField>
                         
                         <InputField label="Description" error={errors.description}>
@@ -196,11 +196,11 @@ export const EventFormModal = ({ eventToEdit, onSave, onClose }) => {
                         </InputField>
                     </main>
 
-                    <footer className="bg-slate-50 px-6 py-4 rounded-b-xl flex justify-end items-center gap-3 mt-auto flex-shrink-0 border-t border-slate-200">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                    <footer className="bg-surface-muted px-6 py-4 rounded-b-xl flex justify-end items-center gap-3 mt-auto flex-shrink-0 border-t border-border">
+                        <button type="button" onClick={onClose} className="btn btn-secondary">
                             Cancel
                         </button>
-                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center gap-2 transition-colors">
+                        <button type="submit" className="btn btn-primary flex items-center gap-2 shadow-sm">
                             <CheckIcon />
                             <span>Save Event</span>
                         </button>
@@ -214,17 +214,17 @@ export const EventFormModal = ({ eventToEdit, onSave, onClose }) => {
 // Reusable component for form fields
 const InputField = ({ label, error, hint, children }) => (
     <div>
-        <label className="block text-sm font-medium text-slate-700">{label}</label>
+        <label className="block text-sm font-medium text-text-secondary">{label}</label>
         <div className="mt-1">{children}</div>
-        {error && <p className="mt-1 text-sm text-rose-600">{error}</p>}
-        {hint && !error && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
+        {error && <p className="mt-1 text-sm text-error-600">{error}</p>}
+        {hint && !error && <p className="mt-1 text-xs text-text-muted">{hint}</p>}
     </div>
 );
 
 // Helper function to generate input classes
 const inputClass = (hasError) => 
-    `block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors ${
-        hasError ? 'border-rose-400 text-rose-900 placeholder-rose-400' : 'border-slate-300 placeholder-slate-400'
+    `input-field ${
+        hasError ? '!border-error-400 !text-error-900 !placeholder-error-400 !focus:ring-error-500 !focus:border-error-500' : ''
     }`;
 
 // Provide default export (also keep named export above)

@@ -58,7 +58,7 @@ export default function Home({ user, openAuth }) {
         return (
           <motion.section
             key={title}
-            className="bg-white py-12 sm:py-16"
+            className="bg-surface-white py-12 sm:py-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
@@ -78,14 +78,14 @@ export default function Home({ user, openAuth }) {
                 {/* Nội dung - Rộng hơn */}
                 <div className="w-full lg:w-[55%] px-4 sm:px-8">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="p-4 rounded-full bg-indigo-100 text-indigo-600">
+                    <div className="p-4 rounded-full bg-primary-100 text-primary-600">
                       <Icon className="h-7 w-7" />
                     </div>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-6 leading-tight">
+                  <h2 className="text-3xl font-bold text-text-main mb-6">
                     {title}
                   </h2>
-                  <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+                  <p className="text-base text-text-secondary leading-relaxed">
                     {description}
                   </p>
                 </div>
@@ -96,7 +96,7 @@ export default function Home({ user, openAuth }) {
       })}
 
       {/* ==================== SLIDER SECTION ==================== */}
-      <section className="bg-slate-50 py-16">
+      <section className="bg-surface-50 py-16">
         <div className="max-w-7xl mx-auto px-6">
           <Slider />
         </div>
@@ -104,24 +104,24 @@ export default function Home({ user, openAuth }) {
 
       {/* ==================== CTA SECTION ==================== */}
       <motion.section
-        className="bg-white py-20 px-6 sm:px-12 lg:px-20"
+        className="bg-surface-white py-20 px-6 sm:px-12 lg:px-20"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
         transition={{ duration: 0.5 }}
       >
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+          <h2 className="text-3xl sm:text-4xl font-bold text-text-main">
             Làm thế nào để tham gia với chúng tôi
           </h2>
-          <p className="mt-4 text-lg text-slate-600">
+          <p className="mt-4 text-lg text-text-secondary">
             Kết nối đam mê của bạn với các dự án cộng đồng. Bắt đầu hành trình tạo nên sự thay đổi ngay hôm nay.
           </p>
           <div className="mt-8">
             {user ? (
               <Link
                 to="/information"
-                className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-8 py-4 text-lg font-semibold text-white transition-all hover:bg-indigo-700 hover:shadow-lg active:scale-95"
+                className="inline-flex items-center gap-2 rounded-full btn-primary px-8 py-4 text-lg font-semibold transition-all hover:shadow-lg active:scale-95"
               >
                 Xem hồ sơ
                 <ArrowRight className="h-5 w-5" />
@@ -129,7 +129,7 @@ export default function Home({ user, openAuth }) {
             ) : (
               <button
                 onClick={() => openAuth("register")}
-                className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-8 py-4 text-lg font-semibold text-white transition-all hover:bg-indigo-700 hover:shadow-lg active:scale-95"
+                className="inline-flex items-center gap-2 rounded-full btn-primary px-8 py-4 text-lg font-semibold transition-all hover:shadow-lg active:scale-95"
               >
                 Tạo tài khoản
                 <ArrowRight className="h-5 w-5" />

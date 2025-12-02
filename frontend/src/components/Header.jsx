@@ -10,6 +10,7 @@ import {
   Info as InfoIcon,
   Calendar,
   ShieldCheck,
+  History,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { fullUrl } from "../api.js";
@@ -56,13 +57,13 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
   ];
   PAGES = PAGES && PAGES.length ? PAGES : defaultPages;
   return (
-    <header className="sticky top-0 z-30 border-b border-white/30 bg-surface-base/80 backdrop-blur-xl supports-[backdrop-filter]:bg-surface-base/70">
+    <header className="sticky top-0 z-30 border-b border-border/30 bg-surface-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-surface-white/70">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-3">
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
             <div className="relative">
-              <Sparkles className="absolute -top-2 -right-2 h-4 w-4 text-brand-accent" />
+              <Sparkles className="absolute -top-2 -right-2 h-4 w-4 text-warning-500" />
               <img 
                 src="/logo.svg" 
                 alt="VolunteerHub Logo" 
@@ -71,10 +72,10 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
             </div>
           </motion.div>
           <div>
-            <p className="bg-gradient-to-r from-brand-primary via-brand-secondary/90 to-brand-accent bg-clip-text text-xl font-extrabold text-transparent">
+            <p className="bg-gradient-to-r from-primary-600 via-secondary-500 to-warning-500 bg-clip-text text-xl font-extrabold text-transparent">
               VolunteerHub
             </p>
-            <h1 className="text-xs uppercase tracking-[0.4em] text-slate-600">for community</h1>
+            <h1 className="text-xs uppercase tracking-[0.4em] text-text-muted">for community</h1>
           </div>
         </div>
 
@@ -94,8 +95,8 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                   to={page.path}
                   className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-medium transition ${
                     isActive
-                      ? "bg-brand-primary/10 text-brand-primary shadow-sm"
-                      : "text-slate-600 hover:bg-surface-muted"
+                      ? "bg-primary-50 text-primary-700 shadow-sm"
+                      : "text-text-secondary hover:bg-surface-50 hover:text-text-main"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -108,7 +109,7 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
           {/* Mobile menu button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="rounded-xl p-2 text-slate-600 transition hover:bg-surface-muted md:hidden"
+            className="rounded-xl p-2 text-text-secondary transition hover:bg-surface-50 md:hidden"
           >
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -120,7 +121,7 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                   onClick={() => setProfileOpen((open) => !open)}
                   aria-haspopup="true"
                   aria-expanded={profileOpen}
-                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-brand-primary/20 bg-surface-base shadow-sm transition hover:border-brand-primary/60"
+                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-primary-200 bg-surface-white shadow-sm transition hover:border-primary-500"
                 >
                   {picture ? (
                     <img
@@ -129,16 +130,16 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="text-sm font-semibold text-slate-600">
+                    <span className="text-sm font-semibold text-text-secondary">
                       {displayName ? displayName.charAt(0).toUpperCase() : "U"}
                     </span>
                   )}
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 z-40 mt-3 w-64 rounded-2xl border border-brand-primary/10 bg-surface-base/95 p-4 shadow-xl backdrop-blur">
+                  <div className="absolute right-0 z-40 mt-3 w-64 rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
                     <div className="flex items-start gap-3">
-                      <div className="h-12 w-12 overflow-hidden rounded-full border border-brand-primary/20 bg-surface-muted">
+                      <div className="h-12 w-12 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
                         {picture ? (
                           <img
                             src={fullUrl(picture)}
@@ -146,17 +147,17 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                             className="h-full w-full object-cover"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-500">
+                          <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-500">
                             {displayName ? displayName.charAt(0).toUpperCase() : "U"}
                           </div>
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-900">{displayName || "Tài khoản"}</p>
+                        <p className="truncate text-sm font-semibold text-gray-900">{displayName || "Tài khoản"}</p>
                         {roleLabel ? (
-                          <p className="text-xs font-medium text-brand-primary/80">{roleLabel}</p>
+                          <p className="text-xs font-medium text-blue-600">{roleLabel}</p>
                         ) : null}
-                        <p className="truncate text-xs text-slate-500">{user.userEmail || user.email}</p>
+                        <p className="truncate text-xs text-gray-500">{user.userEmail || user.email}</p>
                       </div>
                     </div>
 
@@ -164,9 +165,17 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                       <Link
                         to="/information"
                         onClick={() => setProfileOpen(false)}
-                        className="block rounded-xl bg-surface-muted px-3 py-2 font-medium text-slate-700 transition hover:bg-brand-primary/10 hover:text-brand-primary"
+                        className="block rounded-xl bg-gray-100 px-3 py-2 font-medium text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
                       >
                         Xem thông tin cá nhân
+                      </Link>
+                      <Link
+                        to="/history"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 font-medium text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        <History className="h-4 w-4" />
+                        Lịch sử tham gia
                       </Link>
                       <button
                         type="button"
@@ -174,7 +183,7 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                           setProfileOpen(false);
                           handleLogout();
                         }}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-feedback-danger/30 bg-feedback-danger/10 px-3 py-2 font-semibold text-feedback-danger transition hover:bg-feedback-danger/20"
+                        className="flex items-center gap-2 w-full justify-center px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition text-sm font-medium"
                       >
                         <LogOut className="h-4 w-4" /> Đăng xuất
                       </button>
@@ -187,7 +196,7 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
             <>
               <button
                 onClick={() => setAuthModal("login")}
-                className="flex items-center gap-2 rounded-2xl border border-brand-primary/40 bg-surface-base px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/10"
+                className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium text-text-secondary hover:bg-surface-50 transition"
               >
                 <LogIn className="h-4 w-4" />
                 Login
@@ -195,7 +204,7 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
 
               <button
                 onClick={() => setAuthModal("register")}
-                className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-secondary via-brand-secondary to-brand-accent px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:from-brand-secondary/90 hover:to-brand-accent/90"
+                className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium text-white bg-gradient-to-r from-secondary-500 via-secondary-600 to-warning-500 hover:shadow-lg transition border-none"
               >
                 Register
               </button>
@@ -220,8 +229,8 @@ export default function Header({ setAuthModal, user, handleLogout, PAGES }) {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition ${
                     isActive
-                      ? "bg-brand-primary/10 text-brand-primary"
-                      : "text-slate-600 hover:bg-surface-muted"
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-text-secondary hover:bg-surface-muted"
                   }`}
                 >
                   <Icon className="h-5 w-5" />

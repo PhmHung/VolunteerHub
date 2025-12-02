@@ -9,7 +9,7 @@ export const fetchUserProfile = createAsyncThunk(
   "user/fetchProfile",
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await api.get("/users/profile");
+      const { data } = await api.get("/api/user/profile");
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -27,7 +27,7 @@ export const updateUserProfile = createAsyncThunk(
           ? { headers: { "Content-Type": "multipart/form-data" } }
           : {};
 
-      const { data } = await api.put("/users/profile", formData, config);
+      const { data } = await api.put("/api/user/profile", formData, config);
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -39,7 +39,7 @@ export const changeUserPassword = createAsyncThunk(
   "user/changePassword",
   async ({ currentPassword, newPassword }, { rejectWithValue }) => {
     try {
-      const { data } = await api.put("/users/profile/change-password", {
+      const { data } = await api.put("/api/user/profile/change-password", {
         currentPassword,
         newPassword,
       });
@@ -55,7 +55,7 @@ export const fetchAllUsers = createAsyncThunk(
   "user/fetchAllUsers",
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await api.get("/users");
+      const { data } = await api.get("/api/user");
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -67,7 +67,7 @@ export const deleteUser = createAsyncThunk(
   "user/deleteUser",
   async (userId, { rejectWithValue }) => {
     try {
-      await api.delete(`/users/${userId}`);
+      await api.delete(`/api/user/${userId}`);
       return userId;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -79,7 +79,7 @@ export const updateUserRole = createAsyncThunk(
   "user/updateRole",
   async ({ userId, role }, { rejectWithValue }) => {
     try {
-      const { data } = await api.put(`/users/${userId}/role`, { role });
+      const { data } = await api.put(`/api/user/${userId}/role`, { role });
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);

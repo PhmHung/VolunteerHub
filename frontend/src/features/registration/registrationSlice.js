@@ -9,7 +9,7 @@ export const registerForEvent = createAsyncThunk(
   "registration/register",
   async (eventId, { rejectWithValue }) => {
     try {
-      const { data } = await api.post("/registrations", { eventId });
+      const { data } = await api.post("/api/registrations", { eventId });
       return data; // { message: "Đăng ký thành công", data: registration }
     } catch (err) {
       const message = err.response?.data?.message || err.message;
@@ -23,7 +23,7 @@ export const cancelRegistration = createAsyncThunk(
   "registration/cancel",
   async (registrationId, { rejectWithValue }) => {
     try {
-      const { data } = await api.delete(`/registrations/${registrationId}`);
+      const { data } = await api.delete(`/api/registrations/${registrationId}`);
       return { registrationId, message: data.message };
     } catch (err) {
       const message = err.response?.data?.message || err.message;
@@ -37,7 +37,7 @@ export const fetchMyRegistrations = createAsyncThunk(
   "registration/fetchMy",
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await api.get("/registrations/my");
+      const { data } = await api.get("/api/registrations/my-registrations");
       return data; // mảng các registration của user hiện tại
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -50,8 +50,47 @@ export const fetchEventRegistrations = createAsyncThunk(
   "registration/fetchByEvent",
   async (eventId, { rejectWithValue }) => {
     try {
-      const { data } = await api.get(`/registrations/event/${eventId}`);
+      const { data } = await api.get(`/api/events/${eventId}/registrations`);
       return { eventId, registrations: data };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+// 5. (Dành cho Admin/Manager) Chấp nhận đăng ký
+export const acceptRegistration = createAsyncThunk(
+  "registration/accept",
+  async (registrationId, { rejectWithValue }) => {
+    try {
+      const { data } = await api.patch(`/api/registrations/${registrationId}/accept`);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+// 6. (Dành cho Admin/Manager) Từ chối đăng ký
+export const rejectRegistration = createAsyncThunk(
+  "registration/reject",
+  async ({ registrationId, reason }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.patch(`/api/registrations/${registrationId}/reject`, { reason });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+// 7. (Dành cho Admin/Manager) Lấy tất cả đăng ký pending
+export const fetchPendingRegistrations = createAsyncThunk(
+  "registration/fetchPending",
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get("/api/registrations/pending");
+      return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -69,6 +108,10 @@ const registrationSlice = createSlice({
     // Danh sách đăng ký theo sự kiện (dùng cho trang quản lý)
     eventRegistrations: {},
     eventLoading: false,
+
+    // Danh sách đăng ký pending (admin)
+    pendingRegistrations: [],
+    pendingLoading: false,
 
     // Thông báo thành công & lỗi chung
     successMessage: null,
@@ -149,6 +192,46 @@ const registrationSlice = createSlice({
       })
       .addCase(fetchEventRegistrations.rejected, (state, action) => {
         state.eventLoading = false;
+        state.error = action.payload;
+      });
+
+    // CHẤP NHẬN ĐĂNG KÝ
+    builder
+      .addCase(acceptRegistration.fulfilled, (state, action) => {
+        state.successMessage = "Đã chấp nhận tình nguyện viên!";
+        // Xóa khỏi pending list
+        state.pendingRegistrations = state.pendingRegistrations.filter(
+          (reg) => reg._id !== action.payload.data?._id
+        );
+      })
+      .addCase(acceptRegistration.rejected, (state, action) => {
+        state.error = action.payload;
+      });
+
+    // TỪ CHỐI ĐĂNG KÝ
+    builder
+      .addCase(rejectRegistration.fulfilled, (state, action) => {
+        state.successMessage = "Đã từ chối tình nguyện viên.";
+        // Xóa khỏi pending list
+        state.pendingRegistrations = state.pendingRegistrations.filter(
+          (reg) => reg._id !== action.payload.data?._id
+        );
+      })
+      .addCase(rejectRegistration.rejected, (state, action) => {
+        state.error = action.payload;
+      });
+
+    // LẤY ĐĂNG KÝ PENDING
+    builder
+      .addCase(fetchPendingRegistrations.pending, (state) => {
+        state.pendingLoading = true;
+      })
+      .addCase(fetchPendingRegistrations.fulfilled, (state, action) => {
+        state.pendingLoading = false;
+        state.pendingRegistrations = action.payload;
+      })
+      .addCase(fetchPendingRegistrations.rejected, (state, action) => {
+        state.pendingLoading = false;
         state.error = action.payload;
       });
   },

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share2, MoreHorizontal, CheckCircle, XCircle, FileText, Download, Edit2, Trash2, Flag } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, CheckCircle, XCircle, FileText, Download, Edit2, Trash2, Flag, ThumbsUp } from 'lucide-react';
 import Comment from './Comment';
 
 const Post = ({ post, onLike, onComment, onApprove, onReject, onEdit, onDelete, onDeleteComment, currentUser }) => {
@@ -20,16 +20,14 @@ const Post = ({ post, onLike, onComment, onApprove, onReject, onEdit, onDelete, 
     if (!commentText.trim()) return;
     onComment(post.id, commentText);
     setCommentText("");
+    setShowComments(true);
   };
 
   const startEdit = () => {
-    // Extract text content from React element if possible, or just use empty string
-    // This is a simplification since content is a React node in the mock data
     let initialText = "";
     if (typeof post.content === 'string') {
         initialText = post.content;
     } else if (post.content?.props?.children) {
-        // Try to grab text from simple p tag structure
         initialText = post.content.props.children;
         if (Array.isArray(initialText)) initialText = initialText.join(" ");
     }
@@ -45,7 +43,7 @@ const Post = ({ post, onLike, onComment, onApprove, onReject, onEdit, onDelete, 
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Header */}
       <div className="p-4 flex items-start justify-between">
         <div className="flex gap-3">
@@ -57,9 +55,9 @@ const Post = ({ post, onLike, onComment, onApprove, onReject, onEdit, onDelete, 
             />
           </div>
           <div>
-            <h4 className="font-bold text-gray-900 text-sm">{post.author.name}</h4>
+            <h4 className="font-bold text-gray-900 text-sm hover:underline cursor-pointer">{post.author.name}</h4>
             <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span>{post.time}</span>
+              <span className="hover:underline cursor-pointer">{post.time}</span>
               {post.status === 'pending' && (
                 <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[10px] font-medium">
                   Chờ duyệt
@@ -99,171 +97,213 @@ const Post = ({ post, onLike, onComment, onApprove, onReject, onEdit, onDelete, 
             </button>
 
             {showMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-10 animate-in fade-in zoom-in-95 duration-200">
-                {canEdit && (
-                  <button 
-                    onClick={startEdit}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <Edit2 className="w-4 h-4" /> Chỉnh sửa
-                  </button>
-                )}
-                {canDelete && (
-                  <button 
-                    onClick={() => { onDelete(post.id); setShowMenu(false); }}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" /> Xóa bài viết
-                  </button>
-                )}
-                <button 
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                  onClick={() => { alert("Đã báo cáo bài viết!"); setShowMenu(false); }}
-                >
-                  <Flag className="w-4 h-4" /> Báo cáo
-                </button>
-              </div>
+                <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)}></div>
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20 animate-in fade-in zoom-in duration-100">
+                        {canEdit && (
+                            <button 
+                                onClick={startEdit}
+                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                                <Edit2 className="w-4 h-4" /> Chỉnh sửa bài viết
+                            </button>
+                        )}
+                        {canDelete && (
+                            <button 
+                                onClick={() => { onDelete(post.id); setShowMenu(false); }}
+                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" /> Xóa bài viết
+                            </button>
+                        )}
+                        {!isAuthor && (
+                            <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                <Flag className="w-4 h-4" /> Báo cáo bài viết
+                            </button>
+                        )}
+                    </div>
+                </>
             )}
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-4 pb-3">
+      <div className="px-4 pb-2">
         {isEditing ? (
-          <div className="space-y-3">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent min-h-[100px]"
-            />
-            <div className="flex justify-end gap-2">
-              <button 
-                onClick={() => setIsEditing(false)}
-                className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
-              >
-                Hủy
-              </button>
-              <button 
-                onClick={saveEdit}
-                className="px-3 py-1.5 text-sm bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90"
-              >
-                Lưu
-              </button>
+            <div className="mb-4">
+                <textarea 
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent min-h-[100px]"
+                />
+                <div className="flex justify-end gap-2 mt-2">
+                    <button 
+                        onClick={() => setIsEditing(false)}
+                        className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                    >
+                        Hủy
+                    </button>
+                    <button 
+                        onClick={saveEdit}
+                        className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                    >
+                        Lưu
+                    </button>
+                </div>
             </div>
-          </div>
         ) : (
-          <div className="text-gray-800 whitespace-pre-wrap">
-            {post.content}
-          </div>
+            <div className="text-gray-800 whitespace-pre-wrap mb-3 text-[15px] leading-relaxed">
+                {typeof post.content === 'object' && post.content !== null ? post.content.text || JSON.stringify(post.content) : post.content}
+            </div>
         )}
       </div>
 
-      {/* Attachments */}
+      {/* Attachments - Image */}
       {post.image && (
-        <div className="w-full h-64 sm:h-80 bg-gray-100 cursor-pointer overflow-hidden">
-          <img src={post.image} alt="Post attachment" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+        <div className="mb-3">
+            <div className="w-full bg-gray-100 cursor-pointer hover:opacity-95 transition-opacity">
+                <img src={post.image} alt="" className="w-full h-auto max-h-[500px] object-contain mx-auto" />
+            </div>
         </div>
       )}
-      
+
+      {/* Attachments - File */}
       {post.file && (
-        <div className="px-4 pb-3">
-            <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
-                    <FileText className="w-6 h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{post.file.name}</p>
-                    <p className="text-xs text-gray-500">{(post.file.size / 1024).toFixed(1)} KB</p>
+        <div className="mb-3">
+            <div className="mx-4 p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between group hover:bg-gray-100 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                        <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-gray-900">{post.file.name}</p>
+                        <p className="text-xs text-gray-500">{typeof post.file.size === 'number' ? (post.file.size / 1024).toFixed(2) + ' KB' : post.file.size}</p>
+                    </div>
                 </div>
                 <a 
                     href={post.file.url} 
                     download={post.file.name}
-                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition"
-                    title="Tải xuống"
+                    className="p-2 text-gray-400 hover:text-gray-600 group-hover:bg-white rounded-full transition-all shadow-sm"
                 >
-                    <Download className="w-5 h-5" />
+                    <Download className="w-4 h-4" />
                 </a>
             </div>
         </div>
       )}
 
-      {/* Actions */}
-      <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => onLike(post.id)}
-            className={`flex items-center gap-1.5 text-sm font-medium transition ${
-              post.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-            }`}
-          >
-            <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
-            {post.likes > 0 && <span>{post.likes}</span>}
-          </button>
-          
-          <button 
-            onClick={() => setShowComments(!showComments)}
-            className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-blue-600 transition"
-          >
-            <MessageCircle className="w-5 h-5" />
-            {post.comments.length > 0 && <span>{post.comments.length}</span>}
-          </button>
+      {/* Stats - Facebook style */}
+      {(post.likes > 0 || (post.comments?.length || 0) > 0) && (
+        <div className="px-4 py-2 flex items-center justify-between text-[13px] text-gray-500">
+          <div className="flex items-center gap-1.5">
+              {post.likes > 0 && (
+                  <>
+                      <div className="flex -space-x-1">
+                          <div className="w-[18px] h-[18px] bg-blue-500 rounded-full flex items-center justify-center border-2 border-white">
+                              <ThumbsUp className="w-2.5 h-2.5 text-white fill-current" />
+                          </div>
+                      </div>
+                      <span className="hover:underline cursor-pointer">{post.likes}</span>
+                  </>
+              )}
+          </div>
+          <div className="flex gap-2">
+              {(post.comments?.length || 0) > 0 && (
+                  <span 
+                      onClick={() => setShowComments(!showComments)}
+                      className="hover:underline cursor-pointer"
+                  >
+                      {post.comments.length} bình luận
+                  </span>
+              )}
+          </div>
         </div>
-        
-        <button className="text-gray-400 hover:text-gray-600 transition">
-          <Share2 className="w-5 h-5" />
+      )}
+
+      {/* Divider */}
+      <div className="mx-4 border-t border-gray-200"></div>
+
+      {/* Actions - Facebook style */}
+      <div className="px-2 py-1 flex items-center">
+        <button 
+            onClick={() => onLike(post.id)}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                post.isLiked 
+                    ? 'text-blue-600' 
+                    : 'text-gray-600 hover:bg-gray-100'
+            }`}
+        >
+            <ThumbsUp className={`w-5 h-5 transition-transform duration-200 ${post.isLiked ? 'fill-current scale-110' : ''}`} />
+            <span>Thích</span>
+        </button>
+        <button 
+            onClick={() => setShowComments(!showComments)}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+            <MessageCircle className="w-5 h-5" />
+            <span>Bình luận</span>
+        </button>
+        <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+            <Share2 className="w-5 h-5" />
+            <span>Chia sẻ</span>
         </button>
       </div>
 
-      {/* Comments Section */}
+      {/* Comments Section - Facebook style */}
       {showComments && (
-        <div className="bg-gray-50/50 border-t border-gray-100 p-4">
-          {/* Comment List */}
-          <div className="space-y-4 mb-4 max-h-60 overflow-y-auto custom-scrollbar">
-            {post.comments.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-2">Chưa có bình luận nào.</p>
-            ) : (
-                post.comments.map(comment => (
-                    <Comment 
-                        key={comment.id} 
-                        comment={comment} 
-                        currentUser={currentUser}
-                        onDelete={(commentId) => onDeleteComment(post.id, commentId)}
+        <div className="px-4 pb-4 pt-2">
+            {/* Comment Input - Always visible like Facebook */}
+            <div className="flex gap-2 mb-3">
+                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                    <img 
+                        src={currentUser?.profilePicture || `https://ui-avatars.com/api/?name=${currentUser?.userName || 'User'}&background=random`} 
+                        alt={currentUser?.userName} 
+                        className="w-full h-full object-cover" 
                     />
-                ))
-            )}
-          </div>
+                </div>
+                <form onSubmit={handleCommentSubmit} className="flex-1 relative">
+                    <input 
+                        type="text" 
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Viết bình luận..."
+                        className="w-full bg-gray-100 border-0 rounded-2xl py-2 pl-4 pr-10 text-sm focus:ring-0 focus:bg-gray-200 placeholder-gray-500 transition-colors"
+                    />
+                    {commentText.trim() && (
+                        <button 
+                            type="submit"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-600 transition-colors"
+                        >
+                            <SendIcon className="w-4 h-4" />
+                        </button>
+                    )}
+                </form>
+            </div>
 
-          {/* Comment Input */}
-          <form onSubmit={handleCommentSubmit} className="flex gap-2">
-            <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden border border-gray-100 flex-shrink-0">
-                <img 
-                    src={currentUser?.profilePicture || `https://ui-avatars.com/api/?name=${currentUser?.userName || 'User'}&background=random`} 
-                    alt="My Avatar" 
-                    className="w-full h-full object-cover" 
-                />
-            </div>
-            <div className="flex-1 relative">
-                <input
-                    type="text"
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Viết bình luận..."
-                    className="w-full pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition"
-                />
-                <button 
-                    type="submit"
-                    disabled={!commentText.trim()}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-brand-primary text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-primary/90 transition"
-                >
-                    <svg className="w-3 h-3 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                </button>
-            </div>
-          </form>
+            {/* Comment List */}
+            {post.comments?.length > 0 && (
+                <div className="space-y-3">
+                    {post.comments.map(comment => (
+                        <Comment 
+                            key={comment.id} 
+                            comment={comment} 
+                            currentUser={currentUser}
+                            onDelete={() => onDeleteComment(post.id, comment.id)}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
       )}
     </div>
   );
 };
+
+const SendIcon = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+    </svg>
+);
 
 export default Post;

@@ -30,13 +30,13 @@ const fallbackPillars = [
 
 const AboutPillars = ({ pillars = fallbackPillars }) => {
   return (
-    <section className="bg-surface-muted py-16">
+    <section className="bg-surface-50 py-16">
       <div className="mx-auto max-w-7xl px-4">
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="font-heading text-3xl font-extrabold text-slate-950 md:text-4xl">
+          <h2 className="font-heading text-3xl font-extrabold text-text-main md:text-4xl">
             Những điều chúng tôi trân trọng
           </h2>
-          <p className="mt-4 text-base text-slate-600 md:text-lg">
+          <p className="mt-4 text-base text-text-secondary md:text-lg">
             VolunteerHub không chỉ là nguồn thông tin hoạt động thiện nguyện, mà còn là nơi chúng tôi xây dựng văn hóa chia sẻ, lan tỏa tình yêu thương và kết nối các trái tim thiện nguyện.
           </p>
         </div>
@@ -48,25 +48,25 @@ const AboutPillars = ({ pillars = fallbackPillars }) => {
             return (
               <article
                 key={pillar.title}
-                className="group h-full rounded-3xl border border-brand-primary/15 bg-surface-base/80 p-8 shadow-lg shadow-brand-primary/10 transition-all hover:-translate-y-1.5 hover:border-brand-primary/30 hover:shadow-xl hover:shadow-brand-primary/20"
+                className="group h-full rounded-3xl border border-primary-200/15 bg-surface-white/80 p-8 shadow-lg shadow-primary-200/10 transition-all hover:-translate-y-1.5 hover:border-primary-200/30 hover:shadow-xl hover:shadow-primary-200/20"
               >
                 <div className="flex items-center justify-between gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-600">
                     <Icon className="h-6 w-6" />
                   </div>
                   {pillar.tagline && (
-                    <span className="rounded-full bg-brand-secondary/10 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-brand-secondary">
+                    <span className="rounded-full bg-secondary-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-secondary-600">
                       {pillar.tagline}
                     </span>
                   )}
                 </div>
 
-                <h3 className="mt-6 text-xl font-semibold text-slate-900">
+                <h3 className="mt-6 text-xl font-semibold text-text-main">
                   {pillar.title}
                 </h3>
 
                 {pillar.description && (
-                  <p className="mt-4 text-base leading-relaxed text-slate-600">
+                  <p className="mt-4 text-base leading-relaxed text-text-secondary">
                     {pillar.description}
                   </p>
                 )}
@@ -74,8 +74,8 @@ const AboutPillars = ({ pillars = fallbackPillars }) => {
                 {pillar.highlights?.length ? (
                   <ul className="mt-6 space-y-3">
                     {pillar.highlights.map((highlight) => (
-                      <li key={highlight} className="flex items-start gap-3 text-sm text-slate-600">
-                        <Sparkles className="mt-1 h-4 w-4 flex-shrink-0 text-brand-accent" />
+                      <li key={highlight} className="flex items-start gap-3 text-sm text-text-secondary">
+                        <Sparkles className="mt-1 h-4 w-4 flex-shrink-0 text-warning-500" />
                         <span>{highlight}</span>
                       </li>
                     ))}

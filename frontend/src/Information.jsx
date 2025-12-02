@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import api from "./api.js";
 import { Eye, EyeOff, ShieldCheck, Bell, AlertCircle, Mail, Phone } from "lucide-react";
-import { USE_MOCK, MOCK_USER } from "./utils/mockUser.js";
+import { fetchUserProfile, updateUserProfile, changeUserPassword, clearMessages } from "./features/user/userSlice";
 
 export default function Information({ onProfileUpdate }) {
-  const token = USE_MOCK ? null : localStorage.getItem("token");
-  const userId = USE_MOCK
-    ? MOCK_USER._id
-    : token
-      ? JSON.parse(atob(token.split(".")[1])).userId
-      : null;
+  const dispatch = useDispatch();
+  const { profile: reduxUser, profileLoading, message, error } = useSelector((state) => state.user);
+  
+  const token = localStorage.getItem("token");
+  const userId = token ? JSON.parse(atob(token.split(".")[1])).userId : null;
 
-  const [user, setUser] = useState(USE_MOCK ? MOCK_USER : null);
+  const [user, setUser] = useState(null);
   const [editing, setEditing] = useState(false);
   const [passwordModal, setPasswordModal] = useState(false);
   const [pictureFile, setPictureFile] = useState(null);
@@ -25,24 +25,31 @@ export default function Information({ onProfileUpdate }) {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // fetch user helper (used on mount and to refresh after errors)
-  const fetchUser = useCallback(async () => {
-    if (USE_MOCK) {
-      setUser(MOCK_USER);
-      return;
-    }
-    try {
-      const { data } = await api.get("/user/profile");
-      setUser(data);
-    } catch (err) {
-      console.error("Failed to fetch user:", err);
-    }
-  }, []);
-
+  // Sync local user state with Redux
   useEffect(() => {
-    if (USE_MOCK) return;
-    if (token && userId) fetchUser();
-  }, [userId, token, fetchUser]);
+    if (reduxUser) {
+      setUser(reduxUser);
+    }
+  }, [reduxUser]);
+
+  // fetch user on mount
+  useEffect(() => {
+    if (token && userId) {
+      dispatch(fetchUserProfile());
+    }
+  }, [dispatch, userId, token]);
+
+  // Handle messages
+  useEffect(() => {
+    if (message) {
+      window.alert(message);
+      dispatch(clearMessages());
+    }
+    if (error) {
+      window.alert(error);
+      dispatch(clearMessages());
+    }
+  }, [message, error, dispatch]);
 
   const handlePictureChange = (e) => {
     const file = e.target.files[0];
@@ -55,16 +62,6 @@ export default function Information({ onProfileUpdate }) {
 
   const handleUpdate = async () => {
     try {
-      if (USE_MOCK) {
-        onProfileUpdate?.(user);
-        setEditing(false);
-        if (picturePreview) {
-          URL.revokeObjectURL(picturePreview);
-          setPicturePreview(null);
-        }
-        setPictureFile(null);
-        return;
-      }
       const formData = new FormData();
 
       // attach picture when present
@@ -104,7 +101,7 @@ export default function Information({ onProfileUpdate }) {
         if (res.data.error) {
           // show error in window and refresh form with exact server state
           window.alert(res.data.error);
-          await fetchUser();
+          dispatch(fetchUserProfile());
           setPictureFile(null);
           if (picturePreview) {
             URL.revokeObjectURL(picturePreview);
@@ -140,7 +137,7 @@ export default function Information({ onProfileUpdate }) {
         err?.response?.data?.error || err.message || "Failed to update profile.";
       // alert the user and refresh to server state
       window.alert(errMsg);
-      await fetchUser();
+      dispatch(fetchUserProfile());
       setPictureFile(null);
       if (picturePreview) {
         URL.revokeObjectURL(picturePreview);
@@ -153,10 +150,6 @@ export default function Information({ onProfileUpdate }) {
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this account?")) return;
     try {
-      if (USE_MOCK) {
-        window.alert("Đây là chế độ mô phỏng – tài khoản không bị xoá.");
-        return;
-      }
       // Note: backend exposes DELETE /user/:id for admin; attempting delete for current user may fail if not allowed.
       const targetId = user._id || user.id;
       await api.delete(`/user/${targetId}`);
@@ -181,31 +174,12 @@ export default function Information({ onProfileUpdate }) {
     }
 
     try {
-      if (USE_MOCK) {
-        window.alert("Đây là chế độ mô phỏng – mật khẩu không thay đổi.");
-        setPasswordModal(false);
-        setOldPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-        return;
-      }
-      // Backend expects { currentPassword, newPassword } at PUT /user/profile/change-password
-      const res = await api.put("/user/profile/change-password", {
-        currentPassword: oldPassword,
-        newPassword,
-      });
-
-      if (res.data && res.data.message) {
-        window.alert(res.data.message);
-        setPasswordModal(false);
-        setOldPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      } else if (res.data && res.data.error) {
-        window.alert(res.data.error);
-      } else {
-        window.alert("Password change response unexpected");
-      }
+      await dispatch(changeUserPassword({ currentPassword: oldPassword, newPassword })).unwrap();
+      setPasswordModal(false);
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      window.alert("Password changed successfully!");
     } catch (err) {
       const errMsg =
         err?.response?.data?.error || err.message || "Failed to change password";
@@ -235,16 +209,16 @@ export default function Information({ onProfileUpdate }) {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-10 px-4 pb-16">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-primary via-brand-primary to-brand-secondary text-white shadow-xl">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary-600 via-primary-600 to-secondary-600 text-white shadow-xl">
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,202,58,0.3),_transparent_55%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(var(--warning-400),0.3),_transparent_55%)]"
           aria-hidden="true"
         />
         <div className="relative flex flex-col gap-8 p-8 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col items-start gap-6 md:flex-row md:items-center md:gap-8">
             <div className="relative h-28 w-28 shrink-0">
               <div
-                className="absolute inset-0 rounded-full bg-brand-accent/40 blur-xl"
+                className="absolute inset-0 rounded-full bg-warning-400/40 blur-xl"
                 aria-hidden="true"
               />
               <img
@@ -257,7 +231,7 @@ export default function Information({ onProfileUpdate }) {
                 className="relative h-full w-full rounded-full border-4 border-white/70 object-cover shadow-2xl"
               />
               {editing && (
-                <label className="absolute -bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/90 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-brand-primary shadow-lg transition hover:bg-white">
+                <label className="absolute -bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-white px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-600 shadow-lg transition hover:bg-gray-100 cursor-pointer">
                   <input
                     type="file"
                     accept="image/*"
@@ -270,17 +244,17 @@ export default function Information({ onProfileUpdate }) {
             </div>
 
             <div className="flex max-w-xl flex-col gap-4">
-              <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
+              <span className="inline-flex items-center rounded-full bg-white/25 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
                 {roleLabel}
               </span>
               <h1 className="text-3xl font-extrabold md:text-4xl">{displayName}</h1>
-              <p className="text-sm leading-relaxed text-white/80">{biography}</p>
-              <div className="flex flex-wrap gap-4 text-sm text-white/80">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
+              <p className="text-sm leading-relaxed text-white/90">{biography}</p>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-white">
                   <ShieldCheck className="h-4 w-4" />
                   ID: {user._id || user.id || "—"}
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-white">
                   <Mail className="h-4 w-4" />
                   Email: {email}
                 </span>
@@ -295,7 +269,7 @@ export default function Information({ onProfileUpdate }) {
                 onClick={() => {
                   setEditing(true);
                 }}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-brand-primary shadow-lg transition hover:shadow-xl"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-blue-600 shadow-lg transition hover:shadow-xl hover:bg-gray-50"
               >
                 Chỉnh sửa hồ sơ
               </button>
@@ -303,7 +277,7 @@ export default function Information({ onProfileUpdate }) {
               <button
                 type="button"
                 onClick={handleUpdate}
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-accent to-brand-secondary px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg transition hover:shadow-xl"
+                className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-lg transition hover:shadow-xl hover:bg-yellow-500"
               >
                 Lưu thay đổi
               </button>
@@ -311,14 +285,14 @@ export default function Information({ onProfileUpdate }) {
             <button
               type="button"
               onClick={() => setPasswordModal(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-white/50 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+              className="inline-flex items-center gap-2 rounded-full bg-white/20 border border-white px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/30"
             >
               Đổi mật khẩu
             </button>
             <button
               type="button"
               onClick={handleDelete}
-              className="inline-flex items-center gap-2 rounded-full bg-feedback-danger/90 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-feedback-danger"
+              className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-red-700"
             >
               Xoá tài khoản
             </button>
@@ -326,21 +300,21 @@ export default function Information({ onProfileUpdate }) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-brand-primary/10 bg-surface-base p-8 shadow-lg">
+      <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-lg">
         <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-6">
             <div className="space-y-2">
-              <h2 className="font-heading text-2xl font-bold text-slate-950">
+              <h2 className="font-heading text-2xl font-bold text-gray-900">
                 Thông tin cá nhân
               </h2>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-gray-600">
                 Cập nhật tên hiển thị và chia sẻ câu chuyện của bạn để truyền cảm hứng cho cộng đồng.
               </p>
             </div>
 
             <div className="space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                <label className="text-sm font-semibold uppercase tracking-wide text-gray-600">
                   Họ và tên
                 </label>
                   <input
@@ -353,15 +327,15 @@ export default function Information({ onProfileUpdate }) {
                         userName: e.target.value,
                       })
                     }
-                    className={`w-full rounded-2xl border border-brand-primary/15 bg-white px-4 py-3 text-base text-slate-900 shadow-sm transition focus:border-brand-primary focus:outline-none focus:ring-4 focus:ring-brand-primary/10 ${
-                      !editing ? "cursor-not-allowed bg-surface-muted text-slate-500" : ""
+                    className={`w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 ${
+                      !editing ? "cursor-not-allowed bg-gray-100 text-gray-500" : ""
                     }`}
                     placeholder="Nhập tên của bạn"
                   />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                <label className="text-sm font-semibold uppercase tracking-wide text-gray-600">
                   Giới thiệu bản thân
                 </label>
                 <textarea
@@ -377,8 +351,8 @@ export default function Information({ onProfileUpdate }) {
                       },
                     })
                   }
-                  className={`w-full rounded-2xl border border-brand-primary/15 bg-white px-4 py-3 text-base leading-relaxed text-slate-900 shadow-sm transition focus:border-brand-primary focus:outline-none focus:ring-4 focus:ring-brand-primary/10 ${
-                    !editing ? "cursor-not-allowed bg-surface-muted text-slate-500" : ""
+                  className={`w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-base leading-relaxed text-gray-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 ${
+                    !editing ? "cursor-not-allowed bg-gray-100 text-gray-500" : ""
                   }`}
                   placeholder="Chia sẻ kinh nghiệm, đam mê và mong muốn đóng góp của bạn."
                 />
@@ -386,13 +360,13 @@ export default function Information({ onProfileUpdate }) {
             </div>
 
             <div className="space-y-4">
-              <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-600">
-                <Bell className="h-4 w-4 text-brand-secondary" /> Thông báo
+              <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-600">
+                <Bell className="h-4 w-4 text-blue-600" /> Thông báo
               </h3>
               <div className="grid gap-3 md:grid-cols-2">
                 <label
-                  className={`flex items-start gap-3 rounded-2xl border border-brand-primary/15 bg-surface-muted/70 p-4 text-sm text-slate-700 transition ${
-                    editing ? "hover:border-brand-primary/40" : "cursor-not-allowed opacity-70"
+                  className={`flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 transition ${
+                    editing ? "hover:border-blue-400 cursor-pointer" : "cursor-not-allowed opacity-70"
                   }`}
                 >
                   <input
@@ -408,15 +382,15 @@ export default function Information({ onProfileUpdate }) {
                         },
                       })
                     }
-                    className="mt-1 h-4 w-4 rounded border-brand-primary/40 text-brand-primary focus:ring-brand-primary"
+                    className="mt-1 h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
                   />
                   <span>
                     Nhận email về sự kiện mới, cập nhật dự án và câu chuyện tác động.
                   </span>
                 </label>
                 <label
-                  className={`flex items-start gap-3 rounded-2xl border border-brand-primary/15 bg-surface-muted/70 p-4 text-sm text-slate-700 transition ${
-                    editing ? "hover:border-brand-primary/40" : "cursor-not-allowed opacity-70"
+                  className={`flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 transition ${
+                    editing ? "hover:border-blue-400 cursor-pointer" : "cursor-not-allowed opacity-70"
                   }`}
                 >
                   <input
@@ -432,7 +406,7 @@ export default function Information({ onProfileUpdate }) {
                         },
                       })
                     }
-                    className="mt-1 h-4 w-4 rounded border-brand-primary/40 text-brand-primary focus:ring-brand-primary"
+                    className="mt-1 h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
                   />
                   <span>
                     Thông báo khi bạn được phân công nhiệm vụ hoặc cần xác nhận tham gia.
@@ -443,35 +417,35 @@ export default function Information({ onProfileUpdate }) {
           </div>
 
           <div className="flex flex-col gap-6">
-            <div className="rounded-3xl border border-brand-primary/10 bg-surface-muted/70 p-6">
-              <h3 className="flex items-center gap-2 text-base font-semibold text-slate-900">
-                <ShieldCheck className="h-5 w-5 text-brand-primary" />
+            <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
+              <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">
+                <ShieldCheck className="h-5 w-5 text-blue-600" />
                 Thông tin tài khoản
               </h3>
-                <div className="mt-4 space-y-3 text-sm text-slate-600">
+                <div className="mt-4 space-y-3 text-sm text-gray-600">
                 <div>
-                  <span className="font-semibold text-slate-700">Email:</span> {email}
+                  <span className="font-semibold text-gray-900">Email:</span> {email}
                 </div>
                 <div>
-                  <span className="font-semibold text-slate-700">Số điện thoại:</span> {phone}
+                  <span className="font-semibold text-gray-900">Số điện thoại:</span> {phone}
                 </div>
                 <div>
-                  <span className="font-semibold text-slate-700">Mã tài khoản:</span> {user._id || user.id || "—"}
+                  <span className="font-semibold text-gray-900">Mã tài khoản:</span> {user._id || user.id || "—"}
                 </div>
                 <div>
-                  <span className="font-semibold text-slate-700">Ngày tạo:</span> {createdAt}
+                  <span className="font-semibold text-gray-900">Ngày tạo:</span> {createdAt}
                 </div>
                 <div>
-                  <span className="font-semibold text-slate-700">Cập nhật gần nhất:</span> {updatedAt}
+                  <span className="font-semibold text-gray-900">Cập nhật gần nhất:</span> {updatedAt}
                 </div>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-feedback-warning/20 bg-feedback-warning/10 p-6 text-sm text-slate-800">
+            <div className="rounded-3xl border border-yellow-300 bg-yellow-50 p-6 text-sm text-gray-800">
               <div className="flex items-start gap-3">
-                <AlertCircle className="mt-1 h-5 w-5 text-feedback-warning" />
+                <AlertCircle className="mt-1 h-5 w-5 text-yellow-600" />
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-slate-900">Lưu ý bảo mật</h4>
+                  <h4 className="font-semibold text-gray-900">Lưu ý bảo mật</h4>
                   <p>
                     Thay đổi mật khẩu định kỳ và giữ thông tin liên hệ luôn cập nhật để chúng tôi có thể liên lạc khi cần.
                   </p>
@@ -483,21 +457,21 @@ export default function Information({ onProfileUpdate }) {
       </section>
 
       {passwordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-brand-primary/10 bg-surface-base p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl">
             <button
               type="button"
               onClick={() => setPasswordModal(false)}
-              className="absolute right-4 top-4 text-slate-400 transition hover:text-slate-600"
+              className="absolute right-4 top-4 text-gray-400 transition hover:text-gray-600"
               aria-label="Đóng"
             >
               ✕
             </button>
             <div className="mb-6 space-y-2">
-              <h2 className="font-heading text-2xl font-bold text-slate-950">
+              <h2 className="font-heading text-2xl font-bold text-gray-900">
                 Đổi mật khẩu
               </h2>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-gray-600">
                 Đảm bảo mật khẩu mới đủ mạnh với tối thiểu 8 ký tự và kết hợp chữ, số, ký hiệu.
               </p>
             </div>
@@ -526,19 +500,19 @@ export default function Information({ onProfileUpdate }) {
               },
             ].map((field, i) => (
               <div key={i} className="relative mb-4">
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-600">
                   {field.label}
                 </label>
                 <input
                   type={field.show ? "text" : "password"}
                   value={field.value}
                   onChange={(e) => field.setValue(e.target.value)}
-                  className="w-full rounded-2xl border border-brand-primary/20 bg-white px-4 py-3 text-base text-slate-900 shadow-sm transition focus:border-brand-primary focus:outline-none focus:ring-4 focus:ring-brand-primary/10"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                 />
                 <button
                   type="button"
                   onClick={() => field.setShow((s) => !s)}
-                  className="absolute right-4 top-9 text-slate-400 transition hover:text-slate-600"
+                  className="absolute right-4 top-9 text-gray-400 transition hover:text-gray-600"
                 >
                   {field.show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -547,7 +521,7 @@ export default function Information({ onProfileUpdate }) {
 
             <button
               onClick={handleChangePassword}
-              className="mt-2 w-full rounded-full bg-gradient-to-r from-brand-primary to-brand-secondary px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:shadow-xl"
+              className="mt-2 w-full rounded-full bg-gradient-to-r from-primary-600 to-secondary-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:shadow-xl"
             >
               Cập nhật mật khẩu
             </button>

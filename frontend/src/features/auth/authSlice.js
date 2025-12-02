@@ -10,7 +10,7 @@ export const registerUser = createAsyncThunk(
   "auth/register",
   async (userData, { rejectWithValue }) => {
     try {
-      const { data } = await api.post("/auth/register", userData);
+      const { data } = await api.post("/api/auth/register", userData);
       return data; // { message, user }
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Đăng ký thất bại");
@@ -23,7 +23,7 @@ export const loginUser = createAsyncThunk(
   "auth/login",
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const { data } = await api.post("/auth/login", { email, password });
+      const { data } = await api.post("/api/auth/login", { email, password });
       // Lưu token vào localStorage (hoặc httpOnly cookie nếu backend dùng)
       if (data.accessToken) {
         localStorage.setItem("accessToken", data.accessToken);
@@ -45,7 +45,7 @@ export const fetchCurrentUser = createAsyncThunk(
   "auth/fetchCurrentUser",
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await api.get("/auth/me");
+      const { data } = await api.get("/api/auth/me");
       return data.user;
     } catch (err) {
       // Token hết hạn hoặc không hợp lệ → xóa
@@ -61,7 +61,7 @@ export const logoutUser = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      await api.post("/auth/logout"); // gọi backend để blacklist refresh token (nếu có)
+      await api.post("/api/auth/logout"); // gọi backend để blacklist refresh token (nếu có)
     } catch (err) {
       // Không care lỗi logout
     } finally {

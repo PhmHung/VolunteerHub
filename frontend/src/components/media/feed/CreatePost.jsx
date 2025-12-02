@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Send, Image, Paperclip, X, FileText } from 'lucide-react';
+import { Send, Image, Paperclip, X, FileText, Smile } from 'lucide-react';
 
 const CreatePost = ({ user, onSubmit }) => {
   const [newPostText, setNewPostText] = useState("");
@@ -38,90 +38,97 @@ const CreatePost = ({ user, onSubmit }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-      <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
-          <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              Kênh thảo luận đang hoạt động
-          </h3>
-      </div>
-      <div className="flex gap-3">
+      <div className="flex gap-3 mb-3">
         <div className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden border border-gray-100">
            <img src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.userName || 'User'}&background=random`} alt="User" className="w-full h-full object-cover" />
         </div>
         <div className="flex-1">
-          <div className="relative mb-3">
-              <input 
-                type="text" 
+            <textarea 
                 value={newPostText}
                 onChange={(e) => setNewPostText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                placeholder={`Viết gì đó cho các thành viên trong nhóm, ${user?.userName || 'bạn'} ơi...`}
-                className="w-full bg-gray-100 border-none rounded-full py-2.5 px-4 text-sm focus:ring-2 focus:ring-brand-primary/20 focus:bg-white transition placeholder-gray-500"
-              />
-              <button 
-                onClick={handleSubmit}
-                disabled={!newPostText.trim() && !attachment}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-brand-primary hover:bg-brand-primary/10 rounded-full transition disabled:opacity-50 disabled:hover:bg-transparent"
-              >
-                  <Send className="w-4 h-4" />
-              </button>
-          </div>
-
-          {/* Attachment Preview */}
-          {attachment && (
-              <div className="flex items-center gap-2 mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100 w-fit animate-in fade-in zoom-in duration-200">
-                  {attachment.type === 'image' ? (
-                    <div className="w-8 h-8 rounded overflow-hidden">
-                        <img src={attachment.url} alt="Preview" className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <FileText className="w-4 h-4 text-blue-600" />
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-xs font-medium text-blue-700 max-w-[200px] truncate">{attachment.name}</span>
-                    {attachment.type === 'file' && <span className="text-[10px] text-blue-500">{attachment.size}</span>}
-                  </div>
-                  <button onClick={() => setAttachment(null)} className="p-1 hover:bg-blue-100 rounded-full text-blue-500 ml-2">
-                      <X className="w-3 h-3" />
-                  </button>
-              </div>
-          )}
-
-          {/* Hidden Inputs */}
-          <input 
-            type="file" 
-            ref={imageInputRef} 
-            accept="image/*" 
-            className="hidden" 
-            onChange={(e) => handleFileSelect(e, 'image')}
-          />
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" 
-            className="hidden" 
-            onChange={(e) => handleFileSelect(e, 'file')}
-          />
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-              <button 
-                  onClick={() => imageInputRef.current?.click()}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium transition"
-              >
-                  <Image className="w-4 h-4 text-green-600" />
-                  <span>Ảnh/Video</span>
-              </button>
-              <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium transition"
-              >
-                  <Paperclip className="w-4 h-4 text-blue-600" />
-                  <span>Tệp đính kèm</span>
-              </button>
-          </div>
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit();
+                    }
+                }}
+                placeholder={`${user?.userName || 'Bạn'} ơi, bạn đang nghĩ gì thế?`}
+                className="w-full bg-gray-50 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-100 focus:bg-white transition placeholder-gray-500 resize-none min-h-[80px]"
+            />
         </div>
       </div>
+
+      {/* Attachment Preview */}
+      {attachment && (
+          <div className="flex items-center gap-3 mb-4 p-3 bg-surface-50 rounded-xl border border-gray-200 w-full animate-in fade-in zoom-in duration-200 relative group">
+              {attachment.type === 'image' ? (
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 border border-gray-300">
+                    <img src={attachment.url} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                </div>
+              )}
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm font-medium text-gray-900 truncate">{attachment.name}</span>
+                {attachment.type === 'file' && <span className="text-xs text-gray-500">{attachment.size}</span>}
+              </div>
+              <button 
+                onClick={() => setAttachment(null)} 
+                className="p-1.5 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
+              >
+                  <X className="w-4 h-4" />
+              </button>
+          </div>
+      )}
+
+      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+        <div className="flex items-center gap-1">
+            <button 
+                onClick={() => imageInputRef.current?.click()}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium"
+            >
+                <Image className="w-5 h-5 text-green-500" />
+                <span className="hidden sm:inline">Ảnh/Video</span>
+            </button>
+            <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium"
+            >
+                <Paperclip className="w-5 h-5 text-blue-500" />
+                <span className="hidden sm:inline">Tệp đính kèm</span>
+            </button>
+            <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium">
+                <Smile className="w-5 h-5 text-yellow-500" />
+                <span className="hidden sm:inline">Cảm xúc</span>
+            </button>
+        </div>
+
+        <button 
+            onClick={handleSubmit}
+            disabled={!newPostText.trim() && !attachment}
+            className="flex items-center gap-2 px-6 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+        >
+            <Send className="w-4 h-4" />
+            Đăng
+        </button>
+      </div>
+
+      {/* Hidden Inputs */}
+      <input 
+        type="file" 
+        ref={imageInputRef} 
+        accept="image/*" 
+        className="hidden" 
+        onChange={(e) => handleFileSelect(e, 'image')}
+      />
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        onChange={(e) => handleFileSelect(e, 'file')}
+      />
     </div>
   );
 };

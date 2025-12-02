@@ -13,7 +13,7 @@ export const fetchEvents = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const { data } = await api.get("/events", {
+      const { data } = await api.get("/api/events", {
         params: { page, limit, search, tag, status },
       });
       return data; // { data: [...], pagination: {...}, message }
@@ -30,7 +30,7 @@ export const fetchEventById = createAsyncThunk(
   "event/fetchById",
   async (eventId, { rejectWithValue }) => {
     try {
-      const { data } = await api.get(`/events/${eventId}`);
+      const { data } = await api.get(`/api/events/${eventId}`);
       return data.data; // backend trả { message, data }
     } catch (err) {
       const msg = err.response?.data?.message || "Không tìm thấy sự kiện";
@@ -44,7 +44,7 @@ export const createEvent = createAsyncThunk(
   "event/create",
   async (eventData, { rejectWithValue }) => {
     try {
-      const { data } = await api.post("/events", eventData);
+      const { data } = await api.post("/api/events", eventData);
       return data.data;
     } catch (err) {
       return rejectWithValue(
@@ -59,7 +59,7 @@ export const updateEvent = createAsyncThunk(
   "event/update",
   async ({ eventId, eventData }, { rejectWithValue }) => {
     try {
-      const { data } = await api.put(`/events/${eventId}`, eventData);
+      const { data } = await api.put(`/api/events/${eventId}`, eventData);
       return data.data;
     } catch (err) {
       return rejectWithValue(
@@ -74,7 +74,7 @@ export const approveEvent = createAsyncThunk(
   "event/approve",
   async ({ eventId, status, adminNote = "" }, { rejectWithValue }) => {
     try {
-      const { data } = await api.patch(`/events/${eventId}/approve`, {
+      const { data } = await api.patch(`/api/events/${eventId}/approve`, {
         status,
         adminNote,
       });

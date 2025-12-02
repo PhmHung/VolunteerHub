@@ -73,7 +73,7 @@ const Hero = ({
           {title}
         </motion.h1>
 
-        <motion.p variants={itemVariants} className="mt-4 max-w-2xl text-base text-slate-100 sm:text-lg">
+        <motion.p variants={itemVariants} className="mt-4 max-w-2xl text-base text-white/90 sm:text-lg">
           {subtitle}
         </motion.p>
 
@@ -84,7 +84,7 @@ const Hero = ({
           {user ? (
             <Link
               to="/information"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-secondary via-brand-secondary to-brand-accent px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:from-brand-secondary/90 hover:to-brand-accent/90 hover:shadow-brand-secondary/40 active:scale-95 sm:text-base"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-secondary-600 via-secondary-600 to-warning-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:from-secondary-600/90 hover:to-warning-500/90 hover:shadow-secondary-600/40 active:scale-95 sm:text-base"
             >
               {primaryLabel}
               <ArrowRight className="h-4 w-4" />
@@ -92,7 +92,7 @@ const Hero = ({
           ) : (
             <button
               onClick={handlePrimaryClick}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-secondary via-brand-secondary to-brand-accent px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:from-brand-secondary/90 hover:to-brand-accent/90 hover:shadow-brand-secondary/40 active:scale-95 sm:text-base"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-secondary-600 via-secondary-600 to-warning-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:from-secondary-600/90 hover:to-warning-500/90 hover:shadow-secondary-600/40 active:scale-95 sm:text-base"
             >
               {primaryLabel}
               <ArrowRight className="h-4 w-4" />
@@ -102,7 +102,7 @@ const Hero = ({
           {showSecondary && (
             <button
               onClick={handleSecondaryClick}
-              className="inline-flex items-center gap-2 rounded-xl border-2 border-white/80 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-white hover:text-brand-primary active:scale-95 sm:text-base"
+              className="inline-flex items-center gap-2 rounded-xl border-2 border-white/80 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-white hover:text-primary-600 active:scale-95 sm:text-base"
             >
               {secondaryLabel}
             </button>

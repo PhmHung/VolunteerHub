@@ -1,6 +1,6 @@
 import Information from "./Information.jsx";
-import api from "./api.js";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import AuthModal from "./pages/AuthModal.jsx";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header.jsx";
@@ -13,111 +13,33 @@ import ManagerDashboard from "./pages/ManagerDashboard.jsx";
 import Events from "./pages/events.jsx";
 import About from "./pages/AboutUs.jsx";
 import Media from "./pages/Media.jsx";
-import { USE_MOCK, MOCK_USER } from "./utils/mockUser.js";
+import VolunteerHistory from "./pages/VolunteerHistory.jsx";
+import { fetchUserProfile, userLogout } from "./features/user/userSlice";
 
 export default function App() {
+  const dispatch = useDispatch();
+  const { profile: user, profileLoading: loadingUser } = useSelector((state) => state.user);
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
-  const [user, setUser] = useState(USE_MOCK ? MOCK_USER : null);
-  const [loadingUser, setLoadingUser] = useState(!USE_MOCK);
-
-  const decodeUserIdFromToken = useCallback((token) => {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload?.userId ?? null;
-    } catch (err) {
-      console.error("Failed to decode token payload", err);
-      return null;
-    }
-  }, []);
-
-  const syncUserFromToken = useCallback(
-    async (token) => {
-      // Nếu đang sử dụng mock backend
-      if (USE_MOCK) {
-        setUser(MOCK_USER);
-        return MOCK_USER;
-      }
-      // Nếu không có token
-      if (!token) {
-        setUser(null);
-        return null;
-      }
-
-      // call protected "my profile" endpoint
-      try {
-        const { data } = await api.get("/user/profile");
-        setUser(data);
-        return data;
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-        // remove token if unauthorized
-        const status = error?.response?.status;
-        if (status === 401 || status === 403) localStorage.removeItem("token");
-        setUser(null);
-        return null;
-      }
-    },
-    [decodeUserIdFromToken]
-  );
 
   // Lấy thông tin người dùng từ token khi load trang
   useEffect(() => {
-    if (USE_MOCK) {
-      return;
-    }
     const token = localStorage.getItem("token");
-    if (!token) {
-      setLoadingUser(false);
-      setUser(null);
-      return;
+    if (token) {
+      dispatch(fetchUserProfile());
     }
-
-    let isMounted = true;
-
-    (async () => {
-      await syncUserFromToken(token);
-      if (isMounted) {
-        setLoadingUser(false);
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [syncUserFromToken]);
+  }, [dispatch]);
 
   const handleSuccess = async (data) => {
-    if (USE_MOCK) {
-      setUser(MOCK_USER);
-      setAuthModal(null);
-      return;
+    if (data?.token) {
+      localStorage.setItem("token", data.token);
+      dispatch(fetchUserProfile());
     }
-    let resetLoading = false;
-
-    try {
-      if (data?.token) {
-        localStorage.setItem("token", data.token);
-        setLoadingUser(true);
-        resetLoading = true;
-        await syncUserFromToken(data.token);
-      } else if (data?.user) {
-        setUser(data.user);
-      }
-    } finally {
-      if (resetLoading) {
-        setLoadingUser(false);
-      }
-      setAuthModal(null);
-    }
+    setAuthModal(null);
   };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    setUser(null);
-    if (USE_MOCK) {
-      setAuthModal("login");
-      return;
-    }
+    dispatch(userLogout());
     window.location.href = "/";
   };
 
@@ -155,7 +77,7 @@ export default function App() {
               path="/information"
               element={
                 <ProtectedRoute user={user}>
-                  <Information onProfileUpdate={setUser} />
+                  <Information />
                 </ProtectedRoute>
               }
             />
@@ -179,6 +101,14 @@ export default function App() {
             </Route>
 
             <Route path="/events" element={<Events user={user} openAuth={setAuthModal} />} />
+            <Route
+              path="/history"
+              element={
+                <ProtectedRoute user={user}>
+                  <VolunteerHistory user={user} />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/dashboard"
               element={
