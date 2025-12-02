@@ -12,10 +12,12 @@ const userSchema = new mongoose.Schema(
       required: true,
       match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
+    //1024
     password: { type: String, required: true, minlength: 6, maxlength: 255 },
     role: {
       type: String,
       enum: ["volunteer", "manager", "admin"],
+      //default : "volunteer",
       required: true,
     },
     phoneNumber: {
@@ -33,15 +35,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    googleId: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
-    isEmailVerified: {
-      type: Boolean,
-      default: false,
-    },
+    // googleId: {
+    //   type: String,
+    //   unique: true,
+    //   sparse: true,
+    // },
+    // isEmailVerified: {
+    //   type: Boolean,
+    //   default: false,
+    // },
   },
   { timestamps: true }
 );
