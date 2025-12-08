@@ -39,9 +39,10 @@ import { fetchEvents } from '../features/event/eventSlice';
 
 // ==================== MAP CONFIG ====================
 const DEFAULT_MARKER_ICON = new Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
@@ -351,6 +352,7 @@ const Dashboard = () => {
       .slice(0, 4);
   }, [allEvents]);
 
+  // --- EVENT HANDLERS (Giữ nguyên) ---
   const handleEventFocus = (event) => {
     if (!event) return;
     setActiveEventId(event.id || event._id);
@@ -829,8 +831,8 @@ const PopularEventsWithMap = ({
             Bán kính
           </label>
           <input
-            id="radius-range"
-            type="range"
+            id='radius-range'
+            type='range'
             min={50}
             max={3000}
             step={50}
@@ -937,7 +939,8 @@ const InteractiveLeafletMap = ({
     [events, activeEventId]
   );
 
-  const showSelectionMarker = !activeEvent || !isSameCoordinate(activeEvent.coordinates, selection);
+  const showSelectionMarker =
+    !activeEvent || !isSameCoordinate(activeEvent.coordinates, selection);
 
   if (!selection) {
     return (
@@ -951,15 +954,15 @@ const InteractiveLeafletMap = ({
     <MapContainer
       center={[selection.lat, selection.lng]}
       zoom={mapZoom}
-      className="h-full w-full"
+      className='h-full w-full'
       scrollWheelZoom
       attributionControl={false}
       zoomControl={false}
       style={{ minHeight: '350px' }}
     >
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution="&copy; OpenStreetMap contributors"
+        url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        attribution='&copy; OpenStreetMap contributors'
       />
       <MapViewUpdater center={selection} zoom={mapZoom} />
       <MapSelectionHandler onSelect={onLocationPick} />
@@ -980,8 +983,7 @@ const InteractiveLeafletMap = ({
           icon={DEFAULT_MARKER_ICON}
           eventHandlers={{
             click: () => onEventFocus(event),
-          }}
-        >
+          }}>
           <Popup>
             <div className="min-w-[200px]">
               <p className="text-sm font-semibold text-gray-900">{event.title}</p>
@@ -1017,7 +1019,7 @@ const MapViewUpdater = ({ center, zoom }) => {
 const MapSelectionHandler = ({ onSelect }) => {
   useMapEvents({
     click(event) {
-      if (typeof onSelect === 'function') {
+      if (typeof onSelect === "function") {
         onSelect({ lat: event.latlng.lat, lng: event.latlng.lng });
       }
     },

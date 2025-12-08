@@ -158,7 +158,7 @@ const eventSlice = createSlice({
 
     // === CREATE ===
     builder
-      .addCase(createEvent.fulfilled, (state, action) => {
+      .addCase(createEvent.fulfilled, (state) => {
         state.successMessage = "Tạo sự kiện thành công! Đang chờ duyệt.";
         // Có thể push vào danh sách nếu muốn hiển thị luôn (pending)
       })
