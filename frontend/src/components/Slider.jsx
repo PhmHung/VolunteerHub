@@ -39,14 +39,14 @@ const testimonials = [
 
 export default function Slider() {
   return (
-    <div className="w-full py-16 sm:py-20 bg-white">
+    <div className="w-full py-16 sm:py-20 bg-surface-base">
       <div className="container mx-auto px-4">
         {/* Tiêu đề của section */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+          <h2 className="text-3xl sm:text-4xl font-bold text-text-main">
             Khoảnh khắc & Cảm nhận
           </h2>
-          <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+          <p className="mt-4 text-lg text-text-secondary max-w-2xl mx-auto">
             Lắng nghe chia sẻ từ những tình nguyện viên đã và đang đồng hành cùng chúng tôi trên hành trình tạo nên sự thay đổi.
           </p>
         </div>
@@ -69,7 +69,7 @@ export default function Slider() {
         >
           {testimonials.map((item, index) => (
             <SwiperSlide key={index}>
-              <div className="flex flex-col md:flex-row bg-white">
+              <div className="flex flex-col md:flex-row bg-surface-base">
                 {/* Hình ảnh nền */}
                 {/* Cột 1: Hình ảnh */}
                 <div className="w-full md:w-5/12 h-64 md:h-auto">
@@ -84,17 +84,17 @@ export default function Slider() {
                 <div className="w-full md:w-7/12 p-8 md:p-12 relative flex flex-col justify-center">
                   {/* Icon Quote (Giống ảnh mẫu) */}
                   {/* Dùng màu cam nhạt/hồng nhạt và z-0 để nó nằm dưới chữ */}
-                  <Quote className="absolute top-6 left-6 w-20 h-20 text-[#FBEAE4] z-0" />
+                  <Quote className="absolute top-6 left-6 w-20 h-20 text-accent-100 z-0" />
                   
                   {/* Nội dung (dùng relative và z-10 để nổi lên trên icon) */}
                   <div className="relative z-10">
                     {/* Dùng whitespace-pre-line để giữ các dấu xuống dòng trong text */}
-                    <p className="text-base sm:text-lg italic text-slate-700 mb-6 whitespace-pre-line">
+                    <p className="text-base sm:text-lg italic text-text-secondary mb-6 whitespace-pre-line">
                       {item.quote}
                     </p>
                     {/* Tên tác giả (màu cam) */}
-                    <div className="font-bold text-lg text-orange-600">{item.name}</div>
-                    <div className="text-sm text-slate-500">{item.project}</div>
+                    <div className="font-bold text-lg text-accent-600">{item.name}</div>
+                    <div className="text-sm text-text-muted">{item.project}</div>
                   </div>
                 </div>
 

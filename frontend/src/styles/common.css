@@ -1,0 +1,102 @@
+/* Buttons */
+.btn {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-1;
+}
+
+.btn-primary {
+  @apply btn bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md focus:ring-primary-500;
+}
+
+.btn-secondary {
+  @apply btn bg-white text-text-secondary border border-gray-200 hover:bg-surface-muted hover:text-text-main focus:ring-gray-200;
+}
+
+.btn-danger {
+  @apply btn bg-danger-50 text-danger-600 hover:bg-danger-100 border border-danger-100 focus:ring-danger-500;
+}
+
+.btn-ghost {
+  @apply btn hover:bg-surface-muted text-text-secondary hover:text-text-main bg-transparent;
+}
+
+.btn-icon {
+  @apply p-2 rounded-full hover:bg-surface-muted text-text-muted hover:text-text-main transition-colors;
+}
+
+/* Cards & Containers */
+.card {
+  @apply bg-surface-base rounded-xl border border-gray-100 shadow-soft overflow-hidden;
+}
+
+.card-header {
+  @apply px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-surface-base;
+}
+
+.card-body {
+  @apply p-6;
+}
+
+/* Form Elements */
+.input-field {
+  @apply w-full px-4 py-2.5 bg-surface-base border border-gray-200 rounded-lg text-sm text-text-main placeholder-text-muted focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all;
+}
+
+.label-text {
+  @apply block text-sm font-medium text-text-secondary mb-1.5;
+}
+
+/* Badges */
+.badge {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border;
+}
+
+.badge-success {
+  @apply badge bg-success-50 text-success-700 border-success-100;
+}
+
+.badge-warning {
+  @apply badge bg-warning-50 text-warning-700 border-warning-100;
+}
+
+.badge-error {
+  @apply badge bg-danger-50 text-danger-700 border-danger-100;
+}
+
+.badge-info {
+  @apply badge bg-info-50 text-info-700 border-info-100;
+}
+
+/* Typography */
+.heading-1 {
+  @apply font-heading text-3xl lg:text-4xl font-bold text-text-main leading-tight;
+}
+
+.heading-2 {
+  @apply font-heading text-2xl font-bold text-text-main;
+}
+
+.heading-3 {
+  @apply font-heading text-xl font-semibold text-text-main;
+}
+
+.text-body {
+  @apply font-body text-base text-text-secondary;
+}
+
+.text-small {
+  @apply font-body text-sm text-text-muted;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+}

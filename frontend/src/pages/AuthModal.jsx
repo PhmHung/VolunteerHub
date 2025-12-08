@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { useDispatch } from "react-redux";
 import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
-import axios from "axios"; // HTTP client
+import api from "../api.js"; // centralized API client
 import FirebaseLogin from "../components/FirebaseLogin"; // Component login bằng Firebase
+import { fetchUserProfile } from "../features/user/userSlice";
 
 export default function AuthModal({ mode, onClose, onSuccess }) {
+  const dispatch = useDispatch();
   // ========== STATE MANAGEMENT ==========
   // States cho form fields
   const [email, setEmail] = useState(""); // Email người dùng
@@ -12,6 +15,10 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
   const [role, setRole] = useState("volunteer"); // Vai trò: "volunteer" hoặc "admin"
   const [biography, setBiography] = useState(""); // Tiểu sử (optional)
   const [registeredPicture, setRegisteredPicture] = useState(null); // File ảnh đại diện
+  // Extra fields shown when role === 'admin' or 'manager'
+  const [roleOrg, setRoleOrg] = useState("");
+  const [rolePhone, setRolePhone] = useState("");
+  const [roleNote, setRoleNote] = useState("");
 
   // States cho flow đăng ký (3 bước)
   // Step 0: Nhập email → Gửi mã xác thực
@@ -43,8 +50,9 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         setLoading(false);
         return;
       }
-      // Gọi API gửi verification code
-      await axios.post("http://localhost:5000/auth/sendVerificationCode", { email });
+
+  // Gọi API gửi verification code
+  await api.post("/api/auth/sendVerificationCode", { email });
       setStep(1); // Chuyển sang step 1 (nhập code)
       setError(""); // Clear error
     } catch (err) {
@@ -67,8 +75,9 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         setLoading(false);
         return;
       }
-      // Gọi API verify code
-      await axios.post("http://localhost:5000/auth/verifyCode", { email, code });
+
+  // Gọi API verify code
+  await api.post("/api/auth/verifyCode", { email, code });
       setStep(2); // Chuyển sang step 2 (hoàn tất profile)
       setError("");
     } catch (err) {
@@ -98,9 +107,9 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     try {
         // Tạo FormData để gửi file ảnh
         const formData = new FormData();
-        formData.append("email", email);
+        formData.append("userEmail", email);
         formData.append("password", password);
-        formData.append("name", name);
+        formData.append("userName", name);
         formData.append("biography", biography);
         formData.append("picture", registeredPicture); // File object
         formData.append("role", "volunteer"); // Mặc định là volunteer
@@ -111,9 +120,9 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         }
         
         // Gọi API register với multipart/form-data header
-        const res = await axios.post("http://localhost:5000/auth/register", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        });
+  const res = await api.post("/api/auth/register", formData, {
+  headers: { "Content-Type": "multipart/form-data" },
+  });
 
         // Xác định success message dựa trên role
         const successMessage = role === 'admin' 
@@ -152,7 +161,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
 
     try {
       // Gọi API login
-      const res = await axios.post("http://localhost:5000/auth/login", { email, password });
+  const res = await api.post("/api/auth/login", { userEmail: email, password });
       
       // Hiển thị success message NGAY LẬP TỨC
       setSuccess("Login successful!");
@@ -183,12 +192,12 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       
       
-      <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] relative shadow-2xl overflow-hidden border border-gray-100 flex flex-col">
+      <div className="card w-full max-w-md max-h-[90vh] relative shadow-2xl overflow-hidden flex flex-col">
         
       
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 transition-colors bg-white/80 backdrop-blur-sm rounded-full p-1"
+          className="absolute top-4 right-4 z-10 text-text-muted hover:text-text-main transition-colors bg-surface-white/80 backdrop-blur-sm rounded-full p-1"
         >
           {/* SVG icon X để đóng */}
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,15 +207,15 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
 
         <div className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1">
           <div className="flex flex-col items-center text-center mb-5 sm:mb-6">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-[#005A9C] to-[#0077CC] rounded-2xl flex items-center justify-center mb-3 sm:mb-4 shadow-lg shadow-blue-200">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-primary-600 to-primary-500 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 shadow-lg shadow-primary-200">
               <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </div>
-            <h1 className="text-2xl sm:text-2xl md:text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl sm:text-2xl md:text-3xl font-bold text-text-main">
               {mode === "login" ? "Welcome back" : "Join VolunteerHub"}
             </h1>
-            <p className="text-sm sm:text-base text-gray-500 mt-2">
+            <p className="text-sm sm:text-base text-text-secondary mt-2">
               {mode === "login" 
                 ? "Login to your account to continue" 
                 : "Create an account to start volunteering"}
@@ -217,20 +226,20 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         {mode === "register" && step === 0 && (
           <div className="space-y-3 sm:space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Email</label>
+              <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Email</label>
               <input
                 type="email"
                 placeholder="m@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent transition-all outline-none text-sm sm:text-base"
+                className="input-field sm:py-3 text-sm sm:text-base"
               />
             </div>
             <button
               onClick={sendVerification}
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#005A9C] to-[#0077CC] hover:from-[#004A82] hover:to-[#0066B3] text-white font-semibold py-2.5 sm:py-3 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              className="btn btn-primary w-full py-2.5 sm:py-3 shadow-lg text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Sending..." : "Send Verification Code"}
             </button>
@@ -241,20 +250,20 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         {mode === "register" && step === 1 && (
           <div className="space-y-3 sm:space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Verification Code</label>
+              <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Verification Code</label>
               <input
                 type="text"
                 placeholder="Enter 6-digit code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 required
-                className="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent transition-all outline-none text-sm sm:text-base"
+                className="input-field sm:py-3 text-sm sm:text-base"
               />
             </div>
             <button
               onClick={verifyCode}
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#005A9C] to-[#0077CC] hover:from-[#004A82] hover:to-[#0066B3] text-white font-semibold py-2.5 sm:py-3 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              className="btn btn-primary w-full py-2.5 sm:py-3 shadow-lg text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Verifying..." : "Verify Code"}
             </button>
@@ -265,7 +274,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         {((mode === "register" && step === 2) || mode === "login") && (
           <div className="space-y-3 sm:space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Email</label>
+              <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Email</label>
               <input
                 type="email"
                 placeholder="m@example.com"
@@ -273,17 +282,17 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                 readOnly={mode === "register" && step === 2}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className={`w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent transition-all outline-none text-sm sm:text-base ${
-                  mode === "register" && step === 2 ? "bg-gray-50 cursor-not-allowed" : ""
+                className={`input-field sm:py-3 text-sm sm:text-base ${
+                  mode === "register" && step === 2 ? "bg-surface-muted cursor-not-allowed" : ""
                 }`}
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <label className="block text-sm font-medium text-text-main">Password</label>
                 {mode === "login" && (
-                  <a href="#" className="text-xs sm:text-sm text-[#F4A261] hover:text-[#E08B3E] hover:underline font-medium">
+                  <a href="#" className="text-xs sm:text-sm text-secondary-500 hover:text-secondary-600 hover:underline font-medium">
                     Forgot password?
                   </a>
                 )}
@@ -295,12 +304,12 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-3 py-2.5 sm:px-4 sm:py-3 pr-10 sm:pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent transition-all outline-none text-sm sm:text-base"
+                  className="input-field sm:py-3 pr-10 sm:pr-12 text-sm sm:text-base"
                 />
                 <button
                   type="button"
                   onClick={() => setShow((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors"
                 >
                   {show ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </button>
@@ -310,40 +319,50 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
             {mode === "register" && step === 2 && (
               <div className="space-y-3 sm:space-y-4 pt-1 sm:pt-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Full Name</label>
+                  <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Full Name</label>
                   <input
                     type="text"
                     placeholder="Enter your full name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent transition-all outline-none text-sm sm:text-base"
+                    className="input-field sm:py-3 text-sm sm:text-base"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Profile Picture</label>
+                  <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Profile Picture</label>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => setRegisteredPicture(e.target.files[0])}
-                    className="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent transition-all outline-none file:mr-2 sm:file:mr-4 file:py-1.5 sm:file:py-2 file:px-3 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-[#A8D0E6] file:text-[#005A9C] hover:file:bg-[#8CBCD9] text-sm sm:text-base"
+                    className="input-field sm:py-3 file:mr-2 sm:file:mr-4 file:py-1.5 sm:file:py-2 file:px-3 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-primary-100 file:text-primary-700 hover:file:bg-primary-200 text-sm sm:text-base"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Biography (Optional)</label>
+                  <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Biography (Optional)</label>
                   <textarea
                     placeholder="Tell us about yourself..."
                     value={biography}
                     onChange={(e) => setBiography(e.target.value)}
                     rows="2"
-                    className="w-full px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005A9C] focus:border-transparent transition-all outline-none resize-none text-sm sm:text-base"
+                    className="input-field sm:py-3 resize-none text-sm sm:text-base"
                   />
                 </div>
+                   <div>
+                  <label className="block text-sm font-medium text-text-main mb-1.5">Số điện thoại liên hệ</label>
+                  <input
+                    type="tel"
+                    placeholder="Ví dụ: 0987654321"
+                    value={rolePhone}
+                    onChange={(e) => setRolePhone(e.target.value)}
+                    className="input-field text-sm"
+                  />
+                </div>  
                 {/* === BƯỚC 2: Thêm UI chọn vai trò === */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Vai trò của bạn</label>
+              <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Vai trò của bạn</label>
               <div className="flex items-center gap-x-6">
                 <label className="flex items-center gap-x-2 cursor-pointer">
                   <input
@@ -352,9 +371,9 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                     value="volunteer"
                     checked={role === "volunteer"}
                     onChange={(e) => setRole(e.target.value)}
-                    className="h-4 w-4 text-[#005A9C] focus:ring-[#0077CC] border-gray-300"
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-border"
                   />
-                  <span className="text-sm text-gray-700">Tình nguyện viên</span>
+                  <span className="text-sm text-text-main">Tình nguyện viên</span>
                 </label>
                 <label className="flex items-center gap-x-2 cursor-pointer">
                   <input
@@ -363,19 +382,86 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                     value="admin"
                     checked={role === "admin"}
                     onChange={(e) => setRole(e.target.value)}
-                    className="h-4 w-4 text-[#005A9C] focus:ring-[#0077CC] border-gray-300"
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-border"
                   />
-                  <span className="text-sm text-gray-700">Quản trị viên</span>
+                  <span className="text-sm text-text-main">Quản trị viên</span>
+                </label>
+                <label className="flex items-center gap-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="manager"
+                    checked={role === "manager"}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-border"
+                  />
+                  <span className="text-sm text-text-main">Người quản lý</span>
                 </label>
               </div>
             </div>
+            {/* Conditional role-request details form */}
+            {(role === 'admin' || role === 'manager') && (
+              <div className="mt-3 space-y-3">
+                <p className="text-sm text-text-secondary">Bạn đã chọn vai trò <strong>{role === 'admin' ? 'Quản trị viên' : 'Người quản lý'}</strong>. Vui lòng cung cấp thêm thông tin để chúng tôi xem xét yêu cầu.</p>
+                <div>
+                  <label className="block text-sm font-medium text-text-main mb-1.5">Tên tổ chức / Đơn vị</label>
+                  <input
+                    type="text"
+                    placeholder={role === 'admin' ? 'Tên tổ chức / cơ quan' : 'Tên đội / đơn vị quản lý'}
+                    value={roleOrg}
+                    onChange={(e) => setRoleOrg(e.target.value)}
+                    className="input-field text-sm"
+                  />
+                </div>
+             
+                <div>
+                  <label className="block text-sm font-medium text-text-main mb-1.5">Ghi chú / Lý do</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Nêu lý do hoặc chứng minh năng lực (ví dụ: tư cách tổ chức, kinh nghiệm quản lý...)"
+                    value={roleNote}
+                    onChange={(e) => setRoleNote(e.target.value)}
+                    className="input-field text-sm resize-none"
+                  />
+                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Minh chứng hoặc chứng chỉ</label>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={(e) => {
+                        const f = e.target.files && e.target.files[0];
+                        if (!f) return;
+                        const ok = f.type.startsWith("image/") || f.type === "application/pdf";
+                        if (!ok) {
+                          setError("Vui lòng chọn file ảnh (jpg/png/...) hoặc PDF.");
+                          // reset the input so user can pick again
+                          e.target.value = "";
+                          return;
+                        }
+                        // optional: limit size to 5MB
+                        const maxBytes = 5 * 1024 * 1024;
+                        if (f.size > maxBytes) {
+                          setError("File quá lớn. Vui lòng chọn file nhỏ hơn 5MB.");
+                          e.target.value = "";
+                          return;
+                        }
+                        setError("");
+                        setRegisteredPicture(f);
+                      }}
+                      className="input-field sm:py-3 file:mr-2 sm:file:mr-4 file:py-1.5 sm:file:py-2 file:px-3 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-primary-100 file:text-primary-700 hover:file:bg-primary-200 text-sm sm:text-base"
+                    />
+                  </div>
+
+              </div>
+            )}
               </div>
             )}
 
             <button
               onClick={mode === "login" ? handleLogin : handleRegister}
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#F4A261] to-[#FFC107] hover:from-[#E08B3E] hover:to-[#FFB300] text-white font-semibold py-2.5 sm:py-3 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              className="btn btn-primary w-full py-2.5 sm:py-3 shadow-lg text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading 
                 ? "Processing..." 
@@ -388,18 +474,17 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
               <>
                 <div className="relative my-4">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300"></div>
+                    <div className="w-full border-t border-border"></div>
                   </div>
                   <div className="relative flex justify-center text-xs sm:text-sm">
-                    <span className="px-2 sm:px-3 bg-white text-gray-500">Or continue with</span>
+                    <span className="px-2 sm:px-3 bg-surface-white text-text-muted">Or continue with</span>
                   </div>
                 </div>
 
                 {/* FirebaseLogin now returns auth result via onSuccess callback */}
                 <FirebaseLogin onSuccess={(data) => {
-                  // data should contain { token, picture, user }
-                  if (data?.token) {
-                    // reuse onSuccess provided by App to finalize login
+                  // data may contain either { token, ... } or { user }
+                  if (data?.token || data?.user) {
                     onSuccess(data);
                   }
                 }} />
@@ -409,7 +494,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         )}
 
         {success && (
-          <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-xs sm:text-sm flex items-start gap-2">
+          <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-success-50 border border-success-200 text-success-700 rounded-xl text-xs sm:text-sm flex items-start gap-2">
             <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
@@ -418,7 +503,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         )}
         
         {error && (
-          <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs sm:text-sm flex items-start gap-2">
+          <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-error-50 border border-error-200 text-error-700 rounded-xl text-xs sm:text-sm flex items-start gap-2">
             <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
@@ -427,11 +512,11 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         )}
 
         {mode === "login" && (
-          <div className="mt-5 sm:mt-6 text-center text-xs sm:text-sm text-gray-600">
+          <div className="mt-5 sm:mt-6 text-center text-xs sm:text-sm text-text-secondary">
             Don't have an account?{" "}
             <button 
               onClick={() => window.location.reload()} 
-              className="text-[#F4A261] font-semibold hover:text-[#E08B3E] hover:underline"
+              className="text-secondary-500 font-semibold hover:text-secondary-600 hover:underline"
             >
               Sign up
             </button>

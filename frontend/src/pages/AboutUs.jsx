@@ -35,7 +35,7 @@ export default function About({ user, openAuth }) {
         "2 triệu giờ đóng góp mỗi năm bởi mạng lưới tình nguyện viên",
         "90% chương trình duy trì tác động sau 12 tháng triển khai",
       ],
-      accent: "from-[#FCE38A] via-[#F38181] to-[#EAFFD0]",
+      accent: "from-warning-200 via-danger-300 to-success-200",
     },
     {
       icon: Users,
@@ -48,7 +48,7 @@ export default function About({ user, openAuth }) {
         "Phòng khám lưu động chăm sóc sức khỏe phụ nữ và trẻ em",
         "Quỹ khẩn cấp hỗ trợ thiên tai, kích hoạt trong 48 giờ",
       ],
-      accent: "from-[#A8D0E6] via-[#374785] to-[#24305E]",
+      accent: "from-secondary-200 via-secondary-600 to-secondary-900",
     },
   ];
 
@@ -155,8 +155,8 @@ export default function About({ user, openAuth }) {
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
       >
-        <h2 className="text-3xl font-bold text-slate-900">Cùng nhau tạo ra sự khác biệt.</h2>
-        <p className="mt-2 text-base text-slate-600">
+        <h2 className="text-3xl font-bold text-text-main">Cùng nhau tạo ra sự khác biệt.</h2>
+        <p className="mt-2 text-base text-text-secondary">
           Kỹ năng và đam mê của bạn có thể giúp định hình một tương lai tốt đẹp hơn cho cộng đồng của chúng ta.
         </p>
       </motion.section>
@@ -174,23 +174,23 @@ export default function About({ user, openAuth }) {
           <FAQSection faqs={faqs} />
 
           <motion.section
-            className="rounded-3xl border border-[#A8D0E6]/70 bg-white/70 p-6 text-center shadow-lg shadow-blue-200/30 sm:p-8"
+            className="rounded-3xl border border-primary-200/70 bg-surface-white/70 p-6 text-center shadow-lg shadow-primary-200/30 sm:p-8 backdrop-blur-sm"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+            <h2 className="text-2xl font-bold text-text-main sm:text-3xl">
               Làm thế nào để tham gia với chúng tôi
             </h2>
-            <p className="mt-3 text-base text-slate-600">
+            <p className="mt-3 text-base text-text-secondary">
               Kết nối đam mê của bạn với các dự án cộng đồng. Bắt đầu hành trình tạo nên sự thay đổi ngay hôm nay.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               {user ? (
                 <Link
                   to="/information"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#005A9C] to-[#0077CC] px-5 py-3 text-base font-semibold text-white shadow-lg transition-all hover:from-[#004A82] hover:to-[#0066B3] hover:shadow-2xl hover:shadow-blue-400/50 active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-2xl btn-primary px-5 py-3 text-base font-semibold shadow-lg transition-all hover:shadow-xl hover:shadow-primary-400/20 active:scale-95"
                 >
                   View profile
                   <ArrowRight className="h-4 w-4" />
@@ -198,7 +198,7 @@ export default function About({ user, openAuth }) {
               ) : (
                 <button
                   onClick={() => openAuth("register")}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#005A9C] to-[#0077CC] px-5 py-3 text-base font-semibold text-white shadow-lg transition-all hover:from-[#004A82] hover:to-[#0066B3] hover:shadow-2xl hover:shadow-blue-400/50 active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-2xl btn-primary px-5 py-3 text-base font-semibold shadow-lg transition-all hover:shadow-xl hover:shadow-primary-400/20 active:scale-95"
                 >
                   Create account
                   <ArrowRight className="h-4 w-4" />

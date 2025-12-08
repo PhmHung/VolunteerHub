@@ -1,55 +1,93 @@
-import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import React from "react";
+import { Heart, Users, Globe, Award, Sparkles } from "lucide-react";
 
-export default function AboutPillars({ pillars }) {
+const fallbackPillars = [
+  {
+    icon: Heart,
+    title: "Kết nối thiện nguyện",
+    description:
+      "VolunteerHub kết nối những trái tim yêu thương với các tổ chức uy tín, tạo điều kiện để mỗi đóng góp đều tạo nên hiệu quả thiết thực.",
+  },
+  {
+    icon: Users,
+    title: "Cộng đồng bền vững",
+    description:
+      "Chúng tôi xây dựng cộng đồng tình nguyện viên gắn kết, nơi mỗi cá nhân đều là nguồn cảm hứng và động lực cho người khác.",
+  },
+  {
+    icon: Globe,
+    title: "Tác động lan tỏa",
+    description:
+      "Mỗi hoạt động đều hướng đến việc tạo ra những thay đổi tích cực cho xã hội, môi trường và những người kém may mắn.",
+  },
+  {
+    icon: Award,
+    title: "Phát triển bản thân",
+    description:
+      "VolunteerHub đồng hành cùng mỗi tình nguyện viên trên hành trình học hỏi, trưởng thành và kiến tạo giá trị cho tương lai.",
+  },
+];
+
+const AboutPillars = ({ pillars = fallbackPillars }) => {
   return (
-  <section className="mx-auto grid max-w-6xl grid-cols-1 gap-8 sm:grid-cols-2 sm:gap-10">
-      {pillars.map(({ icon, title, tagline, description, highlights, accent }) => {
-        const IconComponent = icon;
-        return (
-          <motion.article
-            key={title}
-            className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-6 shadow-xl shadow-blue-200/40 backdrop-blur sm:p-8"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.4 }}
-          >
-            <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accent}`} aria-hidden />
-            <div className="relative flex flex-col gap-6">
-              <div className="flex items-center gap-4">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-white/80 to-transparent shadow-inner">
-                  <IconComponent className="h-6 w-6 text-[#005A9C]" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#005A9C]/60">
-                    VolunteerHub Pillars
-                  </p>
-                  <h3 className="text-2xl font-bold text-slate-900">{title}</h3>
+    <section className="bg-surface-50 py-16">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="font-heading text-3xl font-extrabold text-text-main md:text-4xl">
+            Những điều chúng tôi trân trọng
+          </h2>
+          <p className="mt-4 text-base text-text-secondary md:text-lg">
+            VolunteerHub không chỉ là nguồn thông tin hoạt động thiện nguyện, mà còn là nơi chúng tôi xây dựng văn hóa chia sẻ, lan tỏa tình yêu thương và kết nối các trái tim thiện nguyện.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-8 md:grid-cols-2">
+          {pillars.map((pillar) => {
+            const Icon = pillar.icon || Sparkles;
+
+            return (
+              <article
+                key={pillar.title}
+                className="group h-full rounded-3xl border border-primary-200/15 bg-surface-white/80 p-8 shadow-lg shadow-primary-200/10 transition-all hover:-translate-y-1.5 hover:border-primary-200/30 hover:shadow-xl hover:shadow-primary-200/20"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-600">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  {pillar.tagline && (
+                    <span className="rounded-full bg-secondary-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-secondary-600">
+                      {pillar.tagline}
+                    </span>
+                  )}
                 </div>
-              </div>
 
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#F4A261]">{tagline}</p>
-              <p className="text-base leading-relaxed text-slate-600">{description}</p>
+                <h3 className="mt-6 text-xl font-semibold text-text-main">
+                  {pillar.title}
+                </h3>
 
-              <ul className="flex flex-col gap-3 rounded-2xl bg-[#F7FAFC]/80 p-4 text-sm text-slate-700">
-                {highlights.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#F4A261]" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+                {pillar.description && (
+                  <p className="mt-4 text-base leading-relaxed text-text-secondary">
+                    {pillar.description}
+                  </p>
+                )}
 
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.4em] text-slate-400">
-                <span className="h-px flex-1 bg-slate-200" />
-                <span>#TogetherWeGrow</span>
-                <span className="h-px flex-1 bg-slate-200" />
-              </div>
-            </div>
-          </motion.article>
-        );
-      })}
+                {pillar.highlights?.length ? (
+                  <ul className="mt-6 space-y-3">
+                    {pillar.highlights.map((highlight) => (
+                      <li key={highlight} className="flex items-start gap-3 text-sm text-text-secondary">
+                        <Sparkles className="mt-1 h-4 w-4 flex-shrink-0 text-warning-500" />
+                        <span>{highlight}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
-}
+};
+
+export default AboutPillars;

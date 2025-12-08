@@ -15,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@headlessui/react": "^2.2.8",
     "@heroicons/react": "^2.2.0",
+    "@reduxjs/toolkit": "^2.11.0",
     "axios": "^1.11.0",
     "dotenv": "^17.2.1",
     "firebase": "^12.3.0",
@@ -25,9 +26,11 @@
     "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.3.1",
     "react-leaflet": "^4.2.1",
+    "react-redux": "^9.2.0",
     "react-router-dom": "^7.8.2",
     "recharts": "^3.3.0",
-    "swiper": "^12.0.2"
+    "swiper": "^12.0.2",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
