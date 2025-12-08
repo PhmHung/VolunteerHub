@@ -75,4 +75,33 @@ const cancelRegistration = asyncHandler(async (req, res) => {
   res.json({ message: "Hủy đăng ký thành công" });
 });
 
-export { registerForEvent, cancelRegistration };
+// @desc    Lấy danh sách đăng ký của tôi
+// @route   GET /api/registrations/my-registrations
+// @access  Private
+const getMyRegistrations = asyncHandler(async (req, res) => {
+  const registrations = await Registration.find({ userId: req.user._id })
+    .populate("eventId")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    data: registrations,
+  });
+});
+
+// @desc    Lấy danh sách đăng ký đang chờ duyệt (Admin/Manager)
+// @route   GET /api/registrations/pending
+// @access  Private (Admin/Manager)
+const getPendingRegistrations = asyncHandler(async (req, res) => {
+  const registrations = await Registration.find({ status: "pending" })
+    .populate("userId", "userName email")
+    .populate("eventId", "title")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    data: registrations,
+  });
+});
+
+export { registerForEvent, cancelRegistration, getMyRegistrations, getPendingRegistrations };

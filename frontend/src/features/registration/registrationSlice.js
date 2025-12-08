@@ -173,7 +173,7 @@ const registrationSlice = createSlice({
       })
       .addCase(fetchMyRegistrations.fulfilled, (state, action) => {
         state.myLoading = false;
-        state.myRegistrations = action.payload;
+        state.myRegistrations = action.payload.data || action.payload;
       })
       .addCase(fetchMyRegistrations.rejected, (state, action) => {
         state.myLoading = false;

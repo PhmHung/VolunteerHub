@@ -107,11 +107,12 @@ export default function ManagerDashboard({ user }) {
   // Update local events when initialEvents changes
   useEffect(() => {
     setEvents(initialEvents);
+    // Only set selectedEventId if not already set and events available
     if (initialEvents.length > 0 && !selectedEventId) {
       setSelectedEventId(initialEvents[0]?.id || null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialEvents]);
+  }, [initialEvents.length]); // Use length instead of full array to prevent infinite loop
 
   const selectedEvent = events.find(e => e.id === selectedEventId || e._id === selectedEventId) || null;
 

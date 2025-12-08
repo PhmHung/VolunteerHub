@@ -63,60 +63,28 @@ export default function App() {
       
         <main className="w-full">
           <Routes>
-            <Route
-              path="/"
-              element={
-                user ? (
-                  <Navigate to="/dashboard" replace />
-                ) : (
-                  <HomePage user={user} openAuth={setAuthModal} />
-                )
-              }
-            />
-            <Route
-              path="/information"
-              element={
-                <ProtectedRoute user={user}>
-                  <Information />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/about"
-              element={<About user={user} openAuth={setAuthModal} />}
-            />
-            <Route
-              path="/media"
-              element={
-                <ProtectedRoute user={user}>
-                  <Media user={user} openAuth={setAuthModal} />
-                </ProtectedRoute>
-              }
-            />
-             <Route element={<ProtectedRoute user={user} requiredRole="admin" />}>
+            {/* Public routes */}
+            <Route path="/" element={user ? <Navigate to={user.role === 'admin' ? "/admin/dashboard" : user.role === 'manager' ? "/manager/dashboard" : "/dashboard"} replace /> : <HomePage user={user} openAuth={setAuthModal} />} />
+            <Route path="/about" element={<About user={user} openAuth={setAuthModal} />} />
+            <Route path="/events" element={<Events user={user} openAuth={setAuthModal} />} />
+
+            {/* Admin routes */}
+            <Route element={<ProtectedRoute user={user} loading={loadingUser} requiredRole="admin" redirectTo="/dashboard" />}>
               <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />
             </Route>
-            <Route element={<ProtectedRoute user={user} requiredRole="manager" />}>
+
+            {/* Manager routes */}
+            <Route element={<ProtectedRoute user={user} loading={loadingUser} requiredRole="manager" redirectTo="/dashboard" />}>
               <Route path="/manager/dashboard" element={<ManagerDashboard user={user} />} />
             </Route>
 
-            <Route path="/events" element={<Events user={user} openAuth={setAuthModal} />} />
-            <Route
-              path="/history"
-              element={
-                <ProtectedRoute user={user}>
-                  <VolunteerHistory user={user} />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute user={user}>
-                  <Dashboard user={user} />
-                </ProtectedRoute>
-              }
-            />
+            {/* Volunteer/authenticated user routes */}
+            <Route element={<ProtectedRoute user={user} loading={loadingUser} />}>
+              <Route path="/dashboard" element={<Dashboard user={user} />} />
+              <Route path="/information" element={<Information />} />
+              <Route path="/history" element={<VolunteerHistory user={user} />} />
+              <Route path="/media" element={<Media user={user} openAuth={setAuthModal} />} />
+            </Route>
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>

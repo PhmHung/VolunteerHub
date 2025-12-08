@@ -12,6 +12,7 @@ import postRoutes from "./routes/post.routes.js";
 import reactionRoutes from "./routes/reaction.routes.js";
 // import reportRoutes from "./routes/report.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import eventRoutes from "./routes/event.routes.js";
 import registerForEvent from "./routes/registration.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import approvalRequestRoutes from "./routes/approvalRequest.routes.js";

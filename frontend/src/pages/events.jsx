@@ -39,7 +39,9 @@ export default function EventsPage({ user, openAuth }) {
   // Convert myRegistrations array to map for quick lookup
   const userRegistrations = useMemo(() => {
     const regMap = {};
-    myRegistrations.forEach(reg => {
+    // Ensure myRegistrations is an array
+    const registrations = Array.isArray(myRegistrations) ? myRegistrations : [];
+    registrations.forEach(reg => {
       regMap[reg.eventId?._id || reg.eventId] = reg;
     });
     return regMap;

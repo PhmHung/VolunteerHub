@@ -1,6 +1,11 @@
 import { Navigate, Outlet } from "react-router-dom";
 
-const ProtectedRoute = ({ user, requiredRole, redirectTo = "/", children }) => {
+const ProtectedRoute = ({ user, loading, requiredRole, redirectTo = "/", children }) => {
+  // Show nothing while loading user data
+  if (loading) {
+    return null; // or a loading spinner
+  }
+
   if (!user) {
     return <Navigate to={redirectTo} replace />;
   }
