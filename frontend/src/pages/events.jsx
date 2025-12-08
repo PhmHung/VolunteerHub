@@ -331,7 +331,7 @@ export default function EventsPage({ user, openAuth }) {
                   {/* Event Image */}
                   <div className="relative h-48 bg-surface-muted">
                     <img
-                      src={event.imageUrl}
+                      src={event.image}
                       alt={event.title}
                       className="h-full w-full object-cover"
                     />

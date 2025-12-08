@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import LeftBar from '../components/LeftBar';
 import { 
   LayoutDashboard, Users, Calendar, CheckSquare, 
   Search, Bell, Filter, MoreVertical, ArrowUpRight,
@@ -296,9 +295,7 @@ const AdminDashboard = ({ user }) => {
   };
 
   return (
-    <div className='w-full md:flex h-screen overflow-hidden bg-surface-muted'>
-      <LeftBar />
-      
+    <div className='w-full h-screen overflow-hidden bg-surface-muted'>
       <div className="flex-1 overflow-y-auto">
         {/* Top Bar */}
         <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 flex justify-between items-center">
@@ -541,7 +538,7 @@ const AdminDashboard = ({ user }) => {
                     <thead>
                       <tr className="border-b border-gray-100">
                         <th className="py-3 px-4 text-xs font-semibold text-text-muted uppercase tracking-wider">Sự kiện</th>
-                        <th className="py-3 px-4 text-xs font-semibold text-text-muted uppercase tracking-wider">Tổ chức</th>
+                        <th className="py-3 px-4 text-xs font-semibold text-text-muted uppercase tracking-wider">Manager</th>
                         <th className="py-3 px-4 text-xs font-semibold text-text-muted uppercase tracking-wider">Thời gian</th>
                         <th className="py-3 px-4 text-xs font-semibold text-text-muted uppercase tracking-wider text-right">Hành động</th>
                       </tr>
@@ -559,19 +556,19 @@ const AdminDashboard = ({ user }) => {
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-3">
                                 <img 
-                                  src={event.imageUrl} 
+                                  src={event.image} 
                                   alt="" 
                                   className="w-12 h-12 rounded-lg object-cover shadow-sm"
                                 />
                                 <div>
                                   <p className="font-medium text-text-main">{event.title}</p>
                                   <span className="text-xs text-text-secondary bg-surface-muted px-2 py-0.5 rounded-full">
-                                    {event.category}
+                                    {event.tags?.[0] || 'Khác'}
                                   </span>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-4 px-4 text-sm text-text-secondary">{event.organizer}</td>
+                            <td className="py-4 px-4 text-sm text-text-secondary">{event.createdBy?.userName || 'N/A'}</td>
                             <td className="py-4 px-4 text-sm text-text-secondary">
                               {new Date(event.startDate).toLocaleDateString('vi-VN')}
                             </td>
