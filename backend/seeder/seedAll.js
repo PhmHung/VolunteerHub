@@ -8,9 +8,24 @@ import User from "../models/userModel.js";
 import Event from "../models/eventModel.js";
 import Registration from "../models/registrationModel.js";
 import Attendance from "../models/attendanceModel.js";
+import Channel from "../models/channelModel.js";
+import Post from "../models/postModel.js";
+import Comment from "../models/commentModel.js";
+import Reaction from "../models/reactionModel.js";
+
 
 dotenv.config();
 connectDB();
+
+await User.deleteMany();
+await Event.deleteMany();
+await Registration.deleteMany();
+await Attendance.deleteMany();
+await Channel.deleteMany();
+await Post.deleteMany();
+await Comment.deleteMany();
+await Reaction.deleteMany();
+
 
 // Hàm chạy seeder nếu collection rỗng
 const runSeederIfEmpty = async (scriptName, Model, collectionName) => {
@@ -52,6 +67,15 @@ const runSeederIfEmpty = async (scriptName, Model, collectionName) => {
 
     // 4. Attendance + Feedback
     await runSeederIfEmpty("attendance", Attendance, "Attendances");
+
+    await runSeederIfEmpty("channel", Channel, "Channels");
+
+    await runSeederIfEmpty("post", Post, "Posts");
+
+    await runSeederIfEmpty("comment", Comment, "Comments");
+
+    await runSeederIfEmpty("reaction", Reaction, "Reactions");
+
 
     console.log("\nALL DATA SEEDED SUCCESSFULLY!".bgGreen.black.bold);
     console.log("You can now test APIs, frontend, or reports.\n".gray);

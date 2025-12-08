@@ -12,6 +12,11 @@
     "seed:registration": "node seeder/seederRegistration.js",
     "seed:attendance": "node seeder/seederAttendance.js",
 
+    "seed:channel": "node seeder/seederChannel.js",
+    "seed:post": "node seeder/seederPost.js",
+    "seed:comment": "node seeder/seederComment.js",
+    "seed:reaction": "node seeder/seederReaction.js",
+
     "seed:user:destroy": "node seeder/destroyUser.js",
     "seed:event:destroy": "node seeder/destroyEvent.js",
     "seed:registration:destroy": "node seeder/destroyRegistration.js",
