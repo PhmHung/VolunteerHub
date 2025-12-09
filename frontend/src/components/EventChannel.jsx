@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Send, ThumbsUp, MessageCircle, MoreHorizontal, Share2 } from 'lucide-react';
-import { getChannelByEventId, addPostToChannel, addCommentToPost, likePost } from '../data/mockChannels';
+// import { getChannelByEventId, addPostToChannel, addCommentToPost, likePost } from '../data/mockChannels';
 
 const EventChannel = ({ eventId, user }) => {
   const [channel, setChannel] = useState(null);

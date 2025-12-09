@@ -2,7 +2,7 @@
 
 // src/features/auth/authSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../utils/apiConfig"; // axios instance có interceptor
+import api from "../../api"; // axios instance có interceptor
 
 // =============================================
 // 1. ĐĂNG KÝ (nếu bạn cho user tự đăng ký)

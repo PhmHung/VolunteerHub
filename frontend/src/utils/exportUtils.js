@@ -1,3 +1,14 @@
+/**
+ * @file exportUtils.js
+ * @description Utilities for exporting data to CSV and JSON formats
+ * @pattern Utility Module Pattern
+ */
+
+/**
+ * Export data array to CSV file
+ * @param {Array<Object>} data - Array of objects to export
+ * @param {string} filename - Output filename (without extension)
+ */
 export const exportToCSV = (data, filename) => {
   if (!data || !data.length) {
     alert("Không có dữ liệu để xuất!");
@@ -32,9 +43,10 @@ export const exportToCSV = (data, filename) => {
     }).join(','))
   ].join('\n');
 
-  // Create download link
-  const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
+  // Create download link with BOM for Excel compatibility
+  const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
+  
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -46,6 +58,11 @@ export const exportToCSV = (data, filename) => {
   }
 };
 
+/**
+ * Export data array to JSON file
+ * @param {Array<Object>} data - Array of objects to export
+ * @param {string} filename - Output filename (without extension)
+ */
 export const exportToJSON = (data, filename) => {
   if (!data || !data.length) {
     alert("Không có dữ liệu để xuất!");
@@ -55,6 +72,7 @@ export const exportToJSON = (data, filename) => {
   const jsonContent = JSON.stringify(data, null, 2);
   const blob = new Blob([jsonContent], { type: 'application/json' });
   const link = document.createElement('a');
+  
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);

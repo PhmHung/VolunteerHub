@@ -2,7 +2,7 @@
 
 // src/features/registration/registrationSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../utils/apiConfig"; // axios instance đã có token
+import api from "../../api"; // axios instance đã có token
 
 // 1. ĐĂNG KÝ THAM GIA SỰ KIỆN
 export const registerForEvent = createAsyncThunk(

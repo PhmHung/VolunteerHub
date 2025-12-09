@@ -1,6 +1,23 @@
+/**
+ * @file EventApprovalModal.jsx
+ * @description Modal for admin to approve/reject events
+ * @pattern Presentational Component Pattern
+ */
+
 import React from 'react';
 import { X, Calendar, MapPin, User, Tag, Clock, CheckCircle, XCircle } from 'lucide-react';
 
+/**
+ * EventApprovalModal Component
+ * Displays event details and provides approve/reject actions for admins
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.event - Event object to display
+ * @param {Function} props.onClose - Callback when modal closes
+ * @param {Function} props.onApprove - Callback when event is approved
+ * @param {Function} props.onReject - Callback when event is rejected
+ * @returns {JSX.Element|null} Modal component or null if no event
+ */
 const EventApprovalModal = ({ event, onClose, onApprove, onReject }) => {
   if (!event) return null;
 

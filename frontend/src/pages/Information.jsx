@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import api from "./api.js";
+import api from "../api.js";
 import { Eye, EyeOff, ShieldCheck, Bell, AlertCircle, Mail, Phone } from "lucide-react";
-import { fetchUserProfile, updateUserProfile, changeUserPassword, clearMessages } from "./features/user/userSlice";
+import { fetchUserProfile, updateUserProfile, changeUserPassword, clearMessages } from "../features/user/userSlice";
 
 export default function Information({ onProfileUpdate }) {
   const dispatch = useDispatch();

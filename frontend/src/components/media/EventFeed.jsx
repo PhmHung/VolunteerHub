@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Post from './feed/Post';
 import CreatePost from './feed/CreatePost';
-import { getChannelByEventId, addPostToChannel, toggleLikePost, hasUserLikedPost, addCommentToPost, approvePost, rejectPost, deletePost, editPost, deleteComment } from '../../data/mockChannels';
+// import { getChannelByEventId, addPostToChannel, toggleLikePost, hasUserLikedPost, addCommentToPost, approvePost, rejectPost, deletePost, editPost, deleteComment } from '../../data/mockChannels';
 import { Filter, TrendingUp, Clock } from 'lucide-react';
 
 const EventFeed = ({ user, event }) => {
@@ -14,7 +14,8 @@ const EventFeed = ({ user, event }) => {
     if (!event || !user) return;
     const eventId = event.id || event._id;
     const userId = user._id || user.id;
-    const channel = getChannelByEventId(eventId);
+    // TODO: Fetch channel from API instead of mock
+    // const channel = getChannelByEventId(eventId);
     
     if (channel) {
       setChannelId(channel.id);

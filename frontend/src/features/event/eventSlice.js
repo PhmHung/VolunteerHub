@@ -2,7 +2,7 @@
 
 // src/features/event/eventSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../utils/apiConfig"; // axios instance đã gắn token
+import api from "../../api"; // axios instance đã gắn token
 
 // =============================================
 // 1. PUBLIC: Lấy danh sách sự kiện đã duyệt (có filter, phân trang, search, tag)

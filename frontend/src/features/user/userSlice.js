@@ -2,7 +2,7 @@
 
 // src/features/user/userSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../utils/apiConfig";
+import api from "../../api";
 
 // 1. Async Thunks
 export const fetchUserProfile = createAsyncThunk(

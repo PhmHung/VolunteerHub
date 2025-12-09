@@ -7,10 +7,13 @@ const api = axios.create({
   withCredentials: false,
   headers: {
     Accept: "application/json",
+    "Content-Type": "application/json",
   },
+  // ❌ Xóa adapter: 'fetch' để Service Worker cache được
+  // adapter: 'fetch', 
 });
 
-// Attach Authorization header if token exists
+// 1. Request Interceptor: Gắn Token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -20,15 +23,26 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 errors (token expired/invalid) - auto logout
+// 2. Response Interceptor: Xử lý lỗi & Chặn HTML "lặp trang"
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // --- CHỐT CHẶN QUAN TRỌNG ---
+    // Nếu API trả về HTML (do Service Worker trả nhầm index.html khi lỗi)
+    if (
+      response.data && 
+      typeof response.data === 'string' && 
+      (response.data.includes('<!doctype html>') || response.data.includes('<html'))
+    ) {
+      console.error("⛔ Đã chặn HTML chui lọt vào API (Lỗi lặp trang)");
+      return Promise.reject(new Error("API trả về HTML thay vì JSON"));
+    }
+    return response;
+  },
   (error) => {
+    // Xử lý 401 Unauthorized (Token hết hạn)
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear storage and redirect to login
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      // Only redirect if not already on auth page
       if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
         window.location.href = '/';
       }
@@ -43,53 +57,23 @@ export function fullUrl(path) {
   return path.startsWith("http") ? path : `${API_BASE}${path}`;
 }
 
-// === APPROVAL REQUEST APIs ===
+// === CÁC API CON GIỮ NGUYÊN ===
+
 export const approvalRequestApi = {
-  // Lấy danh sách yêu cầu chờ duyệt
   getPendingRequests: () => api.get('/api/approval-requests/pending'),
-  
-  // Duyệt yêu cầu
-  approveRequest: (requestId, adminNote = '') => 
-    api.patch(`/api/approval-requests/${requestId}/approve`, { adminNote }),
-  
-  // Từ chối yêu cầu
-  rejectRequest: (requestId, adminNote = '') => 
-    api.patch(`/api/approval-requests/${requestId}/reject`, { adminNote }),
-  
-  // Xem chi tiết yêu cầu
-  getRequestById: (requestId) => 
-    api.get(`/api/approval-requests/${requestId}`),
+  approveRequest: (requestId, adminNote = '') => api.patch(`/api/approval-requests/${requestId}/approve`, { adminNote }),
+  rejectRequest: (requestId, adminNote = '') => api.patch(`/api/approval-requests/${requestId}/reject`, { adminNote }),
+  getRequestById: (requestId) => api.get(`/api/approval-requests/${requestId}`),
 };
 
-// === REGISTRATION APIs ===
 export const registrationApi = {
-  // Đăng ký sự kiện (tạo registration với status = pending)
-  registerForEvent: (eventId) => 
-    api.post('/api/registrations', { eventId }),
-  
-  // Hủy đăng ký
-  cancelRegistration: (registrationId) => 
-    api.delete(`/api/registrations/${registrationId}`),
-  
-  // Lấy danh sách registrations của user
-  getMyRegistrations: () => 
-    api.get('/api/registrations/my-registrations'),
-  
-  // [Manager/Admin] Lấy danh sách registrations của 1 event
-  getEventRegistrations: (eventId) => 
-    api.get(`/api/events/${eventId}/registrations`),
-  
-  // [Manager/Admin] Accept volunteer registration
-  acceptRegistration: (registrationId) => 
-    api.patch(`/api/registrations/${registrationId}/accept`),
-  
-  // [Manager/Admin] Reject volunteer registration
-  rejectRegistration: (registrationId, reason = '') => 
-    api.patch(`/api/registrations/${registrationId}/reject`, { reason }),
-  
-  // Lấy danh sách volunteers của event (chỉ khi đã accepted)
-  getEventVolunteers: (eventId) => 
-    api.get(`/api/events/${eventId}/volunteers`),
+  registerForEvent: (eventId) => api.post('/api/registrations', { eventId }),
+  cancelRegistration: (registrationId) => api.delete(`/api/registrations/${registrationId}`),
+  getMyRegistrations: () => api.get('/api/registrations/my-registrations'),
+  getEventRegistrations: (eventId) => api.get(`/api/events/${eventId}/registrations`),
+  acceptRegistration: (registrationId) => api.patch(`/api/registrations/${registrationId}/accept`),
+  rejectRegistration: (registrationId, reason = '') => api.patch(`/api/registrations/${registrationId}/reject`, { reason }),
+  getEventVolunteers: (eventId) => api.get(`/api/events/${eventId}/volunteers`),
 };
 
 export default api;
