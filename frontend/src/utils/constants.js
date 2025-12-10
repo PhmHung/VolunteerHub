@@ -1,6 +1,8 @@
 /** @format */
 
-// Event Categories
+// /** @format */
+
+// // Event Categories
 export const EVENT_CATEGORIES = [
   "Tất cả",
   "Môi trường",
@@ -10,14 +12,14 @@ export const EVENT_CATEGORIES = [
   "Sức khỏe",
 ];
 
-// Event Status
+// // Event Status
 export const EVENT_STATUS = {
   approved: { label: "Đã duyệt", color: "emerald" },
   pending: { label: "Chờ duyệt", color: "amber" },
   rejected: { label: "Từ chối", color: "red" },
 };
 
-// Registration Status
+// // Registration Status
 export const REGISTRATION_STATUS = {
   pending: { label: "Chờ duyệt", color: "amber" },
   accepted: { label: "Đã chấp nhận", color: "emerald" },

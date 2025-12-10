@@ -7,6 +7,7 @@ import {
   createEvent,
   updateEvent,
   approveEvent,
+  getEventRegistrations,
 } from "../controllers/event.controller.js";
 import {
   protect,
@@ -42,7 +43,12 @@ router.get(
   allowAdminOrManager,
   getEventPrivateFeedbacks
 );
-
+router.get(
+  "/:eventId/registrations",
+  protect,
+  allowAdminOrManager,
+  getEventRegistrations
+);
 // Admin
 router.patch("/:eventId/approve", protect, allowAdminOnly, approveEvent);
 

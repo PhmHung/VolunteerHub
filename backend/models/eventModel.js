@@ -24,7 +24,7 @@ const eventSchema = new mongoose.Schema(
 
     volunteers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     managers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    
+
     channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel" }, // 1–1
     status: {
       type: String,

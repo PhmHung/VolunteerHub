@@ -47,7 +47,7 @@ const getEvents = asyncHandler(async (req, res) => {
 // @desc    Get event by ID (Public nếu approved)
 // @route   GET /api/events/:id
 const getEventById = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id)
+  const event = await Event.findById(req.params.eventId)
     .populate("createdBy", "name email")
     .select("-__v");
 
@@ -207,4 +207,32 @@ const approveEvent = asyncHandler(async (req, res) => {
   });
 });
 
-export { getEvents, getEventById, createEvent, updateEvent, approveEvent };
+// @desc    Lấy danh sách đăng ký theo sự kiện
+// @route   GET /api/events/:eventId/registrations
+// @access  Private (Admin/Manager)
+const getEventRegistrations = asyncHandler(async (req, res) => {
+  const { eventId } = req.params;
+
+  console.log("Finding registrations for Event ID:", eventId);
+
+  // VÌ MODEL BẠN ĐẶT LÀ 'eventId' NÊN Ở ĐÂY DÙNG { eventId } LÀ ĐÚNG
+  // VÌ MODEL BẠN ĐẶT LÀ 'userId' NÊN POPULATE 'userId' LÀ ĐÚNG
+  const registrations = await Registration.find({ eventId: eventId })
+    .populate("userId", "userName userEmail profilePicture phoneNumber")
+    .sort({ createdAt: -1 });
+
+  if (!registrations) {
+    // Trả về mảng rỗng thay vì lỗi 404 để Frontend không bị đỏ
+    return res.status(200).json([]);
+  }
+
+  res.status(200).json(registrations);
+});
+export {
+  getEvents,
+  getEventById,
+  createEvent,
+  updateEvent,
+  approveEvent,
+  getEventRegistrations,
+};

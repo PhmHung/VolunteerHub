@@ -18,7 +18,6 @@ const users = [
     role: "manager",
     phoneNumber: "",
     status: "active",
-    
   },
   {
     userName: "Nguyễn Văn B",
@@ -44,6 +43,48 @@ const users = [
     role: "volunteer",
     status: "active",
   },
+  {
+    userName: "Quản Lý B (Kẻ Xâm Nhập)",
+    userEmail: "managerB@example.com",
+    password: bcrypt.hashSync("MP456@", 10), // Pass: MP456@
+    role: "manager",
+    phoneNumber: "0902222222",
+    status: "active",
+  },
+  ...[
+    "Nguyễn Thị Lan Anh",
+    "Trần Văn Hoàng Nam",
+    "Lê Thị Ngọc Mai",
+    "Phạm Minh Quân",
+    "Đỗ Thị Hồng Nhung",
+    "Vũ Hoàng Long",
+    "Bùi Thị Thu Trang",
+    "Hoàng Văn Đức",
+    "Ngô Thị Kim Oanh",
+    "Đặng Văn Hùng",
+    "Phan Thị Yến Nhi",
+    "Lý Văn Khánh",
+    "Hà Thị Minh Thư",
+    "Trương Quốc Bảo",
+    "Mai Văn Tiến",
+    "Chu Thị Diệu Linh",
+    "Tô Ngọc Ánh",
+    "Đinh Văn Sơn Tùng",
+    "Cao Thị Phương",
+    "Lâm Văn Huy",
+    "Huỳnh Thị Bảo Châu",
+    "Võ Minh Triết",
+    "Kiều Anh Dũng",
+    "Thái Thị Hồng Ngọc",
+    "Hồ Văn Khôi",
+  ].map((name) => ({
+    userName: name,
+    userEmail: `${name.toLowerCase().replace(/ /g, ".")}@gmail.com`,
+    password: bcrypt.hashSync("Vol123!", 10),
+    role: "volunteer",
+    phoneNumber: "09" + Math.floor(100000000 + Math.random() * 900000000),
+    status: "active",
+  })),
 ];
 
 export default users;
