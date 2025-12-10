@@ -1,3 +1,5 @@
+/** @format */
+
 const normalizeRole = (value) => {
   const raw = (value || "").toString().trim().toLowerCase();
   if (raw === "admin") return "admin";
@@ -36,8 +38,13 @@ export const MOCK_USER = Object.freeze({
   userEmail: email,
   role: MOCK_ROLE,
   profilePicture: null,
-  phoneNumber: MOCK_ROLE === 'manager' ? '0123456789' : MOCK_ROLE === 'admin' ? '0123000456' : '0987654321',
-  status: 'active',
+  phoneNumber:
+    MOCK_ROLE === "manager"
+      ? "0123456789"
+      : MOCK_ROLE === "admin"
+      ? "0123000456"
+      : "0987654321",
+  status: "active",
   isEmailVerified: true,
   googleId: null,
   personalInformation: {

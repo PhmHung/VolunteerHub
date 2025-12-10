@@ -87,6 +87,21 @@ export const approveEvent = createAsyncThunk(
   }
 );
 
+//6. Manager: Lấy danh sách đăng ký của sự kiện
+// Gọi API: /api/events/:eventId/registrations
+export const fetchEventRegistrations = createAsyncThunk(
+  "event/fetchRegistrations",
+  async (eventId, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(`/api/events/${eventId}/registrations`);
+      return data; // Backend trả về mảng registrations trực tiếp
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Lỗi tải danh sách đăng ký"
+      );
+    }
+  }
+);
 // =============================================
 // Slice
 const eventSlice = createSlice({
@@ -106,6 +121,10 @@ const eventSlice = createSlice({
     // Sự kiện đang xem chi tiết
     current: null,
     currentLoading: false,
+
+    //Danh sách đăng ký cho sự kiện hiện tại
+    registrations: [],
+    registrationsLoading: false,
 
     // Thông báo thành công
     successMessage: null,
@@ -200,10 +219,32 @@ const eventSlice = createSlice({
       .addCase(approveEvent.rejected, (state, action) => {
         state.error = action.payload;
       });
+
+    // === FETCH EVENT REGISTRATIONS ===
+    builder
+      .addCase(fetchEventRegistrations.pending, (state) => {
+        state.registrationsLoading = true;
+        // Không xóa error chung để tránh nháy lỗi UI
+      })
+      .addCase(fetchEventRegistrations.fulfilled, (state, action) => {
+        state.registrationsLoading = false;
+        state.registrations = action.payload;
+      })
+      .addCase(fetchEventRegistrations.rejected, (state, action) => {
+        state.registrationsLoading = false;
+        // Nếu lỗi là do "Không tìm thấy danh sách đăng ký" (trống) -> set mảng rỗng
+        // Nếu lỗi server -> set error
+        state.error = action.payload;
+        state.registrations = [];
+      });
   },
 });
 
-export const { clearEventMessages, clearCurrentEvent, clearEventError } =
-  eventSlice.actions;
+export const {
+  clearEventMessages,
+  clearCurrentEvent,
+  clearEventError,
+  clearRegistrations,
+} = eventSlice.actions;
 
 export default eventSlice.reducer;

@@ -9,7 +9,8 @@ import connectDB from "../config/mongodb.js";
 
 dotenv.config();
 connectDB();
-
+console.log("Đang kết nối DB:", process.env.MONGO_URI);
+console.log("Số lượng user sẽ seed:", users.length);
 const importData = async () => {
   try {
     await User.deleteMany();

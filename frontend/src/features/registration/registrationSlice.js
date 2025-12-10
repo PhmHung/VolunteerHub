@@ -10,7 +10,7 @@ export const registerForEvent = createAsyncThunk(
   async (eventId, { rejectWithValue }) => {
     try {
       const { data } = await api.post("/api/registrations", { eventId });
-      return data; // { message: "Đăng ký thành công", data: registration }
+      return data;
     } catch (err) {
       const message = err.response?.data?.message || err.message;
       return rejectWithValue(message);
@@ -18,7 +18,7 @@ export const registerForEvent = createAsyncThunk(
   }
 );
 
-// 2. HỦY ĐĂNG KÝ
+// 2. HỦY ĐĂNG KÝ (User tự hủy)
 export const cancelRegistration = createAsyncThunk(
   "registration/cancel",
   async (registrationId, { rejectWithValue }) => {
@@ -38,7 +38,7 @@ export const fetchMyRegistrations = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const { data } = await api.get("/api/registrations/my-registrations");
-      return data; // mảng các registration của user hiện tại
+      return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -63,7 +63,9 @@ export const acceptRegistration = createAsyncThunk(
   "registration/accept",
   async (registrationId, { rejectWithValue }) => {
     try {
-      const { data } = await api.patch(`/api/registrations/${registrationId}/accept`);
+      const { data } = await api.put(
+        `/api/registrations/${registrationId}/accept`
+      );
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -76,7 +78,11 @@ export const rejectRegistration = createAsyncThunk(
   "registration/reject",
   async ({ registrationId, reason }, { rejectWithValue }) => {
     try {
-      const { data } = await api.patch(`/api/registrations/${registrationId}/reject`, { reason });
+      // --- SỬA LỖI Ở ĐÂY: PATCH -> PUT ---
+      const { data } = await api.put(
+        `/api/registrations/${registrationId}/reject`,
+        { reason }
+      );
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -100,20 +106,13 @@ export const fetchPendingRegistrations = createAsyncThunk(
 const registrationSlice = createSlice({
   name: "registration",
   initialState: {
-    // Danh sách đăng ký của user hiện tại
     myRegistrations: [],
     myLoading: false,
     myError: null,
-
-    // Danh sách đăng ký theo sự kiện (dùng cho trang quản lý)
     eventRegistrations: {},
     eventLoading: false,
-
-    // Danh sách đăng ký pending (admin)
     pendingRegistrations: [],
     pendingLoading: false,
-
-    // Thông báo thành công & lỗi chung
     successMessage: null,
     error: null,
   },
@@ -128,112 +127,65 @@ const registrationSlice = createSlice({
 
   extraReducers: (builder) => {
     // ĐĂNG KÝ
-    builder
-      .addCase(registerForEvent.pending, (state) => {
-        state.error = null;
-      })
-      .addCase(registerForEvent.fulfilled, (state, action) => {
-        state.successMessage = action.payload.message;
-        // Thêm vào danh sách nếu đang xem "My Registrations"
-        if (action.payload.data) {
-          state.myRegistrations.unshift(action.payload.data);
-        }
-      })
-      .addCase(registerForEvent.rejected, (state, action) => {
-        state.error = action.payload;
-      });
+    builder.addCase(registerForEvent.fulfilled, (state, action) => {
+      state.successMessage = action.payload.message;
+      if (action.payload.data)
+        state.myRegistrations.unshift(action.payload.data);
+    });
 
     // HỦY ĐĂNG KÝ
-    builder
-      .addCase(cancelRegistration.fulfilled, (state, action) => {
-        const { registrationId } = action.payload;
-        state.successMessage = action.payload.message;
+    builder.addCase(cancelRegistration.fulfilled, (state, action) => {
+      const { registrationId } = action.payload;
+      state.successMessage = action.payload.message;
+      state.myRegistrations = state.myRegistrations.filter(
+        (reg) => reg._id !== registrationId
+      );
+    });
 
-        // Xóa khỏi myRegistrations
-        state.myRegistrations = state.myRegistrations.filter(
-          (reg) => reg._id !== registrationId
-        );
+    // FETCH MY
+    builder.addCase(fetchMyRegistrations.fulfilled, (state, action) => {
+      state.myRegistrations = action.payload.data || action.payload;
+    });
 
-        // Xóa khỏi eventRegistrations nếu đang xem
-        Object.keys(state.eventRegistrations).forEach((eventId) => {
-          state.eventRegistrations[eventId] = state.eventRegistrations[
-            eventId
-          ]?.filter((reg) => reg._id !== registrationId);
-        });
-      })
-      .addCase(cancelRegistration.rejected, (state, action) => {
-        state.error = action.payload;
-      });
+    // FETCH EVENT REGS
+    builder.addCase(fetchEventRegistrations.fulfilled, (state, action) => {
+      const { eventId, registrations } = action.payload;
+      state.eventRegistrations[eventId] = registrations;
+    });
 
-    // LẤY ĐĂNG KÝ CỦA TÔI
-    builder
-      .addCase(fetchMyRegistrations.pending, (state) => {
-        state.myLoading = true;
-        state.myError = null;
-      })
-      .addCase(fetchMyRegistrations.fulfilled, (state, action) => {
-        state.myLoading = false;
-        state.myRegistrations = action.payload.data || action.payload;
-      })
-      .addCase(fetchMyRegistrations.rejected, (state, action) => {
-        state.myLoading = false;
-        state.myError = action.payload;
-      });
+    // ACCEPT
+    builder.addCase(acceptRegistration.fulfilled, (state, action) => {
+      state.successMessage = "Đã chấp nhận tình nguyện viên!";
+      const idToRemove = action.meta.arg;
 
-    // LẤY ĐĂNG KÝ THEO SỰ KIỆN
-    builder
-      .addCase(fetchEventRegistrations.pending, (state) => {
-        state.eventLoading = true;
-      })
-      .addCase(fetchEventRegistrations.fulfilled, (state, action) => {
-        state.eventLoading = false;
-        const { eventId, registrations } = action.payload;
-        state.eventRegistrations[eventId] = registrations;
-      })
-      .addCase(fetchEventRegistrations.rejected, (state, action) => {
-        state.eventLoading = false;
-        state.error = action.payload;
-      });
-
-    // CHẤP NHẬN ĐĂNG KÝ
-    builder
-      .addCase(acceptRegistration.fulfilled, (state, action) => {
-        state.successMessage = "Đã chấp nhận tình nguyện viên!";
-        // Xóa khỏi pending list
+      if (Array.isArray(state.pendingRegistrations)) {
         state.pendingRegistrations = state.pendingRegistrations.filter(
-          (reg) => reg._id !== action.payload.data?._id
+          (reg) => reg._id !== idToRemove
         );
-      })
-      .addCase(acceptRegistration.rejected, (state, action) => {
-        state.error = action.payload;
-      });
-
-    // TỪ CHỐI ĐĂNG KÝ
-    builder
-      .addCase(rejectRegistration.fulfilled, (state, action) => {
-        state.successMessage = "Đã từ chối tình nguyện viên.";
-        // Xóa khỏi pending list
+      }
+    });
+    // REJECT
+    builder.addCase(rejectRegistration.fulfilled, (state, action) => {
+      state.successMessage = "Đã từ chối tình nguyện viên.";
+      const idToRemove = action.meta.arg.registrationId;
+      if (Array.isArray(state.pendingRegistrations)) {
         state.pendingRegistrations = state.pendingRegistrations.filter(
-          (reg) => reg._id !== action.payload.data?._id
+          (reg) => reg._id !== idToRemove
         );
-      })
-      .addCase(rejectRegistration.rejected, (state, action) => {
-        state.error = action.payload;
-      });
+      }
+    });
 
-    // LẤY ĐĂNG KÝ PENDING
-    builder
-      .addCase(fetchPendingRegistrations.pending, (state) => {
-        state.pendingLoading = true;
-      })
-      .addCase(fetchPendingRegistrations.fulfilled, (state, action) => {
-        state.pendingLoading = false;
-        state.pendingRegistrations = action.payload;
-      })
-      .addCase(fetchPendingRegistrations.rejected, (state, action) => {
-        state.pendingLoading = false;
-        state.error = action.payload;
-      });
+    // FETCH PENDING
+    builder.addCase(fetchPendingRegistrations.fulfilled, (state, action) => {
+      const data = action.payload.data || action.payload;
+
+      if (Array.isArray(data)) {
+        state.pendingRegistrations = data;
+      } else {
+        console.warn("Dữ liệu pending không phải mảng:", data);
+        state.pendingRegistrations = [];
+      }
+    });
   },
 });
 

@@ -63,6 +63,19 @@ export const fetchAllUsers = createAsyncThunk(
   }
 );
 
+export const fetchUserById = createAsyncThunk(
+  "user/fetchById",
+  async (userId, { rejectWithValue }) => {
+    try {
+      //API: GET /api/users/:id
+      const { data } = await api.get(`/api/user/${userId}`);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 export const deleteUser = createAsyncThunk(
   "user/deleteUser",
   async (userId, { rejectWithValue }) => {
@@ -99,6 +112,10 @@ const userSlice = createSlice({
     usersLoading: false,
     usersError: null,
 
+    selectedUser: null, // Lưu thông tin chi tiết user
+    selectedUserLoading: false,
+    selectedUserError: null,
+
     message: null, // thông báo thành công
     error: null, // lỗi chung
   },
@@ -108,12 +125,19 @@ const userSlice = createSlice({
       state.error = null;
       state.profileError = null;
       state.usersError = null;
+      state.selectedUserError = null;
     },
     userLogout: (state) => {
       state.profile = null;
       state.users = [];
       state.message = null;
       state.error = null;
+      state.selectedUser = null;
+    },
+    clearSelectedUser: (state) => {
+      state.selectedUser = null;
+      state.selectedUserError = null;
+      state.selectedUserLoading = false;
     },
   },
   extraReducers: (builder) => {
@@ -175,9 +199,25 @@ const userSlice = createSlice({
           state.profile.role = updated.role;
         }
         state.message = "Cập nhật vai trò thành công";
+      })
+
+      // 3. Selected User by ID
+      .addCase(fetchUserById.pending, (state) => {
+        state.selectedUserLoading = true;
+        state.selectedUserError = null;
+        state.selectedUser = null; // Xóa data cũ để tránh hiển thị nhầm
+      })
+      .addCase(fetchUserById.fulfilled, (state, action) => {
+        state.selectedUserLoading = false;
+        state.selectedUser = action.payload;
+      })
+      .addCase(fetchUserById.rejected, (state, action) => {
+        state.selectedUserLoading = false;
+        state.selectedUserError = action.payload;
       });
   },
 });
 
-export const { clearMessages, userLogout } = userSlice.actions;
+export const { clearMessages, userLogout, clearSelectedUser } =
+  userSlice.actions;
 export default userSlice.reducer;
