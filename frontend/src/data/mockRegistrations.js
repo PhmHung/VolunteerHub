@@ -1,4 +1,6 @@
-import { MOCK_EVENTS } from './mockEvents';
+/** @format */
+
+import { MOCK_EVENTS } from "./mockEvents";
 
 // Mock registrations to mirror backend Registration model
 export const MOCK_REGISTRATIONS = [
@@ -76,7 +78,7 @@ export const MOCK_REGISTRATIONS = [
     status: "accepted",
     completionStatus: "completed", // Đã hoàn thành
   },
-  
+
   // Other volunteers for event evt-001 (để hiện trong danh sách social media)
   {
     _id: "reg-101",
@@ -99,7 +101,7 @@ export const MOCK_REGISTRATIONS = [
     registeredAt: "2025-09-30T16:45:00.000Z",
     status: "pending", // Người này chưa được accept
   },
-  
+
   // Other volunteers for event evt-004
   {
     _id: "reg-201",
@@ -115,7 +117,7 @@ export const MOCK_REGISTRATIONS = [
     registeredAt: "2025-10-11T15:30:00.000Z",
     status: "accepted",
   },
-  
+
   // Manager registrations
   {
     _id: "reg-301",
@@ -187,12 +189,12 @@ export const MOCK_VOLUNTEERS = [
 // Mock managers data
 export const MOCK_MANAGERS = [
   {
-    _id: 'mock-manager',
-    userName: 'Người quản lý Demo',
-    userEmail: 'manager@volunteerhub.dev',
-    role: 'manager',
-    profilePicture: null
-  }
+    _id: "mock-manager",
+    userName: "Người quản lý Demo",
+    userEmail: "manager@volunteerhub.dev",
+    role: "manager",
+    profilePicture: null,
+  },
 ];
 
 // Registration status
@@ -206,7 +208,7 @@ export const REGISTRATION_STATUS = {
 
 // Helper to get registrations from storage or default
 export const getMockRegistrations = () => {
-  const stored = localStorage.getItem('mockRegistrations');
+  const stored = localStorage.getItem("mockRegistrations");
   return stored ? JSON.parse(stored) : MOCK_REGISTRATIONS;
 };
 
@@ -215,7 +217,7 @@ export const getEventVolunteers = (eventId, currentUserId) => {
   const registrations = getMockRegistrations();
 
   // Check if user is the creator
-  const event = MOCK_EVENTS.find(e => e.id === eventId || e._id === eventId);
+  const event = MOCK_EVENTS.find((e) => e.id === eventId || e._id === eventId);
   const isCreator = event && event.createdBy === currentUserId;
 
   // Check if user is accepted
@@ -225,13 +227,15 @@ export const getEventVolunteers = (eventId, currentUserId) => {
   const isAccepted = currentUserReg && currentUserReg.status === "accepted";
 
   if (!isCreator && !isAccepted) {
-    throw new Error("Bạn phải được chấp nhận tham gia sự kiện mới xem được danh sách tình nguyện viên");
+    throw new Error(
+      "Bạn phải được chấp nhận tham gia sự kiện mới xem được danh sách tình nguyện viên"
+    );
   }
 
   // If creator, show all registrations (pending, accepted, rejected)
   // If volunteer, show only accepted
   let relevantRegistrations;
-  
+
   if (isCreator) {
     relevantRegistrations = registrations.filter(
       (reg) => reg.eventId === eventId
@@ -245,15 +249,15 @@ export const getEventVolunteers = (eventId, currentUserId) => {
   // Join with volunteer info
   return relevantRegistrations.map((reg) => {
     const volunteer = MOCK_VOLUNTEERS.find((v) => v._id === reg.userId) || {
-        userName: "Unknown User",
-        userEmail: "unknown",
-        _id: reg.userId
+      userName: "Unknown User",
+      userEmail: "unknown",
+      _id: reg.userId,
     };
     return {
       ...volunteer,
       registrationId: reg._id,
       registeredAt: reg.registeredAt,
-      status: reg.status // Include status for manager to see
+      status: reg.status, // Include status for manager to see
     };
   });
 };
@@ -269,7 +273,7 @@ export const canViewEventVolunteers = (eventId, currentUserId) => {
   const registrations = getMockRegistrations();
 
   // Check if user is the creator
-  const event = MOCK_EVENTS.find(e => e.id === eventId || e._id === eventId);
+  const event = MOCK_EVENTS.find((e) => e.id === eventId || e._id === eventId);
   if (event && event.createdBy === currentUserId) return true;
 
   const registration = registrations.find(

@@ -3,22 +3,17 @@ import { useDispatch } from "react-redux";
 import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
 import api from "../api.js"; // centralized API client
 import FirebaseLogin from "../components/FirebaseLogin"; // Component login bằng Firebase
-import { fetchUserProfile } from "../features/user/userSlice";
 
 export default function AuthModal({ mode, onClose, onSuccess }) {
   const dispatch = useDispatch();
-  // ========== STATE MANAGEMENT ==========
+
   // States cho form fields
-  const [email, setEmail] = useState(""); // Email người dùng
-  const [password, setPassword] = useState(""); // Password
-  const [name, setName] = useState(""); // Tên đầy đủ (chỉ dùng khi register)
-  const [role, setRole] = useState("volunteer"); // Vai trò: "volunteer" hoặc "admin"
-  const [biography, setBiography] = useState(""); // Tiểu sử (optional)
-  const [registeredPicture, setRegisteredPicture] = useState(null); // File ảnh đại diện
-  // Extra fields shown when role === 'admin' or 'manager'
-  const [roleOrg, setRoleOrg] = useState("");
-  const [rolePhone, setRolePhone] = useState("");
-  const [roleNote, setRoleNote] = useState("");
+  const [email, setEmail] = useState(""); 
+  const [password, setPassword] = useState(""); 
+  const [name, setName] = useState(""); 
+  const [role, setRole] = useState("volunteer"); 
+  const [biography, setBiography] = useState(""); 
+  const [registeredPicture, setRegisteredPicture] = useState(null); 
 
   // States cho flow đăng ký (3 bước)
   // Step 0: Nhập email → Gửi mã xác thực
@@ -35,28 +30,21 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-
-
   // ========== FUNCTION: GỬI MÃ XÁC THỰC ==========
-  // Được gọi ở Step 0 của Register
-  // Gửi email đến backend → Backend gửi code qua email
-  const sendVerification = async () => {
-    setLoading(true); // Bật loading spinner
-    setError(""); // Clear error cũ
+  const sendVerificationCode = async () => {
+    setLoading(true); 
+    setError(""); 
     try {
-      // Validation: Kiểm tra email có được nhập chưa
       if (!email) {
         setError("Email is required");
         setLoading(false);
         return;
       }
 
-  // Gọi API gửi verification code
-  await api.post("/api/auth/sendVerificationCode", { email });
-      setStep(1); // Chuyển sang step 1 (nhập code)
-      setError(""); // Clear error
+      await api.post("/api/auth/sendVerificationCode", { email });
+      setStep(1); 
+      setError(""); 
     } catch (err) {
-      // Hiển thị error từ server hoặc message mặc định
       setError(err.response?.data?.message || "Failed to send verification code");
     } finally {
       setLoading(false); // Tắt loading
@@ -64,21 +52,20 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
   };
 
   // ========== FUNCTION: XÁC THỰC MÃ ==========
-  // Được gọi ở Step 1 của Register
-  // Gửi code user nhập đến backend để verify
   const verifyCode = async () => {
     setLoading(true);
     try {
-      // Validation: Kiểm tra code có được nhập chưa
       if (!code) {
         setError("Verification code is required");
         setLoading(false);
         return;
       }
 
-  // Gọi API verify code
-  await api.post("/api/auth/verifyCode", { email, code });
-      setStep(2); // Chuyển sang step 2 (hoàn tất profile)
+      // Gọi API verify code
+      const res = await api.post("/api/auth/verifyCode", { email, code });
+      localStorage.setItem("verifyToken", res.data.verifyToken);
+
+      setStep(2); 
       setError("");
     } catch (err) {
       setError(err.response?.data?.message || "Invalid code");
@@ -88,8 +75,6 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
   };
 
   // ========== FUNCTION: ĐĂNG KÝ TÀI KHOẢN ==========
-  // Được gọi ở Step 2 của Register
-  // Gửi toàn bộ thông tin user đến backend để tạo account
   const handleRegister = async () => {
     setLoading(true);
 
@@ -97,6 +82,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     const missingFields = [];
     if (!password) missingFields.push("Password");
     if (!name) missingFields.push("Name");
+    if (!role) missingFields.push("Role");
 
     if (missingFields.length > 0) {
         setError("Please fill in: " + missingFields.join(", "));
@@ -104,29 +90,31 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         return;
     }
 
+    const verifyToken = localStorage.getItem("verifyToken"); //token để xác minh email
+
     try {
         // Tạo FormData để gửi file ảnh
         const formData = new FormData();
-        formData.append("userEmail", email);
+        formData.append("verifyToken", verifyToken);
         formData.append("password", password);
         formData.append("userName", name);
         formData.append("biography", biography);
         formData.append("picture", registeredPicture); // File object
         formData.append("role", "volunteer"); // Mặc định là volunteer
         
-        // Nếu chọn admin, thêm flag adminRequest
-        if (role === 'admin') {
+        // Nếu chọn admin hoặc manager, thêm flag adminRequest
+        if (role === 'admin' || role === 'manager') {
           formData.append("adminRequest", "true");
         }
         
         // Gọi API register với multipart/form-data header
-  const res = await api.post("/api/auth/register", formData, {
-  headers: { "Content-Type": "multipart/form-data" },
-  });
+        const res = await api.post("/api/auth/register", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        });
 
         // Xác định success message dựa trên role
-        const successMessage = role === 'admin' 
-          ? "Đăng ký thành công! Yêu cầu làm Quản trị viên của bạn đã được gửi và đang chờ xét duyệt."
+        const successMessage = role === 'admin' || role === 'manager'
+          ? "Đăng ký thành công! Yêu cầu của bạn đã được gửi và đang chờ xét duyệt."
           : "Register successful!";
         
         // Hiển thị success message NGAY LẬP TỨC
@@ -136,7 +124,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         // Đợi user đọc message (3-4s) rồi mới gọi onSuccess (đóng modal)
         setTimeout(() => {
           onSuccess(res.data);
-        }, role === 'admin' ? 4000 : 3000);
+        }, role === 'admin' || role === 'manager' ? 4000 : 3000);
 
     } catch (err) {
         setError(err.response?.data?.message || "Register failed");
@@ -161,7 +149,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
 
     try {
       // Gọi API login
-  const res = await api.post("/api/auth/login", { userEmail: email, password });
+      const res = await api.post("/api/auth/login", { userEmail: email, password });
       
       // Hiển thị success message NGAY LẬP TỨC
       setSuccess("Login successful!");
@@ -237,7 +225,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
               />
             </div>
             <button
-              onClick={sendVerification}
+              onClick={sendVerificationCode}
               disabled={loading}
               className="btn btn-primary w-full py-2.5 sm:py-3 shadow-lg text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -350,16 +338,6 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                     className="input-field sm:py-3 resize-none text-sm sm:text-base"
                   />
                 </div>
-                   <div>
-                  <label className="block text-sm font-medium text-text-main mb-1.5">Số điện thoại liên hệ</label>
-                  <input
-                    type="tel"
-                    placeholder="Ví dụ: 0987654321"
-                    value={rolePhone}
-                    onChange={(e) => setRolePhone(e.target.value)}
-                    className="input-field text-sm"
-                  />
-                </div>  
                 {/* === BƯỚC 2: Thêm UI chọn vai trò === */}
             <div>
               <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Vai trò của bạn</label>
@@ -399,62 +377,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                 </label>
               </div>
             </div>
-            {/* Conditional role-request details form */}
-            {(role === 'admin' || role === 'manager') && (
-              <div className="mt-3 space-y-3">
-                <p className="text-sm text-text-secondary">Bạn đã chọn vai trò <strong>{role === 'admin' ? 'Quản trị viên' : 'Người quản lý'}</strong>. Vui lòng cung cấp thêm thông tin để chúng tôi xem xét yêu cầu.</p>
-                <div>
-                  <label className="block text-sm font-medium text-text-main mb-1.5">Tên tổ chức / Đơn vị</label>
-                  <input
-                    type="text"
-                    placeholder={role === 'admin' ? 'Tên tổ chức / cơ quan' : 'Tên đội / đơn vị quản lý'}
-                    value={roleOrg}
-                    onChange={(e) => setRoleOrg(e.target.value)}
-                    className="input-field text-sm"
-                  />
-                </div>
-             
-                <div>
-                  <label className="block text-sm font-medium text-text-main mb-1.5">Ghi chú / Lý do</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Nêu lý do hoặc chứng minh năng lực (ví dụ: tư cách tổ chức, kinh nghiệm quản lý...)"
-                    value={roleNote}
-                    onChange={(e) => setRoleNote(e.target.value)}
-                    className="input-field text-sm resize-none"
-                  />
-                </div>
-                  <div>
-                    <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Minh chứng hoặc chứng chỉ</label>
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      onChange={(e) => {
-                        const f = e.target.files && e.target.files[0];
-                        if (!f) return;
-                        const ok = f.type.startsWith("image/") || f.type === "application/pdf";
-                        if (!ok) {
-                          setError("Vui lòng chọn file ảnh (jpg/png/...) hoặc PDF.");
-                          // reset the input so user can pick again
-                          e.target.value = "";
-                          return;
-                        }
-                        // optional: limit size to 5MB
-                        const maxBytes = 5 * 1024 * 1024;
-                        if (f.size > maxBytes) {
-                          setError("File quá lớn. Vui lòng chọn file nhỏ hơn 5MB.");
-                          e.target.value = "";
-                          return;
-                        }
-                        setError("");
-                        setRegisteredPicture(f);
-                      }}
-                      className="input-field sm:py-3 file:mr-2 sm:file:mr-4 file:py-1.5 sm:file:py-2 file:px-3 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-primary-100 file:text-primary-700 hover:file:bg-primary-200 text-sm sm:text-base"
-                    />
-                  </div>
-
-              </div>
-            )}
+ 
               </div>
             )}
 
