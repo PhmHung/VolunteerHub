@@ -3,10 +3,13 @@
 import express from "express";
 import {
   getEvents,
+  getAllEvents,
   getEventById,
   createEvent,
   updateEvent,
+  deleteEvent,
   approveEvent,
+  getEventRegistrations,
 } from "../controllers/event.controller.js";
 import {
   protect,
@@ -22,13 +25,24 @@ import { canModifyEvent } from "../middlewares/event.middleware.js";
 
 const router = express.Router();
 
-// Public
+// --- CÁC ROUTE CỤ THỂ (STATIC ROUTES) PHẢI ĐẶT LÊN TRƯỚC ---
+
+// Public - General List
 router.get("/", getEvents);
+
+// Manager - Management List (Đưa lên trên để tránh bị ăn vào :eventId)
+// Lưu ý: Tôi đã đổi authorize("admin", "manager") thành allowAdminOrManager cho đồng bộ
+router.get("/management", protect, allowAdminOrManager, getAllEvents);
+
+// --- CÁC ROUTE CÓ THAM SỐ (DYNAMIC ROUTES) ĐẶT SAU ---
+
+// Public - Detail & Rating
 router.get("/:eventId", getEventById);
 router.get("/:eventId/rating", getEventPublicRating);
 
-// Manager
+// Manager - Create/Update/Delete/Feedback
 router.post("/", protect, allowAdminOrManager, createEvent);
+
 router.put(
   "/:eventId",
   protect,
@@ -36,6 +50,10 @@ router.put(
   canModifyEvent,
   updateEvent
 );
+
+// Sửa :id thành :eventId cho đồng bộ
+router.delete("/:eventId", protect, allowAdminOrManager, deleteEvent);
+
 router.get(
   "/:eventId/feedbacks",
   protect,
@@ -43,7 +61,14 @@ router.get(
   getEventPrivateFeedbacks
 );
 
-// Admin
+router.get(
+  "/:eventId/registrations",
+  protect,
+  allowAdminOrManager,
+  getEventRegistrations
+);
+
+// Admin - Approve
 router.patch("/:eventId/approve", protect, allowAdminOnly, approveEvent);
 
 export default router;

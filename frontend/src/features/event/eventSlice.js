@@ -24,7 +24,26 @@ export const fetchEvents = createAsyncThunk(
     }
   }
 );
-
+// 1b. MANAGER/ADMIN: Lấy danh sách sự kiện của mình
+export const fetchManagementEvents = createAsyncThunk(
+  "event/fetchManagement",
+  async (
+    { page = 1, limit = 10, search = "", status = "" } = {}, // status rỗng = lấy tất cả
+    { rejectWithValue }
+  ) => {
+    try {
+      // Gọi đúng endpoint /management đã khai báo trong route
+      const { data } = await api.get("/api/events/management", {
+        params: { page, limit, search, status },
+      });
+      return data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Lỗi tải danh sách quản lý"
+      );
+    }
+  }
+);
 // 2. Lấy chi tiết 1 sự kiện (public nếu approved, private nếu pending + có quyền)
 export const fetchEventById = createAsyncThunk(
   "event/fetchById",
@@ -38,7 +57,6 @@ export const fetchEventById = createAsyncThunk(
     }
   }
 );
-
 // 3. Manager: Tạo sự kiện mới (tự động gửi yêu cầu duyệt)
 export const createEvent = createAsyncThunk(
   "event/create",
@@ -53,7 +71,6 @@ export const createEvent = createAsyncThunk(
     }
   }
 );
-
 // 4. Manager: Cập nhật sự kiện (chỉ được sửa nếu chưa duyệt)
 export const updateEvent = createAsyncThunk(
   "event/update",
@@ -68,7 +85,6 @@ export const updateEvent = createAsyncThunk(
     }
   }
 );
-
 // 5. Admin: Duyệt / Từ chối sự kiện
 export const approveEvent = createAsyncThunk(
   "event/approve",
@@ -87,6 +103,34 @@ export const approveEvent = createAsyncThunk(
   }
 );
 
+//6. Manager: Lấy danh sách đăng ký của sự kiện
+// Gọi API: /api/events/:eventId/registrations
+export const fetchEventRegistrations = createAsyncThunk(
+  "event/fetchRegistrations",
+  async (eventId, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(`/api/events/${eventId}/registrations`);
+      return data; // Backend trả về mảng registrations trực tiếp
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Lỗi tải danh sách đăng ký"
+      );
+    }
+  }
+);
+//7.
+// Thêm action xóa sự kiện
+export const deleteEvent = createAsyncThunk(
+  "event/deleteEvent",
+  async (eventId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/api/events/${eventId}`);
+      return eventId;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Xóa thất bại");
+    }
+  }
+);
 // =============================================
 // Slice
 const eventSlice = createSlice({
@@ -107,6 +151,10 @@ const eventSlice = createSlice({
     current: null,
     currentLoading: false,
 
+    //Danh sách đăng ký cho sự kiện hiện tại
+    registrations: [],
+    registrationsLoading: false,
+
     // Thông báo thành công
     successMessage: null,
   },
@@ -121,6 +169,10 @@ const eventSlice = createSlice({
     },
     clearEventError: (state) => {
       state.error = null;
+    },
+    clearRegistrations: (state) => {
+      state.registrations = [];
+      state.registrationsLoading = false;
     },
   },
 
@@ -137,6 +189,22 @@ const eventSlice = createSlice({
         state.pagination = action.payload.pagination;
       })
       .addCase(fetchEvents.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+    // === FETCH MANAGEMENT EVENTS
+    builder
+      .addCase(fetchManagementEvents.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchManagementEvents.fulfilled, (state, action) => {
+        state.loading = false;
+        // API getAllEvents trả về cấu trúc { data: events, pagination: ... }
+        state.list = action.payload.data;
+        state.pagination = action.payload.pagination;
+      })
+      .addCase(fetchManagementEvents.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
@@ -200,10 +268,45 @@ const eventSlice = createSlice({
       .addCase(approveEvent.rejected, (state, action) => {
         state.error = action.payload;
       });
+
+    // === FETCH EVENT REGISTRATIONS ===
+    builder
+      .addCase(fetchEventRegistrations.pending, (state) => {
+        state.registrationsLoading = true;
+        // Không xóa error chung để tránh nháy lỗi UI
+      })
+      .addCase(fetchEventRegistrations.fulfilled, (state, action) => {
+        state.registrationsLoading = false;
+        state.registrations = action.payload;
+      })
+      .addCase(fetchEventRegistrations.rejected, (state, action) => {
+        state.registrationsLoading = false;
+        // Nếu lỗi là do "Không tìm thấy danh sách đăng ký" (trống) -> set mảng rỗng
+        // Nếu lỗi server -> set error
+        state.error = action.payload;
+        state.registrations = [];
+      });
+    builder
+      .addCase(deleteEvent.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(deleteEvent.fulfilled, (state, action) => {
+        state.loading = false;
+        state.list = state.list.filter((event) => event._id !== action.payload);
+        state.successMessage = "Đã xóa sự kiện thành công!";
+      })
+      .addCase(deleteEvent.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
 });
 
-export const { clearEventMessages, clearCurrentEvent, clearEventError } =
-  eventSlice.actions;
+export const {
+  clearEventMessages,
+  clearCurrentEvent,
+  clearEventError,
+  clearRegistrations,
+} = eventSlice.actions;
 
 export default eventSlice.reducer;

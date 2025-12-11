@@ -44,10 +44,10 @@ const EventFeed = ({ user, event }) => {
     );
 
     let sorted = [...visiblePosts];
-    if (sortBy === 'popular') {
-        sorted.sort((a, b) => b.likes - a.likes);
+    if (sortBy === "popular") {
+      sorted.sort((a, b) => b.likes - a.likes);
     } else {
-        sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     }
     return sorted;
   }, [posts, sortBy, user]);
@@ -105,64 +105,66 @@ const EventFeed = ({ user, event }) => {
   };
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className='space-y-6 pb-10'>
       {/* Create Post Section */}
       <CreatePost user={user} onSubmit={handleCreatePost} />
 
       {/* Filter/Sort Bar */}
-      <div className="flex items-center justify-between px-2">
-        <h3 className="font-bold text-gray-900 text-lg">Bảng tin</h3>
-        <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200">
-            <button 
-                onClick={() => setSortBy('newest')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    sortBy === 'newest' 
-                        ? 'bg-primary-50 text-primary-700' 
-                        : 'text-gray-600 hover:bg-gray-50'
-                }`}
-            >
-                <Clock className="w-4 h-4" />
-                Mới nhất
-            </button>
-            <button 
-                onClick={() => setSortBy('popular')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    sortBy === 'popular' 
-                        ? 'bg-primary-50 text-primary-700' 
-                        : 'text-gray-600 hover:bg-gray-50'
-                }`}
-            >
-                <TrendingUp className="w-4 h-4" />
-                Phổ biến
-            </button>
+      <div className='flex items-center justify-between px-2'>
+        <h3 className='font-bold text-gray-900 text-lg'>Bảng tin</h3>
+        <div className='flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200'>
+          <button
+            onClick={() => setSortBy("newest")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              sortBy === "newest"
+                ? "bg-primary-50 text-primary-700"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}>
+            <Clock className='w-4 h-4' />
+            Mới nhất
+          </button>
+          <button
+            onClick={() => setSortBy("popular")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              sortBy === "popular"
+                ? "bg-primary-50 text-primary-700"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}>
+            <TrendingUp className='w-4 h-4' />
+            Phổ biến
+          </button>
         </div>
       </div>
 
       {/* Posts List */}
-      <div className="space-y-4">
+      <div className='space-y-4'>
         {sortedPosts.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200 border-dashed">
-                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Filter className="w-8 h-8 text-gray-300" />
-                </div>
-                <h3 className="text-gray-900 font-medium mb-1">Chưa có bài viết nào</h3>
-                <p className="text-gray-500 text-sm">Hãy là người đầu tiên chia sẻ về sự kiện này!</p>
+          <div className='text-center py-12 bg-white rounded-xl border border-gray-200 border-dashed'>
+            <div className='w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4'>
+              <Filter className='w-8 h-8 text-gray-300' />
             </div>
+            <h3 className='text-gray-900 font-medium mb-1'>
+              Chưa có bài viết nào
+            </h3>
+            <p className='text-gray-500 text-sm'>
+              Hãy là người đầu tiên chia sẻ về sự kiện này!
+            </p>
+          </div>
         ) : (
-            sortedPosts.map(post => (
-                <Post 
-                    key={post.id} 
-                    post={post} 
-                    currentUser={user}
-                    onLike={handleLike}
-                    onComment={handleComment}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
-                    onDelete={handleDeletePost}
-                    onEdit={handleEditPost}
-                    onDeleteComment={handleDeleteComment}
-                />
-            ))
+          sortedPosts.map((post) => (
+            <Post
+              key={post.id}
+              post={post}
+              currentUser={user}
+              onLike={handleLike}
+              onComment={handleComment}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onDelete={handleDeletePost}
+              onEdit={handleEditPost}
+              onDeleteComment={handleDeleteComment}
+            />
+          ))
         )}
       </div>
     </div>

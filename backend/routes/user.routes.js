@@ -17,6 +17,7 @@ import {
   updateUserRole,
   changeUserPassword,
   getUserProfile,
+  updateUserStatus,
 } from "../controllers/user.controller.js";
 const router = express.Router();
 
@@ -43,4 +44,8 @@ router
 // @route  PUT /api/users/:id/role
 router.put("/:id/role", protect, allowAdminOnly, updateUserRole);
 
+// @route   PUT /api/users/:id/status
+// @desc    Admin hoặc Manager khóa/mở khóa tài khoản
+// @access  Private (Admin hoặc Manager)
+router.put("/:id/status", protect, allowAdminOrManager, updateUserStatus);
 export default router;
