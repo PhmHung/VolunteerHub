@@ -2,10 +2,22 @@
 
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { clearSelectedUser, updateUserRole } from "./userSlice";
-import { FaTimes, FaUserShield, FaHistory, FaUserCircle } from "react-icons/fa";
+import {
+  clearSelectedUser,
+  updateUserRole,
+  updateUserStatus,
+  deleteUser,
+} from "../../features/user/userSlice";
+import {
+  FaTimes,
+  FaUserShield,
+  FaLock,
+  FaUnlock,
+  FaHistory,
+  FaUserCircle,
+} from "react-icons/fa";
 
-const UserDetailModal = ({ isOpen, onClose }) => {
+const UserDetailModal = ({ isOpen, onClose, addToast, setConfirmModal }) => {
   const dispatch = useDispatch();
   const { selectedUser, selectedUserLoading } = useSelector(
     (state) => state.user
@@ -29,6 +41,62 @@ const UserDetailModal = ({ isOpen, onClose }) => {
         .then(() => alert("Thành công!"))
         .catch((err) => alert(err));
     }
+  };
+  // KHÓA / MỞ KHÓA TÀI KHOẢN
+  const handleToggleLock = () => {
+    const isActive = selectedUser.status === "active";
+    const newStatus = isActive ? "inactive" : "active";
+
+    setConfirmModal({
+      isOpen: true,
+      title: isActive ? "Khóa tài khoản" : "Mở khóa tài khoản",
+      message: `Bạn có chắc muốn ${isActive ? "khóa" : "mở khóa"} tài khoản "${
+        selectedUser.userName
+      }"?`,
+      type: isActive ? "warning" : "success",
+      confirmText: isActive ? "Khóa tài khoản" : "Mở khóa",
+      onConfirm: async () => {
+        try {
+          await dispatch(
+            updateUserStatus({ userId: selectedUser._id, status: newStatus })
+          ).unwrap();
+          addToast(
+            isActive ? "Đã khóa tài khoản!" : "Đã mở khóa tài khoản!",
+            "success"
+          );
+          handleClose();
+        } catch {
+          addToast("Thao tác thất bại", "error");
+        }
+      },
+    });
+  };
+
+  // XÓA NGƯỜI DÙNG
+  const handleDeleteUser = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Xóa tài khoản vĩnh viễn",
+      message: (
+        <div>
+          <p className='font-bold text-error-600'>Không thể hoàn tác!</p>
+          <p>
+            Bạn sắp xóa tài khoản: <strong>"{selectedUser.userName}"</strong>
+          </p>
+        </div>
+      ),
+      type: "danger",
+      confirmText: "Xóa vĩnh viễn",
+      onConfirm: async () => {
+        try {
+          await dispatch(deleteUser(selectedUser._id)).unwrap();
+          addToast("Đã xóa người dùng thành công!", "success");
+          handleClose();
+        } catch {
+          addToast("Không thể xóa người dùng", "error");
+        }
+      },
+    });
   };
 
   if (!isOpen) return null;
@@ -123,7 +191,7 @@ const UserDetailModal = ({ isOpen, onClose }) => {
                   </div>
 
                   {/* Khu vực Action */}
-                  {isAdmin && selectedUser.role === "volunteer" && (
+                  {/* {isAdmin && selectedUser.role === "volunteer" && (
                     <div className='pt-4 border-t'>
                       <button
                         onClick={handlePromoteToManager}
@@ -133,6 +201,56 @@ const UserDetailModal = ({ isOpen, onClose }) => {
                       <p className='text-xs text-center text-gray-400 mt-2'>
                         *Hành động này sẽ cấp quyền quản lý sự kiện cho người
                         dùng.
+                      </p>
+                    </div>
+                  )} */}
+                  {/* KHU VỰC HÀNH ĐỘNG NGUY HIỂM */}
+                  {selectedUser.role !== "admin" && (
+                    <div className='mt-8 pt-6 border-t border-gray-200'>
+                      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                        {/* Bổ nhiệm Manager (chỉ Admin) */}
+                        {isAdmin && selectedUser.role === "volunteer" && (
+                          <button
+                            onClick={handlePromoteToManager}
+                            className='bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1'>
+                            <FaUserShield className='text-xl' />
+                            Bổ nhiệm làm Manager
+                          </button>
+                        )}
+
+                        {/* Khóa / Mở khóa */}
+                        <button
+                          onClick={handleToggleLock}
+                          className={`py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition shadow-lg hover:shadow-xl ${
+                            selectedUser.status === "active"
+                              ? "bg-orange-600 hover:bg-orange-700 text-white"
+                              : "bg-green-600 hover:bg-green-700 text-white"
+                          }`}>
+                          {selectedUser.status === "active" ? (
+                            <>
+                              <FaLock className='text-xl' />
+                              Khóa tài khoản
+                            </>
+                          ) : (
+                            <>
+                              <FaUnlock className='text-xl' />
+                              Mở khóa tài khoản
+                            </>
+                          )}
+                        </button>
+
+                        {/* XÓA VĨNH VIỄN - NỔI BẬT NHẤT */}
+                        <button
+                          onClick={handleDeleteUser}
+                          className='md:col-span-2 bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition transform hover:scale-105'>
+                          <FaTrash className='text-xl' />
+                          Xóa tài khoản vĩnh viễn
+                        </button>
+                      </div>
+
+                      <p className='text-center text-xs text-gray-500 mt-4'>
+                        Các hành động trên không thể hoàn tác. Vui lòng cân nhắc
+                        kỹ.
                       </p>
                     </div>
                   )}
@@ -146,7 +264,6 @@ const UserDetailModal = ({ isOpen, onClose }) => {
                     Các sự kiện gần đây
                   </h4>
 
-                  {/* Kiểm tra nếu có dữ liệu history (Sau này cần Backend trả về) */}
                   {selectedUser.history && selectedUser.history.length > 0 ? (
                     <div className='space-y-3'>
                       {selectedUser.history.map((reg, index) => (
@@ -166,12 +283,13 @@ const UserDetailModal = ({ isOpen, onClose }) => {
                             </p>
                           </div>
                           <span
-                            className={`px-2 py-1 text-xs rounded ${
-                              event.status === "Đã tham gia"
+                            className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                              reg.status === "approved" ||
+                              reg.status === "Đã tham gia"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-yellow-100 text-yellow-700"
                             }`}>
-                            {reg.status}
+                            {reg.status || "Chưa xác định"}
                           </span>
                         </div>
                       ))}

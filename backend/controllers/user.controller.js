@@ -172,6 +172,58 @@ const getUserProfile = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc   Lock user
+// @route  PUT /api/users/profile
+// @access Private/Admin && Manager
+const updateUserStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+
+  // Kiểm tra status hợp lệ
+  if (!["active", "inactive"].includes(status)) {
+    res.status(400);
+    throw new Error(
+      "Trạng thái không hợp lệ. Chỉ chấp nhận: active hoặc inactive"
+    );
+  }
+
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("Không tìm thấy người dùng");
+  }
+
+  // Cấm khóa/mở khóa tài khoản Admin
+  if (user.role === "admin") {
+    res.status(403);
+    throw new Error("Không thể thay đổi trạng thái tài khoản Quản trị viên");
+  }
+
+  // Manager chỉ được khóa/mở khóa tình nguyện viên
+  if (req.user.role === "manager" && user.role !== "volunteer") {
+    res.status(403);
+    throw new Error("Bạn chỉ được phép quản lý tài khoản tình nguyện viên");
+  }
+
+  // Cập nhật trạng thái
+  user.status = status;
+  await user.save();
+
+  res.status(200).json({
+    message: `Tài khoản đã được ${
+      status === "active" ? "mở khóa" : "khóa"
+    } thành công`,
+    user: {
+      _id: user._id,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      status: user.status,
+    },
+  });
+});
+
 export {
   updateUserProfile,
   getAllUsers,
@@ -180,4 +232,5 @@ export {
   updateUserRole,
   changeUserPassword,
   getUserProfile,
+  updateUserStatus,
 };

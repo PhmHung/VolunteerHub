@@ -48,7 +48,10 @@ const getEvents = asyncHandler(async (req, res) => {
 // @route   GET /api/events/:id
 const getEventById = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.eventId)
-    .populate("createdBy", "name email")
+    // --- SỬA Ở ĐÂY ---
+    // Frontend cần: userName (tên), profilePicture (ảnh), phoneNumber (liên hệ)
+    // Backend cũ chỉ trả về: name, email -> Thiếu ảnh và sđt
+    .populate("createdBy", "userName userEmail profilePicture phoneNumber")
     .select("-__v");
 
   if (!event) {
@@ -56,7 +59,7 @@ const getEventById = asyncHandler(async (req, res) => {
     throw new Error("Sự kiện không tồn tại");
   }
 
-  // Chỉ cho xem nếu đã duyệt (hoặc là admin/manager)
+  // Check quyền (giữ nguyên)
   if (
     event.status !== "approved" &&
     req.user?.role !== "admin" &&
@@ -66,10 +69,7 @@ const getEventById = asyncHandler(async (req, res) => {
     throw new Error("Sự kiện chưa được duyệt");
   }
 
-  res.json({
-    message: "Chi tiết sự kiện",
-    data: event,
-  });
+  res.json(event);
 });
 
 // @desc    Manager tạo sự kiện + gửi yêu cầu duyệt
@@ -128,24 +128,8 @@ const createEvent = asyncHandler(async (req, res) => {
 // @route   PUT /api/events/:id
 // @access  Private/Manager
 const updateEvent = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id);
-
-  if (!event) {
-    res.status(404);
-    throw new Error("Sự kiện không tồn tại");
-  }
-
-  // Chỉ manager tạo hoặc admin
-  if (
-    event.createdBy.toString() !== req.user._id.toString() &&
-    req.user.role !== "admin"
-  ) {
-    res.status(403);
-    throw new Error("Không có quyền chỉnh sửa");
-  }
-
-  // Không cho sửa nếu đã duyệt
-  if (event.status === "approved") {
+  const event = req.event;
+  if (event.status === "approved" && req.user.role !== "admin") {
     res.status(400);
     throw new Error("Không thể sửa sự kiện đã duyệt");
   }
@@ -156,7 +140,8 @@ const updateEvent = asyncHandler(async (req, res) => {
     throw new Error("Ngày bắt đầu phải trước ngày kết thúc");
   }
 
-  const updatedEvent = await Event.findByIdAndUpdate(req.params.id, req.body, {
+  // Update trực tiếp
+  const updatedEvent = await Event.findByIdAndUpdate(event._id, req.body, {
     new: true,
     runValidators: true,
   });
@@ -207,32 +192,116 @@ const approveEvent = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Lấy danh sách đăng ký theo sự kiện
+// @desc    Lấy danh sách đăng ký theo sự kiện (ĐÃ FIX THEO SCHEMA)
 // @route   GET /api/events/:eventId/registrations
 // @access  Private (Admin/Manager)
 const getEventRegistrations = asyncHandler(async (req, res) => {
   const { eventId } = req.params;
 
-  console.log("Finding registrations for Event ID:", eventId);
+  try {
+    // 1. Tìm theo đúng trường 'eventId' trong Schema
+    const registrations = await Registration.find({ eventId: eventId })
+      // 2. Populate đúng trường 'userId' trong Schema
+      // Lấy các field: userName, email, ảnh, sđt để hiển thị
+      .populate("userId", "userName userEmail profilePicture phoneNumber")
+      .sort({ createdAt: -1 });
 
-  // VÌ MODEL BẠN ĐẶT LÀ 'eventId' NÊN Ở ĐÂY DÙNG { eventId } LÀ ĐÚNG
-  // VÌ MODEL BẠN ĐẶT LÀ 'userId' NÊN POPULATE 'userId' LÀ ĐÚNG
-  const registrations = await Registration.find({ eventId: eventId })
-    .populate("userId", "userName userEmail profilePicture phoneNumber")
-    .sort({ createdAt: -1 });
+    // 3. Chuẩn hóa dữ liệu trả về cho Frontend
+    // Frontend đang gọi reg.volunteer, nhưng DB lại là reg.userId
+    // Ta sẽ gán userId vào volunteer để Frontend không bị lỗi
+    const formattedRegistrations = registrations.map((reg) => {
+      const regObj = reg.toObject(); // Chuyển Mongoose Document sang Object thường
+      return {
+        ...regObj,
+        volunteer: regObj.userId, // Map userId sang volunteer cho khớp Frontend
+        user: regObj.userId, // Map thêm user cho chắc
+      };
+    });
 
-  if (!registrations) {
-    // Trả về mảng rỗng thay vì lỗi 404 để Frontend không bị đỏ
-    return res.status(200).json([]);
+    res.status(200).json(formattedRegistrations);
+  } catch (error) {
+    console.error("❌ Error getting registrations:", error);
+    res.status(500).json({ message: "Lỗi Server", error: error.message });
+  }
+});
+
+// @desc    Lấy danh sách sự kiện quản lý
+// @route   GET /api/private/events
+// @access  Private (Admin/Manager)
+const getAllEvents = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const filter = {};
+  if (req.query.status) {
+    filter.status = req.query.status; // pending, rejected, approved...
   }
 
-  res.status(200).json(registrations);
+  if (req.query.search) {
+    filter.$or = [
+      { title: { $regex: req.query.search, $options: "i" } },
+      { description: { $regex: req.query.search, $options: "i" } },
+    ];
+  }
+
+  const events = await Event.find(filter)
+    .sort({ createdAt: -1 }) // Admin cần xem mới nhất trước
+    .skip(skip)
+    .limit(limit)
+    .populate("createdBy", "name email profilePicture ")
+    .populate("approvalRequest");
+
+  const total = await Event.countDocuments(filter);
+
+  res.json({
+    message: "Danh sách sự kiện (Admin View)",
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    data: events,
+  });
 });
+
+// @desc    Xóa sự kiện
+// @route   DELETE /api/events/:eventId
+// @access  Private (Admin hoặc Manager sở hữu)
+const deleteEvent = asyncHandler(async (req, res) => {
+  const eventId = req.params.eventId;
+
+  const event = await Event.findById(eventId);
+
+  if (!event) {
+    res.status(404);
+    throw new Error("Không tìm thấy sự kiện");
+  }
+
+  // Chỉ Admin hoặc người tạo mới được xóa
+  if (
+    event.createdBy.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
+    res.status(403);
+    throw new Error("Bạn không có quyền xóa sự kiện này");
+  }
+
+  // Xóa approval request nếu có
+  if (event.approvalRequest) {
+    await ApprovalRequest.findByIdAndDelete(event.approvalRequest);
+  }
+  await Registration.deleteMany({ eventId: eventId });
+  await Event.findByIdAndDelete(eventId);
+
+  res.json({
+    message: "Đã xóa sự kiện và toàn bộ đăng ký liên quan thành công!",
+  });
+});
+
 export {
   getEvents,
+  getAllEvents,
   getEventById,
   createEvent,
   updateEvent,
+  deleteEvent,
   approveEvent,
   getEventRegistrations,
 };

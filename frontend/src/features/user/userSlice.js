@@ -88,6 +88,21 @@ export const deleteUser = createAsyncThunk(
   }
 );
 
+//lock
+export const updateUserStatus = createAsyncThunk(
+  "user/updateStatus",
+  async ({ userId, status }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put(`/api/user/${userId}/status`, { status });
+      return data; // { message, user: { ... } }
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Không thể thay đổi trạng thái tài khoản"
+      );
+    }
+  }
+);
+//role
 export const updateUserRole = createAsyncThunk(
   "user/updateRole",
   async ({ userId, role }, { rejectWithValue }) => {
@@ -199,6 +214,20 @@ const userSlice = createSlice({
           state.profile.role = updated.role;
         }
         state.message = "Cập nhật vai trò thành công";
+      })
+
+      .addCase(updateUserStatus.fulfilled, (state, action) => {
+        const { user: updatedUser, message } = action.payload;
+        state.users = state.users.map((u) =>
+          u._id === updatedUser._id ? { ...u, status: updatedUser.status } : u
+        );
+        if (state.selectedUser?._id === updatedUser._id) {
+          state.selectedUser.status = updatedUser.status;
+        }
+        state.message = message;
+      })
+      .addCase(updateUserStatus.rejected, (state, action) => {
+        state.error = action.payload;
       })
 
       // 3. Selected User by ID

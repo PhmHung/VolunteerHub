@@ -7,7 +7,7 @@ import EventFormModal from "../components/EventsForm.jsx";
 import { EventDetails } from "../components/EventComponents.jsx";
 import { FaEye } from "react-icons/fa";
 import { fetchUserById } from "../features/user/userSlice.js";
-import UserDetailModal from "../features/user/UserDetailModal";
+import UserDetailModal from "../components/manager/UserDetailModal.jsx";
 import { REGISTRATION_STATUS, ATTENDANCE_STATUS } from "../types";
 import {
   fetchEvents,

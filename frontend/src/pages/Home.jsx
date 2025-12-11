@@ -59,6 +59,7 @@ export default function Home({ user, openAuth }) {
       {/* ==================== FEATURES SECTIONS - ảnh ngang xen kẽ ==================== */}
       {features.map(({ icon, title, description, src }, index) => {
         const isEven = index % 2 === 0;
+        const FeatureIcon = icon;
         return (
           <motion.section
             key={title}
@@ -85,7 +86,7 @@ export default function Home({ user, openAuth }) {
                 <div className='w-full lg:w-[55%] px-4 sm:px-8'>
                   <div className='flex items-center gap-3 mb-6'>
                     <div className='p-4 rounded-full bg-primary-100 text-primary-600'>
-                      <icon className='h-7 w-7' />
+                      <FeatureIcon className='h-7 w-7' />
                     </div>
                   </div>
                   <h2 className='text-3xl font-bold text-text-main mb-6'>
