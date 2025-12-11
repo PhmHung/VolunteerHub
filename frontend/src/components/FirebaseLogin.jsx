@@ -1,5 +1,5 @@
-import { signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "../config/firebase";
+import { signInWithPopup } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
+import { auth, googleProvider } from "../../../backend/config/firebase.js";
 import api from "../api.js";
 
 const GOOGLE_ICON =
@@ -7,11 +7,22 @@ const GOOGLE_ICON =
 
 export default function FirebaseLogin({ onSuccess }) {
   const handleGoogleLogin = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const idToken = await result.user.getIdToken();
+    if (!auth) return console.error("Firebase auth not initialized");
 
-      const { data } = await api.post("/api/auth/google", { token: idToken });
+    try {
+      const result = await signInWithPopup(auth, googleProvider); //popup đăng nhập Google, lấy thông tin user
+      const idToken = await result.user.getIdToken(); //token xác thực từ Firebase, chứa thông tin email, -> gửi lên backend
+
+
+      const res = await fetch("http://localhost:5000/api/auth//firebase-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: idToken }),
+      });
+
+
+      const data = await res.json();
+
 
       if (data?.token) {
         localStorage.setItem("token", data.token);

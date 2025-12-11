@@ -1,4 +1,4 @@
-import Information from "./Information.jsx";
+import Information from "./pages/Information.jsx";
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import AuthModal from "./pages/AuthModal.jsx";
@@ -21,7 +21,7 @@ export default function App() {
   const { profile: user, profileLoading: loadingUser } = useSelector((state) => state.user);
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
 
-  // Lấy thông tin người dùng từ token khi load trang
+  // Lấy thông tin người dùng từ token khi load trang (1 lần duy nhất)
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -29,6 +29,7 @@ export default function App() {
     }
   }, [dispatch]);
 
+  //Sau khi đăng kí hoặc đăng nhập thành công
   const handleSuccess = async (data) => {
     if (data?.token) {
       localStorage.setItem("token", data.token);
@@ -49,7 +50,7 @@ export default function App() {
   };
 
   if (loadingUser) {
-    return <div className="min-h-screen w-full flex items-center justify-center bg-gray-100">Đang tải...</div>;
+    return <div className="min-h-screen w-full flex items-center justify-center bg-gray-100">Loading...</div>;
   }
 
   return (
@@ -89,9 +90,6 @@ export default function App() {
           </Routes>
         </main>
 
-        <footer className={`py-8 text-center text-base text-slate-600/80`}>
-          If you have any questions, suggestions, or feedback, please feel free to contact us at Volunteerhub@
-        </footer>
         <Footer />
 
         {authModal && (

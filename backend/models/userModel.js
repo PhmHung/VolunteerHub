@@ -5,7 +5,6 @@ import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
-    //userId: { type: mongoose.Schema.Types.ObjectId },
     userName: { type: String, required: true, minlength: 1, maxlength: 50 },
     userEmail: {
       type: String,
@@ -17,33 +16,22 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["volunteer", "manager", "admin"],
-      //default : "volunteer",
       required: true,
     },
-    phoneNumber: {
+    profilePicture: {
       type: String,
-      match: /^0\d{9,10}$/,
-      minlength: 0,
-      maxlength: 12,
+      default: null,
+    },
+    biology: {
+      type: String,
+      maxlength: 500,
+      default: null,
     },
     status: {
       type: String,
       enum: ["active", "inactive"],
       default: "active",
     },
-    profilePicture: {
-      type: String,
-      default: null,
-    },
-    // googleId: {
-    //   type: String,
-    //   unique: true,
-    //   sparse: true,
-    // },
-    // isEmailVerified: {
-    //   type: Boolean,
-    //   default: false,
-    // },
   },
   { timestamps: true }
 );

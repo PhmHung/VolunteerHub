@@ -1,5 +1,6 @@
 /** @format */
 
+import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
 import Registration from "../models/registrationModel.js";
@@ -15,7 +16,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     user.userName = req.body.userName || user.userName;
 
     //Update Phone number
-    user.phoneNumber = req.body.phoneNumber || user.phoneNumber;
+    user.biology = req.body.biology || user.biology;
 
     //Update Profile Picture
     if (req.file && req.file.path) {
@@ -28,7 +29,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       userName: updatedUser.userName,
       userEmail: updatedUser.userEmail,
       role: updatedUser.role,
-      phoneNumber: updatedUser.phoneNumber,
+      biology: updatedUser.biology,
       profilePicture: updatedUser.profilePicture,
       token: generateToken(updatedUser._id),
     });
@@ -163,7 +164,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
       userName: user.userName,
       userEmail: user.userEmail,
       role: user.role,
-      phoneNumber: user.phoneNumber,
+      biology: user.biology,
       profilePicture: user.profilePicture,
     });
   } else {
