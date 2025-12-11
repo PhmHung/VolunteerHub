@@ -13,19 +13,8 @@ import Post from "../models/postModel.js";
 import Comment from "../models/commentModel.js";
 import Reaction from "../models/reactionModel.js";
 
-
 dotenv.config();
 connectDB();
-
-await User.deleteMany();
-await Event.deleteMany();
-await Registration.deleteMany();
-await Attendance.deleteMany();
-await Channel.deleteMany();
-await Post.deleteMany();
-await Comment.deleteMany();
-await Reaction.deleteMany();
-
 
 // Hàm chạy seeder nếu collection rỗng
 const runSeederIfEmpty = async (scriptName, Model, collectionName) => {
