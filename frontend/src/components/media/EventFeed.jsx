@@ -1,66 +1,46 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import Post from './feed/Post';
 import CreatePost from './feed/CreatePost';
-// import { getChannelByEventId, addPostToChannel, toggleLikePost, hasUserLikedPost, addCommentToPost, approvePost, rejectPost, deletePost, editPost, deleteComment } from '../../data/mockChannels';
+import { fetchChannelByEventId, createPost, createComment, toggleReaction } from '../../features/channel/channelSlice';
 import { Filter, TrendingUp, Clock } from 'lucide-react';
 
 const EventFeed = ({ user, event }) => {
-  const [posts, setPosts] = useState([]);
+  const dispatch = useDispatch();
+  const { currentChannel } = useSelector((state) => state.channel || {});
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'popular'
-  const [channelId, setChannelId] = useState(null);
 
   // Load channel data
   useEffect(() => {
-    if (!event || !user) return;
-    const eventId = event.id || event._id;
-    const userId = user._id || user.id;
-    // TODO: Fetch channel from API instead of mock
-    // const channel = getChannelByEventId(eventId);
-    
-    if (channel) {
-      setChannelId(channel.id);
-      const formattedPosts = channel.posts.map(p => ({
-        ...p,
-        time: new Date(p.createdAt).toLocaleString('vi-VN'),
-        isLiked: hasUserLikedPost(channel.id, p.id, userId),
-        comments: p.comments.map(c => ({
-          ...c,
-          time: new Date(c.createdAt).toLocaleString('vi-VN')
-        }))
-      }));
-      setPosts(formattedPosts);
-    } else {
-      setPosts([]);
-      setChannelId(null);
-    }
-  }, [event, user]);
+    if (!event) return;
+    const eventId = event._id || event.id;
+    dispatch(fetchChannelByEventId(eventId));
+  }, [event, dispatch]);
 
-  const refreshPosts = () => {
-    if (!event || !user) return;
-    const eventId = event.id || event._id;
-    const userId = user._id || user.id;
-    const channel = getChannelByEventId(eventId);
-    if (channel) {
-        const formattedPosts = channel.posts.map(p => ({
-            ...p,
-            time: new Date(p.createdAt).toLocaleString('vi-VN'),
-            isLiked: hasUserLikedPost(channel.id, p.id, userId),
-            comments: p.comments.map(c => ({
-              ...c,
-              time: new Date(c.createdAt).toLocaleString('vi-VN')
-            }))
-          }));
-          setPosts(formattedPosts);
-    }
-  };
+  const posts = useMemo(() => {
+    if (!currentChannel?.posts) return [];
+    return currentChannel.posts.map(p => ({
+      ...p,
+      id: p._id,
+      time: new Date(p.createdAt).toLocaleString('vi-VN'),
+      isLiked: p.reactions?.some(r => r.user === user?._id && r.type === 'like'),
+      likes: p.reactions?.filter(r => r.type === 'like').length || 0,
+      comments: (p.comments || []).map(c => ({
+        ...c,
+        id: c._id,
+        time: new Date(c.createdAt).toLocaleString('vi-VN')
+      }))
+    }));
+  }, [currentChannel, user]);
 
   const sortedPosts = useMemo(() => {
+    if (!posts.length) return [];
     const isManager = user?.role === 'manager' || user?.role === 'admin';
     const visiblePosts = posts.filter(p => 
         p.status === 'approved' || 
         !p.status || 
         isManager || 
-        p.author.id === (user._id || user.id)
+        p.author?._id === user?._id
     );
 
     let sorted = [...visiblePosts];
@@ -72,55 +52,56 @@ const EventFeed = ({ user, event }) => {
     return sorted;
   }, [posts, sortBy, user]);
 
-  const handleCreatePost = (postData) => {
-    if (!channelId) return;
-    addPostToChannel(channelId, postData.text, user, postData.attachment);
-    refreshPosts();
+  const handleCreatePost = async (postData) => {
+    if (!currentChannel?._id) return;
+    await dispatch(createPost({
+      channelId: currentChannel._id,
+      content: postData.text,
+      image: postData.attachment
+    }));
+    dispatch(fetchChannelByEventId(event._id || event.id));
   };
 
   const handleApprove = (postId) => {
-    if (!channelId) return;
-    approvePost(channelId, postId);
-    refreshPosts();
+    console.log('Approve post:', postId);
+    // TODO: Implement approve post API
   };
 
   const handleReject = (postId) => {
-    if (!channelId) return;
-    rejectPost(channelId, postId);
-    refreshPosts();
+    console.log('Reject post:', postId);
+    // TODO: Implement reject post API
   };
 
-  const handleLike = (postId) => {
-    if (!channelId || !user) return;
-    const userId = user._id || user.id;
-    toggleLikePost(channelId, postId, userId);
-    refreshPosts();
+  const handleLike = async (postId) => {
+    if (!user) return;
+    await dispatch(toggleReaction({
+      targetId: postId,
+      type: 'like',
+      targetType: 'post'
+    }));
+    dispatch(fetchChannelByEventId(event._id || event.id));
   };
 
-  const handleComment = (postId, content) => {
-    if (!channelId) return;
-    addCommentToPost(channelId, postId, content, user);
-    refreshPosts();
+  const handleComment = async (postId, content) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    await dispatch(createComment({ post, content }));
+    dispatch(fetchChannelByEventId(event._id || event.id));
   };
 
   const handleDeletePost = (postId) => {
-    if (!channelId) return;
-    if (window.confirm('Bạn có chắc chắn muốn xóa bài viết này?')) {
-        deletePost(channelId, postId);
-        refreshPosts();
-    }
+    console.log('Delete post:', postId);
+    // TODO: Implement delete post API
   };
 
   const handleEditPost = (postId, newContent) => {
-    if (!channelId) return;
-    editPost(channelId, postId, newContent);
-    refreshPosts();
+    console.log('Edit post:', postId, newContent);
+    // TODO: Implement edit post API
   };
 
   const handleDeleteComment = (postId, commentId) => {
-    if (!channelId) return;
-    deleteComment(channelId, postId, commentId);
-    refreshPosts();
+    console.log('Delete comment:', postId, commentId);
+    // TODO: Implement delete comment API
   };
 
   return (
