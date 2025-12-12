@@ -1,4 +1,4 @@
-/** @format */
+  /** @format */
 
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -362,12 +362,14 @@ const UserDetailModal = ({
                           )}
                         </button>
 
-                        {/* Delete Button */}
-                        <button
-                          onClick={handleDeleteUser}
-                          className='sm:col-span-2 flex items-center justify-center gap-2 w-full py-3 px-4 bg-red-50 text-red-700 rounded-xl font-medium hover:bg-red-100 transition border border-red-200 mt-2'>
-                          <Trash2 className='w-4 h-4' /> Xóa tài khoản vĩnh viễn
-                        </button>
+                        {/* Delete Button - Admin only */}
+                        {isAdmin && (
+                          <button
+                            onClick={handleDeleteUser}
+                            className='sm:col-span-2 flex items-center justify-center gap-2 w-full py-3 px-4 bg-red-50 text-red-700 rounded-xl font-medium hover:bg-red-100 transition border border-red-200 mt-2'>
+                            <Trash2 className='w-4 h-4' /> Xóa tài khoản vĩnh viễn
+                          </button>
+                        )}
                       </div>
                       <p className='text-center text-xs text-gray-400 mt-4'>
                         * Các hành động trên sẽ ảnh hưởng trực tiếp đến người

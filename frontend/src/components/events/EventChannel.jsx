@@ -1,44 +1,44 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Send, ThumbsUp, MessageCircle, MoreHorizontal, Share2 } from 'lucide-react';
-// import { getChannelByEventId, addPostToChannel, addCommentToPost, likePost } from '../data/mockChannels';
+import { fetchChannelByEventId, createPost, createComment, toggleReaction } from '../../features/channel/channelSlice';
 
 const EventChannel = ({ eventId, user }) => {
-  const [channel, setChannel] = useState(null);
+  const dispatch = useDispatch();
+  const { currentChannel: channel, } = useSelector((state) => state.channel);
   const [newPostContent, setNewPostContent] = useState('');
   const [commentContent, setCommentContent] = useState({}); // Map postId -> content
   const [showComments, setShowComments] = useState({}); // Map postId -> boolean
 
   const loadChannel = useCallback(() => {
-    const data = getChannelByEventId(eventId);
-    setChannel(data ? { ...data } : null); // Clone to trigger re-render
-  }, [eventId]);
+    if (eventId) {
+      dispatch(fetchChannelByEventId(eventId));
+    }
+  }, [dispatch, eventId]);
 
   useEffect(() => {
     loadChannel();
   }, [loadChannel]);
 
-  const handlePostSubmit = (e) => {
+  const handlePostSubmit = async (e) => {
     e.preventDefault();
     if (!newPostContent.trim()) return;
 
-    addPostToChannel(channel.id, newPostContent, user);
+    await dispatch(createPost({ channelId: channel._id, content: newPostContent }));
     setNewPostContent('');
-    loadChannel();
   };
 
-  const handleLike = (postId) => {
-    likePost(channel.id, postId);
-    loadChannel();
+  const handleLike = async (postId) => {
+    await dispatch(toggleReaction({ channelId: channel._id, postId, type: 'like' }));
   };
 
-  const handleCommentSubmit = (postId) => {
+  const handleCommentSubmit = async (postId) => {
     const content = commentContent[postId];
     if (!content?.trim()) return;
 
-    addCommentToPost(channel.id, postId, content, user);
+    await dispatch(createComment({ channelId: channel._id, postId, content }));
     setCommentContent(prev => ({ ...prev, [postId]: '' }));
     setShowComments(prev => ({ ...prev, [postId]: true }));
-    loadChannel();
   };
 
   if (!channel) {

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import Post from './feed/Post';
-import CreatePost from './feed/CreatePost';
+import Post from './Post';
+import CreatePost from './CreatePost';
 import { fetchChannelByEventId, createPost, createComment, toggleReaction } from '../../features/channel/channelSlice';
 import { Filter, TrendingUp, Clock } from 'lucide-react';
 

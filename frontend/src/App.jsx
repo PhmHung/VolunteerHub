@@ -1,27 +1,49 @@
-import Information from "./pages/Information.jsx";
+/**
+ * @file App.jsx
+ * @description Main application component with routing and authentication
+ * @pattern Container Component Pattern
+ */
+
+// React core
 import { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import AuthModal from "./pages/AuthModal.jsx";
 import { Routes, Route, Navigate } from "react-router-dom";
-import Header from "./components/Header.jsx";
-import HomePage from "./pages/Home.jsx";
-import Dashboard from "./pages/dashboard.jsx";
-import Footer from "./components/Footer.jsx";
-import ProtectedRoute from "./components/ProtectedRoute.jsx";
-import AdminDashboard from "./pages/AdminDashboard.jsx";
-import ManagerDashboard from "./pages/ManagerDashboard.jsx";
-import Events from "./pages/events.jsx";
-import About from "./pages/AboutUs.jsx";
-import Media from "./pages/Media.jsx";
-import VolunteerHistory from "./pages/VolunteerHistory.jsx";
+
+// Redux
+import { useDispatch, useSelector } from "react-redux";
 import { fetchUserProfile, userLogout } from "./features/user/userSlice";
 
+// Layout components
+import Header from "./layouts/Header.jsx";
+import Footer from "./layouts/Footer.jsx";
+import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
+
+// Page components
+import HomePage from "./pages/public/Home.jsx";
+import Dashboard from "./pages/dashboard/dashboard.jsx";
+import AdminDashboard from "./pages/dashboard/AdminDashboard.jsx";
+import ManagerDashboard from "./pages/dashboard/ManagerDashboard.jsx";
+import Events from "./pages/public/Events.jsx";
+import About from "./pages/public/AboutUs.jsx";
+import Media from "./pages/Media.jsx";
+import Information from "./pages/Information.jsx";
+import VolunteerHistory from "./pages/dashboard/VolunteerHistory.jsx";
+import AuthModal from "./components/auth/AuthModal.jsx";
+
+/**
+ * Main App Component
+ * Handles global routing, authentication state, and layout
+ */
 export default function App() {
   const dispatch = useDispatch();
   const { profile: user, profileLoading: loadingUser } = useSelector((state) => state.user);
+  
+  // Local state
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
 
-  // Lấy thông tin người dùng từ token khi load trang (1 lần duy nhất)
+  /**
+   * Initialize user authentication on mount
+   * Fetches user profile if token exists in localStorage
+   */
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -29,7 +51,10 @@ export default function App() {
     }
   }, [dispatch]);
 
-  //Sau khi đăng kí hoặc đăng nhập thành công
+  /**
+   * Handle successful authentication
+   * @param {Object} data - Authentication response data
+   */
   const handleSuccess = async (data) => {
     if (data?.token) {
       localStorage.setItem("token", data.token);
@@ -38,19 +63,25 @@ export default function App() {
     setAuthModal(null);
   };
 
+  /**
+   * Handle user logout
+   * Clears token and redirects to home
+   */
   const handleLogout = () => {
     localStorage.removeItem("token");
     dispatch(userLogout());
     window.location.href = "/";
   };
 
-  // Hàm này đảm bảo thông báo lỗi được xóa khi người dùng tự đóng modal
+  /**
+   * Handle auth modal close
+   */
   const handleCloseModal = () => {
     setAuthModal(null);
   };
 
   if (loadingUser) {
-    return <div className="min-h-screen w-full flex items-center justify-center bg-gray-100">Loading...</div>;
+    return <div className="min-h-screen w-full flex items-center justify-center bg-gray-100">Đang tải...</div>;
   }
 
   return (

@@ -3,7 +3,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import defaultHeroImage from "../assets/hd1.png";
+import defaultHeroImage from "../../assets/hd1.png";
 
 const Hero = ({
   user,

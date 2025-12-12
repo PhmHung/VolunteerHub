@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import api from "../api.js";
 import { Eye, EyeOff, ShieldCheck, Bell, AlertCircle, Mail, Phone } from "lucide-react";
-import { fetchUserProfile, updateUserProfile, changeUserPassword, clearMessages } from "../features/user/userSlice.js";
+import { fetchUserProfile, changeUserPassword, clearMessages } from "../features/user/userSlice.js";
 
 export default function Information({ onProfileUpdate }) {
   const dispatch = useDispatch();
-  const { profile: reduxUser, profileLoading, message, error } = useSelector((state) => state.user);
+  const { profile: reduxUser, message, error } = useSelector((state) => state.user);
   
   const token = localStorage.getItem("token");
   const userId = token ? JSON.parse(atob(token.split(".")[1])).userId : null;

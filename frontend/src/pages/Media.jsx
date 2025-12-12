@@ -6,11 +6,11 @@ import { fetchEvents } from '../features/event/eventSlice';
 import { fetchMyRegistrations } from '../features/registration/registrationSlice';
 
 // Import new components
-import EventFeed from '../components/media/EventFeed';
-import VolunteersList from '../components/media/VolunteersList';
-import EventHeader from '../components/media/EventHeader';
-import EventTabs from '../components/media/EventTabs';
-import MyRegistrationStatus from '../components/media/MyRegistrationStatus';
+import EventFeed from '../components/socials/EventFeed';
+import VolunteersList from '../components/registrations/VolunteersList';
+import EventHeader from '../components/events/EventHeader';
+import EventTabs from '../components/events/EventTabs';
+import MyRegistrationStatus from '../components/registrations/MyRegistrationStatus';
 
 const EventDetailView = ({ event, user, onBack }) => {
   const [activeTab, setActiveTab] = useState('discussion');

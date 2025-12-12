@@ -14,13 +14,13 @@ import {
   Clock,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import heroAbout from "../assets/hd3.png";
-import Hero from "../components/Hero.jsx";
-import Slider from "../components/Slider.jsx";
-import AboutPillars from "../components/AboutPillars.jsx";
-import CoreValuesSection from "../components/CoreValuesSection.jsx";
-import ContactSection from "../components/ContactSection.jsx";
-import FAQSection from "../components/FAQSection.jsx";
+import heroAbout from "../../assets/hd3.png";
+import Hero from "../../components/home/Hero.jsx";
+import Slider from "../../components/common/Slider.jsx";
+import AboutPillars from "../../components/home/AboutPillars.jsx";
+import CoreValuesSection from "../../components/home/CoreValuesSection.jsx";
+import ContactSection from "../../components/home/ContactSection.jsx";
+import FAQSection from "../../components/home/FAQSection.jsx";
 
 export default function About({ user, openAuth }) {
   const pillars = [

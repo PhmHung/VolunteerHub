@@ -35,7 +35,7 @@ import {
 } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchEvents } from '../features/event/eventSlice';
+import { fetchEvents } from '../../features/event/eventSlice';
 
 // ==================== MAP CONFIG ====================
 const DEFAULT_MARKER_ICON = new Icon({

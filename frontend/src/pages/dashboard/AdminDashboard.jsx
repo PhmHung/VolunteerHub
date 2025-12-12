@@ -34,35 +34,35 @@ import {
   approveEvent,
   clearEventMessages,
   deleteEvent,
-} from "../features/event/eventSlice";
+} from "../../features/event/eventSlice";
 import {
   fetchAllUsers,
   updateUserRole,
   clearMessages,
   deleteUser,
   updateUserStatus,
-} from "../features/user/userSlice";
+} from "../../features/user/userSlice";
 import {
   clearRegistrationMessages,
   fetchPendingRegistrations,
   acceptRegistration,
   rejectRegistration,
-} from "../features/registration/registrationSlice";
+} from "../../features/registration/registrationSlice";
 
 // Utils & Components
-import { exportToCSV, exportToJSON } from "../utils/exportUtils";
-import EventApprovalModal from "../components/admin/EventApprovalModal";
-import VolunteerApprovalModal from "../components/admin/VolunteerApprovalModal";
-import ManagerApprovalModal from "../components/admin/ManagerApprovalModal";
-import UserDetailModal from "../components/admin/UserDetailModal";
-import EventDetailModal from "../components/admin/EventDetailModal";
-import { ToastContainer } from "../components/common/Toast";
-import ConfirmModal from "../components/common/ConfirmModal";
-import PromptModal from "../components/common/PromptModal";
+import { exportToCSV, exportToJSON } from "../../utils/exportUtils";
+import EventApprovalModal from "../../components/events/EventApprovalModal";
+import VolunteerApprovalModal from "../../components/approvals/VolunteerApprovalModal";
+import ManagerApprovalModal from "../../components/approvals/ManagerApprovalModal";
+import UserDetailModal from "../../components/users/UserDetailModal";
+import EventDetailModal from "../../components/events/EventDetailModal";
+import { ToastContainer } from "../../components/common/Toast";
+import ConfirmModal from "../../components/common/ConfirmModal";
+import PromptModal from "../../components/common/PromptModal";
 
 // Sub-components (Tabs)
-import AdminUsersTab from "../components/admin/AdminUsersTab";
-import AdminEventsTab from "../components/admin/AdminEventsTab";
+import UserManagementTable from "../../components/users/UserManagementTable";
+import AdminEventsTab from "../../components/events/EventManagementTable";
 
 const StatCard = ({ title, value, change, icon, color }) => {
   const Icon = icon;
@@ -985,7 +985,7 @@ const AdminDashboard = ({ user }) => {
               {/* --- TAB: USERS MANAGEMENT --- */}
               {activeTab === "users_management" && (
                 <div className='h-full animate-in fade-in duration-300'>
-                  <AdminUsersTab
+                  <UserManagementTable
                     users={allUsers}
                     onViewUser={handleViewUser}
                     onToggleUserStatus={handleToggleUserStatus}

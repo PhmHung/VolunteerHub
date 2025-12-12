@@ -17,11 +17,11 @@ import {
   Search,
   Filter,
 } from "lucide-react";
-import api from "../api";
+import api from "../../api";
 import {
   acceptRegistration,
   rejectRegistration,
-} from "../features/registration/registrationSlice";
+} from "../../features/registration/registrationSlice";
 
 const EventDetail = () => {
   const { id } = useParams();

@@ -8,10 +8,10 @@ import {
   fetchPendingRegistrations,
   acceptRegistration, 
   rejectRegistration 
-} from '../features/registration/registrationSlice';
-import { fetchAllUsers } from '../features/user/userSlice';
-import { fetchEvents } from '../features/event/eventSlice';
-import { REGISTRATION_STATUS } from '../utils/constants';
+} from '../../features/registration/registrationSlice';
+import { fetchAllUsers } from '../../features/user/userSlice';
+import { fetchEvents } from '../../features/event/eventSlice';
+import { REGISTRATION_STATUS } from '../../utils/constants';
 
 const RegistrationCard = ({ registration, volunteer, event, onAccept, onReject }) => {
   const [isProcessing, setIsProcessing] = useState(false);

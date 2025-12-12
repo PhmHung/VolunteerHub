@@ -13,7 +13,7 @@ import {
   User,
 } from "lucide-react";
 
-import { REGISTRATION_STATUS, ATTENDANCE_STATUS } from "../types";
+import { REGISTRATION_STATUS, ATTENDANCE_STATUS } from "../../types";
 
 export const EventDetails = ({
   event,

@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
 import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
-import api from "../api.js"; // centralized API client
-import FirebaseLogin from "../components/FirebaseLogin"; // Component login bằng Firebase
+import api from "../../api.js"; // centralized API client
+import FirebaseLogin from "./FirebaseLogin.jsx"; // Component login bằng Firebase
 
 export default function AuthModal({ mode, onClose, onSuccess }) {
-  const dispatch = useDispatch();
+
 
   // States cho form fields
   const [email, setEmail] = useState(""); 

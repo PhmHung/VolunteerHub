@@ -14,7 +14,7 @@ import {
   Search
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { fetchMyRegistrations } from "../features/registration/registrationSlice";
+import { fetchMyRegistrations } from "../../features/registration/registrationSlice";
 
 // Trạng thái đăng ký
 const STATUS_MAP = {

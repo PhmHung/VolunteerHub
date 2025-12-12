@@ -15,15 +15,15 @@ import {
   XCircle,
   Eye,
 } from "lucide-react";
-import { EVENT_CATEGORIES, EVENT_STATUS } from "../utils/constants";
+import { EVENT_CATEGORIES, EVENT_STATUS } from "../../utils/constants";
 import { motion } from "framer-motion";
-import { fetchEvents } from "../features/event/eventSlice";
+import { fetchEvents } from "../../features/event/eventSlice";
 import {
   fetchMyRegistrations,
   registerForEvent,
   cancelRegistration,
   clearRegistrationMessages,
-} from "../features/registration/registrationSlice";
+} from "../../features/registration/registrationSlice";
 
 const TIME_FILTERS = [
   { label: "Tất cả", value: "all" },

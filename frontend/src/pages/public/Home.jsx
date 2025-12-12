@@ -3,10 +3,10 @@
 import { motion } from "framer-motion";
 import { Heart, Users, Calendar, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import Card from "../components/Card.jsx";
-import heroImage from "../assets/hd1.png";
-import Hero from "../components/Hero.jsx";
-import Slider from "../components/Slider.jsx";
+import Card from "../../components/common/Card.jsx";
+import heroImage from "../../assets/hd1.png";
+import Hero from "../../components/home/Hero.jsx";
+import Slider from "../../components/common/Slider.jsx";
 
 export default function Home({ user, openAuth }) {
   const features = [

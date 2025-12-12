@@ -3,8 +3,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Calendar, MapPin, Users } from "lucide-react";
-import EventFormModal from "../components/EventsForm.jsx";
-import { EventDetails } from "../components/EventComponents.jsx";
+//import EventForm from "../components/events/EventForm.jsx";
+import { EventDetail } from "../components/events/EventDetail.jsx";
 import { FaEye } from "react-icons/fa";
 import { fetchUserById } from "../features/user/userSlice.js";
 import UserDetailModal from "../components/manager/UserDetailModal.jsx";

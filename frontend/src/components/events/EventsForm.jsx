@@ -1,9 +1,9 @@
 /** @format */
 
 import React, { useState, useEffect } from "react";
-import { EVENT_STATUS } from "../types";
-import { EVENT_CATEGORIES } from "../utils/constants";
-import { eventValidationSchema } from "../utils/validationSchemas";
+import { EVENT_STATUS } from "../../types";
+import { EVENT_CATEGORIES } from "../../utils/constants";
+import { eventValidationSchema } from "../../utils/validationSchemas";
 // Note: Ensure this file name matches what you created (LocationPicker.jsx)
 import LocationPicker from "./LocationPick";
 
