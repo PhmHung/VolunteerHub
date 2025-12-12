@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import api from "../api.js";
 import { Eye, EyeOff, ShieldCheck, Bell, AlertCircle, Mail, Phone } from "lucide-react";
-import { fetchUserProfile, updateUserProfile, changeUserPassword, clearMessages } from "../features/user/userSlice";
+import { fetchUserProfile, updateUserProfile, changeUserPassword, clearMessages } from "../features/user/userSlice.js";
 
 export default function Information({ onProfileUpdate }) {
   const dispatch = useDispatch();
@@ -248,17 +248,13 @@ export default function Information({ onProfileUpdate }) {
                 {roleLabel}
               </span>
               <h1 className="text-3xl font-extrabold md:text-4xl">{displayName}</h1>
-              <p className="text-sm leading-relaxed text-white/90">{biography}</p>
               <div className="flex flex-wrap gap-4 text-sm">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-white">
-                  <ShieldCheck className="h-4 w-4" />
-                  ID: {user._id || user.id || "—"}
-                </span>
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-white">
                   <Mail className="h-4 w-4" />
                   Email: {email}
                 </span>
               </div>
+              <p className="text-sm leading-relaxed text-white/90">{biography}</p>
             </div>
           </div>
 
@@ -427,9 +423,6 @@ export default function Information({ onProfileUpdate }) {
                   <span className="font-semibold text-gray-900">Email:</span> {email}
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-900">Số điện thoại:</span> {phone}
-                </div>
-                <div>
                   <span className="font-semibold text-gray-900">Mã tài khoản:</span> {user._id || user.id || "—"}
                 </div>
                 <div>
@@ -472,7 +465,7 @@ export default function Information({ onProfileUpdate }) {
                 Đổi mật khẩu
               </h2>
               <p className="text-sm text-gray-600">
-                Đảm bảo mật khẩu mới đủ mạnh với tối thiểu 8 ký tự và kết hợp chữ, số, ký hiệu.
+                Đảm bảo mật khẩu mới đủ mạnh với tối thiểu 6 ký tự.
               </p>
             </div>
 

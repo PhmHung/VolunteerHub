@@ -200,7 +200,7 @@ export default function About({ user, openAuth }) {
                   onClick={() => openAuth("register")}
                   className="inline-flex items-center gap-2 rounded-2xl btn-primary px-5 py-3 text-base font-semibold shadow-lg transition-all hover:shadow-xl hover:shadow-primary-400/20 active:scale-95"
                 >
-                  Create account
+                  Tạo tài khoản
                   <ArrowRight className="h-4 w-4" />
                 </button>
               )}
