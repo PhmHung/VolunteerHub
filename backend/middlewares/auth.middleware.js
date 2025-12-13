@@ -1,7 +1,4 @@
 /** @format */
-
-import dotenv from "dotenv";
-dotenv.config({ path: ".env.development.local" });
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import asyncHandler from "express-async-handler";
@@ -14,9 +11,8 @@ const protect = asyncHandler(async (req, res, next) => {
     try {
       token = authHeader.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("TOKEN DECODED:", decoded);
+
       req.user = await User.findById(decoded.id).select("-password");
-      console.log("USER TÌM THẤY:", req.user ? req.user.userEmail : null);
 
       if (!req.user) {
         res.status(401);
@@ -25,7 +21,6 @@ const protect = asyncHandler(async (req, res, next) => {
 
       next();
     } catch (error) {
-      console.error(error);
       res.status(401);
       throw new Error("Token expired or invalid, authorization denied.");
     }

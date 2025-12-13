@@ -2,7 +2,13 @@
 
 import * as yup from "yup";
 
-// Schema validation cho Event Form
+// ==================== EVENT VALIDATION ====================
+
+/**
+ * Validation schema for Event Form
+ * Validates event creation/update data
+ * @type {yup.ObjectSchema}
+ */
 export const eventValidationSchema = yup.object().shape({
   title: yup
     .string()
@@ -56,7 +62,12 @@ export const eventValidationSchema = yup.object().shape({
   image: yup.string().url("URL hình ảnh không hợp lệ").nullable(),
 });
 
-// Schema validation cho Auth/Register Form
+// ==================== AUTH VALIDATION ====================
+
+/**
+ * Validation schema for User Registration Form
+ * @type {yup.ObjectSchema}
+ */
 export const registerValidationSchema = yup.object().shape({
   email: yup
     .string()

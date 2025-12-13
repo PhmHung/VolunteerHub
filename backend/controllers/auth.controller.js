@@ -75,17 +75,14 @@ const verifyCode = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid or expired code" });
 
     // Tạo token chứa email
-    const verifyToken = jwt.sign(
-      { email },
-      process.env.JWT_SECRET,
-      { expiresIn: "10m" }
-    );
- 
+    const verifyToken = jwt.sign({ email }, process.env.JWT_SECRET, {
+      expiresIn: "10m",
+    });
+
     res.json({
       message: "Email verified successfully",
       verifyToken,
     });
-
   } catch (error) {
     next(error);
   }
@@ -95,7 +92,8 @@ const verifyCode = async (req, res, next) => {
 // @route  POST /api/auth/register
 // @access Public
 const register = asyncHandler(async (req, res) => {
-  const { userName, verifyToken, password, role, biology } = req.body;
+  const { userName, verifyToken, password, role, biology, phoneNumber } =
+    req.body;
   if (!userName || !password || !role) {
     res.status(400);
     throw new Error("Vui lòng điền đầy đủ tất cả các trường bắt buộc.");
@@ -115,7 +113,7 @@ const register = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Token không hợp lệ hoặc đã hết hạn.");
   }
-  
+
   // Kiểm tra email đã tồn tại chưa
   const userExists = await User.findOne({ userEmail });
 
@@ -127,7 +125,8 @@ const register = asyncHandler(async (req, res) => {
   const user = await User.create({
     userName,
     userEmail,
-    password: password,
+    password: password || null,
+    phoneNumber,
     biology,
     role: role,
   });
@@ -138,14 +137,15 @@ const register = asyncHandler(async (req, res) => {
       userName: user.userName,
       userEmail: user.userEmail,
       role: user.role,
+      phoneNumber: user.phoneNumber,
       biology: user.biology,
       profilePicture: user.profilePicture,
       token: generateToken(user._id),
     };
 
-    console.log("Login information:", payload);  
+    console.log("Login information:", payload);
 
-    res.status(201).json(payload);  
+    res.status(201).json(payload);
   } else {
     res.status(400);
     throw new Error("Dữ liệu người dùng không hợp lệ.");
@@ -165,14 +165,15 @@ const login = asyncHandler(async (req, res) => {
       userName: user.userName,
       userEmail: user.userEmail,
       role: user.role,
+      phoneNumber: user.phoneNumber,
       biology: user.biology,
       profilePicture: user.profilePicture,
       token: generateToken(user._id),
     };
 
-    console.log("Login information:", payload);  
+    console.log("Login information:", payload);
 
-    res.json(payload);  
+    res.json(payload);
   } else {
     res.status(401);
     throw new Error("Email hoặc mật khẩu không hợp lệ.");
@@ -182,11 +183,20 @@ const login = asyncHandler(async (req, res) => {
 // Khởi tạo Firebase Admin (nên làm 1 lần trong app)
 if (!admin.apps.length) {
   try {
-    const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
-    if (!FIREBASE_PROJECT_ID || !FIREBASE_CLIENT_EMAIL || !FIREBASE_PRIVATE_KEY) {
-      console.warn('Firebase admin credentials not fully provided in environment variables. Skipping admin.initializeApp().');
+    const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } =
+      process.env;
+    if (
+      !FIREBASE_PROJECT_ID ||
+      !FIREBASE_CLIENT_EMAIL ||
+      !FIREBASE_PRIVATE_KEY
+    ) {
+      console.warn(
+        "Firebase admin credentials not fully provided in environment variables. Skipping admin.initializeApp()."
+      );
     } else {
-      const privateKey = FIREBASE_PRIVATE_KEY.includes('\\n') ? FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : FIREBASE_PRIVATE_KEY;
+      const privateKey = FIREBASE_PRIVATE_KEY.includes("\\n")
+        ? FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+        : FIREBASE_PRIVATE_KEY;
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId: FIREBASE_PROJECT_ID,
@@ -196,16 +206,18 @@ if (!admin.apps.length) {
       });
     }
   } catch (initErr) {
-    console.error('Failed to initialize Firebase admin:', initErr);
+    console.error("Failed to initialize Firebase admin:", initErr);
   }
 }
 
-const firebaseLogin = async (req, res, next) => {
+const firebaseLogin = asyncHandler(async (req, res) => {
   const { idToken } = req.body;
   if (!idToken) {
     res.status(400);
     throw new Error("Firebase ID Token is required.");
   }
+
+  // ... (giữ nguyên phần verify token) ...
   let decodedToken;
   try {
     decodedToken = await admin.auth().verifyIdToken(idToken);
@@ -215,28 +227,28 @@ const firebaseLogin = async (req, res, next) => {
   }
 
   const { email } = decodedToken;
-
   const user = await User.findOne({ userEmail: email });
 
   if (!user) {
     res.status(404);
+    // 👇 Bây giờ dòng này sẽ trả về JSON lỗi 404 cho frontend chứ không làm sập server nữa
     throw new Error("Account not found. Please register first.");
   }
 
+  // ... (phần trả về payload giữ nguyên)
   const payload = {
     _id: user._id,
     userName: user.userName,
     userEmail: user.userEmail,
     role: user.role,
+    phoneNumber: user.phoneNumber,
     biology: user.biology,
     profilePicture: user.profilePicture,
     token: generateToken(user._id),
   };
 
-  console.log("Login information:", payload);  
-
-  res.status(201).json(payload);  
-};
+  res.status(200).json(payload);
+});
 
 export {
   saveCode,
@@ -246,6 +258,5 @@ export {
   register,
   // loginUser,
   login,
-
   firebaseLogin,
 };

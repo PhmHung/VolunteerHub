@@ -22,6 +22,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    phoneNumber: {
+      type: String,
+      set: (v) => (v === "" ? null : v),
+      minlength: 10,
+      maxlength: 11,
+      default: null,
+    },
     biology: {
       type: String,
       maxlength: 500,

@@ -1,0 +1,819 @@
+/** @format */
+
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+// Icons
+import {
+  Calendar,
+  Users,
+  Briefcase,
+  Bell,
+  Download,
+  FileJson,
+  FileSpreadsheet,
+  ArrowUpRight,
+} from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+
+// Redux Actions
+import {
+  fetchManagementEvents,
+  approveEvent,
+  clearEventMessages,
+  deleteEvent,
+} from "../../features/eventSlice";
+import {
+  fetchAllUsers,
+  updateUserRole,
+  clearMessages,
+  deleteUser,
+  updateUserStatus,
+} from "../../features/userSlice";
+import {
+  clearRegistrationMessages,
+  fetchPendingRegistrations,
+  acceptRegistration,
+  rejectRegistration,
+} from "../../features/registrationSlice";
+
+// Utils & Components
+import { exportToCSV, exportToJSON } from "../../utils/exportUtils";
+import VolunteerApprovalModal from "../../components/approvals/VolunteerApprovalModal";
+import ManagerApprovalModal from "../../components/approvals/ManagerApprovalModal";
+import UserDetailModal from "../../components/users/UserDetailModal";
+import EventDetailModal from "../../components/events/EventDetailModal";
+import { ToastContainer } from "../../components/common/Toast";
+import ConfirmModal from "../../components/common/ConfirmModal";
+import PromptModal from "../../components/common/PromptModal";
+
+// NEW COMPONENTS
+import EventManagementTable from "../../components/events/EventManagementTable";
+import UserManagementTable from "../../components/users/UserManagementTable";
+
+const StatCard = ({ title, value, change, icon, color }) => {
+  const Icon = icon;
+  return (
+    <div className='card p-6 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow'>
+      <div className='flex justify-between items-start mb-4'>
+        <div className={`p-3 rounded-xl ${color}`}>
+          <Icon className='w-6 h-6 text-white' />
+        </div>
+        <span
+          className={`flex items-center text-sm font-medium ${
+            change >= 0 ? "text-emerald-600" : "text-red-600"
+          }`}>
+          {change > 0 && "+"}
+          {change}%
+          <ArrowUpRight className='w-4 h-4 ml-1' />
+        </span>
+      </div>
+      <h3 className='text-gray-500 text-sm font-medium mb-1'>{title}</h3>
+      <p className='text-3xl font-bold text-gray-900'>{value}</p>
+    </div>
+  );
+};
+
+const AdminDashboard = ({ user }) => {
+  const dispatch = useDispatch();
+
+  // Redux State
+  const {
+    list: allEvents = [],
+    successMessage: eventSuccessMessage,
+    error: eventError,
+  } = useSelector((state) => state.event);
+
+  const {
+    users: allUsers = [],
+    message: userMessage,
+    error: userError,
+  } = useSelector((state) => state.user);
+
+  const {
+    pendingRegistrations = [],
+    successMessage: regSuccessMessage,
+    error: regError,
+  } = useSelector((state) => state.registration);
+
+  // Local State
+  const [activeTab, setActiveTab] = useState("overview");
+  const [pendingEvents, setPendingEvents] = useState([]);
+  const [pendingManagerRequests, setPendingManagerRequests] = useState([]);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Modal states
+  const [selectedRegistration, setSelectedRegistration] = useState(null);
+  const [selectedManagerRequest, setSelectedManagerRequest] = useState(null);
+  const [viewingUser, setViewingUser] = useState(null);
+  const [viewingEventDetail, setViewingEventDetail] = useState(null);
+
+  const [toasts, setToasts] = useState([]);
+
+  // Confirm / Prompt modals
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    type: "question",
+    confirmText: "",
+  });
+  const [promptModal, setPromptModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    confirmText: "",
+    cancelText: "Hủy",
+  });
+
+  // Helpers
+  const addToast = (message, type = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+  const removeToast = (id) =>
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+
+  // Effects
+  useEffect(() => {
+    dispatch(fetchManagementEvents({ status: "", limit: 1000 }));
+    dispatch(fetchAllUsers());
+    dispatch(fetchPendingRegistrations());
+  }, [dispatch]);
+
+  useEffect(() => {
+    setPendingEvents(allEvents.filter((e) => e.status === "pending"));
+    setPendingManagerRequests(
+      allUsers.filter((u) => u.pendingManagerRequest === true)
+    );
+  }, [allEvents, allUsers]);
+
+  // Toast handling
+  useEffect(() => {
+    if (eventSuccessMessage) {
+      addToast(eventSuccessMessage, "success");
+      dispatch(clearEventMessages());
+    }
+    if (eventError) {
+      addToast(eventError, "error");
+      dispatch(clearEventMessages());
+    }
+    if (userMessage) {
+      addToast(userMessage, "success");
+      dispatch(clearMessages());
+    }
+    if (userError) {
+      addToast(userError, "error");
+      dispatch(clearMessages());
+    }
+    if (regSuccessMessage) {
+      addToast(regSuccessMessage, "success");
+      dispatch(clearRegistrationMessages());
+    }
+    if (regError) {
+      addToast(regError, "error");
+      dispatch(clearRegistrationMessages());
+    }
+  }, [
+    eventSuccessMessage,
+    eventError,
+    userMessage,
+    userError,
+    regSuccessMessage,
+    regError,
+    dispatch,
+  ]);
+
+  // Export handler
+  const handleExport = (type, format) => {
+    const timestamp = new Date().toISOString().split("T")[0];
+    let data = [];
+    let filename = "";
+    if (type === "events") {
+      data = allEvents;
+      filename = `events_export_${timestamp}`;
+    } else if (type === "volunteers") {
+      data = allUsers.filter((u) => u.role === "volunteer");
+      filename = `volunteers_export_${timestamp}`;
+    }
+    format === "csv"
+      ? exportToCSV(data, filename)
+      : exportToJSON(data, filename);
+    setShowExportMenu(false);
+  };
+
+  // View handlers
+  const handleViewUser = (user) => setViewingUser(user);
+  const handleViewEvent = (event) => setViewingEventDetail(event);
+
+  // Event actions
+  const handleApproveEvent = (event) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Duyệt sự kiện",
+      message: `Bạn có chắc muốn duyệt sự kiện "${event.title}"?`,
+      type: "success",
+      confirmText: "Duyệt",
+      onConfirm: async () => {
+        await dispatch(
+          approveEvent({ eventId: event._id, status: "approved" })
+        ).unwrap();
+        dispatch(fetchManagementEvents({ status: "" }));
+      },
+    });
+  };
+
+  const handleRejectEvent = (event) => {
+    setPromptModal({
+      isOpen: true,
+      title: "Từ chối sự kiện",
+      message: `Lý do từ chối sự kiện "${event.title}":`,
+      confirmText: "Từ chối",
+      onConfirm: async (reason) => {
+        await dispatch(
+          approveEvent({
+            eventId: event._id,
+            status: "rejected",
+            adminNote: reason,
+          })
+        ).unwrap();
+        dispatch(fetchManagementEvents({ status: "" }));
+      },
+    });
+  };
+
+  const handleDeleteEvent = (event) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Xóa sự kiện",
+      message: (
+        <div>
+          <p>
+            Bạn chắc chắn muốn <strong>xóa vĩnh viễn</strong> sự kiện?
+          </p>
+          <p className='font-medium mt-2'>"{event.title}"</p>
+          <p className='text-sm text-red-600 mt-2'>
+            Hành động này không thể hoàn tác.
+          </p>
+        </div>
+      ),
+      type: "danger",
+      confirmText: "Xóa vĩnh viễn",
+      onConfirm: async () => {
+        await dispatch(deleteEvent(event._id)).unwrap();
+        addToast(`Đã xóa sự kiện "${event.title}"`, "success");
+        dispatch(fetchManagementEvents({ status: "" }));
+      },
+    });
+  };
+
+  // Registration actions
+  const handleApproveRegistration = (reg) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Chấp nhận đăng ký",
+      message: `Chấp nhận ${
+        reg.volunteer?.userName || "tình nguyện viên"
+      } tham gia sự kiện?`,
+      type: "success",
+      confirmText: "Chấp nhận",
+      onConfirm: async () => {
+        await dispatch(acceptRegistration(reg._id)).unwrap();
+        setSelectedRegistration(null);
+        dispatch(fetchPendingRegistrations());
+      },
+    });
+  };
+
+  const handleRejectRegistration = (reg) => {
+    setPromptModal({
+      isOpen: true,
+      title: "Từ chối đăng ký",
+      message: `Lý do từ chối ${
+        reg.volunteer?.userName || "tình nguyện viên"
+      }:`,
+      confirmText: "Từ chối",
+      onConfirm: async (reason) => {
+        await dispatch(
+          rejectRegistration({ registrationId: reg._id, reason })
+        ).unwrap();
+        setSelectedRegistration(null);
+        dispatch(fetchPendingRegistrations());
+      },
+    });
+  };
+
+  // Manager request actions
+  const handleApproveManager = (req) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Thăng cấp Manager",
+      message: `Xác nhận thăng cấp ${
+        req.candidate?.userName || req.userName
+      } lên Manager?`,
+      type: "success",
+      confirmText: "Thăng cấp",
+      onConfirm: async () => {
+        await dispatch(
+          updateUserRole({
+            userId: req._id || req.candidate?._id,
+            role: "manager",
+          })
+        ).unwrap();
+        setSelectedManagerRequest(null);
+        dispatch(fetchAllUsers());
+      },
+    });
+  };
+
+  const handleRejectManager = (req) => {
+    setPromptModal({
+      isOpen: true,
+      title: "Từ chối yêu cầu Manager",
+      message: `Lý do từ chối yêu cầu của ${
+        req.candidate?.userName || req.userName
+      }:`,
+      confirmText: "Từ chối",
+      onConfirm: () => {
+        addToast("Đã từ chối yêu cầu Manager", "info");
+        setSelectedManagerRequest(null);
+        dispatch(fetchAllUsers());
+      },
+    });
+  };
+
+  // User management actions
+  const handleToggleUserStatus = (user) => {
+    const newStatus = user.status === "active" ? "inactive" : "active";
+    setConfirmModal({
+      isOpen: true,
+      title: newStatus === "inactive" ? "Khóa tài khoản" : "Mở khóa tài khoản",
+      message: `Xác nhận ${
+        newStatus === "inactive" ? "khóa" : "mở khóa"
+      } tài khoản "${user.userName}"?`,
+      type: newStatus === "inactive" ? "warning" : "success",
+      confirmText: newStatus === "inactive" ? "Khóa" : "Mở khóa",
+      onConfirm: async () => {
+        await dispatch(
+          updateUserStatus({ userId: user._id, status: newStatus })
+        ).unwrap();
+        addToast(
+          newStatus === "inactive"
+            ? "Đã khóa tài khoản"
+            : "Đã mở khóa tài khoản",
+          "success"
+        );
+        dispatch(fetchAllUsers());
+      },
+    });
+  };
+
+  const handleDeleteUser = (user) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Xóa tài khoản",
+      message: (
+        <div>
+          <p>
+            Bạn chắc chắn muốn <strong>xóa vĩnh viễn</strong> tài khoản?
+          </p>
+          <p className='font-medium mt-2'>"{user.userName}"</p>
+          <p className='text-sm text-red-600 mt-2'>Không thể khôi phục.</p>
+        </div>
+      ),
+      type: "danger",
+      confirmText: "Xóa vĩnh viễn",
+      onConfirm: async () => {
+        await dispatch(deleteUser(user._id)).unwrap();
+        addToast(`Đã xóa người dùng "${user.userName}"`, "success");
+        dispatch(fetchAllUsers());
+      },
+    });
+  };
+
+  const totalPending =
+    pendingEvents.length +
+    pendingRegistrations.length +
+    pendingManagerRequests.length;
+
+  return (
+    <div className='min-h-screen bg-gray-50 font-sans'>
+      {/* Header */}
+      <div className='sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm'>
+        <h1 className='text-2xl font-bold text-gray-800'>Admin Dashboard</h1>
+        <div className='flex items-center gap-4'>
+          {/* Export */}
+          <div className='relative'>
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className='flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition'>
+              <Download className='w-4 h-4' />
+              Xuất dữ liệu
+            </button>
+            {showExportMenu && (
+              <div className='absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50'>
+                <div className='px-4 py-2 text-xs font-semibold text-gray-400 uppercase'>
+                  Sự kiện
+                </div>
+                <button
+                  onClick={() => handleExport("events", "csv")}
+                  className='w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2'>
+                  <FileSpreadsheet className='w-4 h-4 text-emerald-600' /> CSV
+                </button>
+                <button
+                  onClick={() => handleExport("events", "json")}
+                  className='w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2'>
+                  <FileJson className='w-4 h-4 text-amber-600' /> JSON
+                </button>
+                <div className='border-t my-1'></div>
+                <div className='px-4 py-2 text-xs font-semibold text-gray-400 uppercase'>
+                  Tình nguyện viên
+                </div>
+                <button
+                  onClick={() => handleExport("volunteers", "csv")}
+                  className='w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2'>
+                  <FileSpreadsheet className='w-4 h-4 text-emerald-600' /> CSV
+                </button>
+                <button
+                  onClick={() => handleExport("volunteers", "json")}
+                  className='w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2'>
+                  <FileJson className='w-4 h-4 text-amber-600' /> JSON
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className='relative'>
+            <Bell className='w-6 h-6 text-gray-500 cursor-pointer hover:text-gray-700' />
+            {totalPending > 0 && (
+              <span className='absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center'>
+                {totalPending > 99 ? "99+" : totalPending}
+              </span>
+            )}
+          </div>
+
+          <div className='flex items-center gap-3 pl-4 border-l'>
+            <div className='text-right hidden sm:block'>
+              <p className='font-bold'>{user?.userName || "Admin"}</p>
+              <p className='text-xs text-gray-500'>Administrator</p>
+            </div>
+            <div className='w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold'>
+              A
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className='p-4 md:p-8'>
+        <div className='max-w-7xl mx-auto space-y-6'>
+          {/* Stats - only on overview */}
+          {activeTab === "overview" && (
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
+              <StatCard
+                title='Tổng người dùng'
+                value={allUsers.length}
+                change={12}
+                icon={Users}
+                color='bg-blue-500'
+              />
+              <StatCard
+                title='Sự kiện hoạt động'
+                value={allEvents.filter((e) => e.status === "approved").length}
+                change={8}
+                icon={Calendar}
+                color='bg-emerald-500'
+              />
+              <StatCard
+                title='Chờ duyệt sự kiện'
+                value={pendingEvents.length}
+                change={-5}
+                icon={Calendar}
+                color='bg-amber-500'
+              />
+              <StatCard
+                title='Yêu cầu Manager'
+                value={pendingManagerRequests.length}
+                change={2}
+                icon={Briefcase}
+                color='bg-purple-500'
+              />
+            </div>
+          )}
+
+          {/* Tabs Container */}
+          <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[600px] lg:h-[calc(100vh-140px)]'>
+            {/* Tab Navigation */}
+            <div className='border-b border-gray-200 px-6 pt-4 bg-white shrink-0 z-20'>
+              <div className='flex gap-8 overflow-x-auto no-scrollbar pb-4'>
+                {[
+                  { id: "overview", label: "Tổng quan" },
+                  {
+                    id: "events",
+                    label: "Duyệt sự kiện",
+                    count: pendingEvents.length,
+                    color: "amber",
+                  },
+                  {
+                    id: "volunteers",
+                    label: "Duyệt đăng ký",
+                    count: pendingRegistrations.length,
+                    color: "blue",
+                  },
+                  {
+                    id: "managers",
+                    label: "Duyệt Manager",
+                    count: pendingManagerRequests.length,
+                    color: "purple",
+                  },
+                  { id: "users_management", label: "Quản lý người dùng" },
+                  { id: "events_management", label: "Quản lý sự kiện" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`pb-4 text-sm font-medium relative whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? "text-emerald-600"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}>
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <span
+                        className={`ml-2 px-2 py-0.5 bg-${tab.color}-100 text-${tab.color}-700 text-xs rounded-full`}>
+                        {tab.count}
+                      </span>
+                    )}
+                    {activeTab === tab.id && (
+                      <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600' />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className='flex-1 p-6 overflow-y-auto'>
+              {/* Overview */}
+              {activeTab === "overview" && (
+                <div className='grid lg:grid-cols-3 gap-6'>
+                  <div className='lg:col-span-2 bg-white rounded-xl border p-6'>
+                    <h3 className='text-lg font-semibold mb-4'>
+                      Thống kê tham gia
+                    </h3>
+                    <ResponsiveContainer width='100%' height={300}>
+                      <LineChart
+                        data={[
+                          { name: "Jan", v: 30 },
+                          { name: "Feb", v: 45 },
+                          { name: "Mar", v: 38 },
+                          { name: "Apr", v: 62 },
+                          { name: "May", v: 55 },
+                          { name: "Jun", v: 80 },
+                        ]}>
+                        <CartesianGrid strokeDasharray='3 3' />
+                        <XAxis dataKey='name' />
+                        <YAxis />
+                        <Tooltip />
+                        <Line
+                          type='monotone'
+                          dataKey='v'
+                          stroke='#10b981'
+                          strokeWidth={3}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className='bg-white rounded-xl border p-6'>
+                    <h3 className='text-lg font-semibold mb-4'>
+                      Phân loại sự kiện
+                    </h3>
+                    <ResponsiveContainer width='100%' height={240}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Môi trường", value: 40, color: "#10b981" },
+                            { name: "Giáo dục", value: 25, color: "#3b82f6" },
+                            { name: "Cộng đồng", value: 20, color: "#f59e0b" },
+                            { name: "Y tế", value: 15, color: "#ef4444" },
+                          ]}
+                          dataKey='value'
+                          innerRadius={50}
+                          outerRadius={80}
+                          paddingAngle={5}>
+                          <Cell fill='#10b981' />
+                          <Cell fill='#3b82f6' />
+                          <Cell fill='#f59e0b' />
+                          <Cell fill='#ef4444' />
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Duyệt sự kiện (chỉ pending) */}
+              {activeTab === "events" && (
+                <EventManagementTable
+                  events={pendingEvents}
+                  registrations={pendingRegistrations}
+                  onApprove={handleApproveEvent}
+                  onReject={handleRejectEvent}
+                  onDeleteEvent={handleDeleteEvent}
+                  onViewEvent={handleViewEvent}
+                />
+              )}
+
+              {/* Duyệt đăng ký tình nguyện viên */}
+              {activeTab === "volunteers" && (
+                <div className='space-y-4'>
+                  {pendingRegistrations.length === 0 ? (
+                    <div className='text-center py-12 text-gray-500'>
+                      Không có đăng ký nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    pendingRegistrations.map((reg) => {
+                      const vol = reg.volunteer || {};
+                      const evt = reg.event || {};
+                      return (
+                        <div
+                          key={reg._id}
+                          className='bg-white rounded-xl border p-5 flex items-center justify-between hover:shadow-md transition'>
+                          <div className='flex items-center gap-4'>
+                            <div className='w-12 h-12 rounded-full bg-gray-100 overflow-hidden'>
+                              {vol.profilePicture ? (
+                                <img
+                                  src={vol.profilePicture}
+                                  alt=''
+                                  className='w-full h-full object-cover'
+                                />
+                              ) : (
+                                <div className='w-full h-full flex items-center justify-center text-gray-500 font-bold'>
+                                  {vol.userName?.[0] || "U"}
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <p className='font-semibold'>
+                                {vol.userName || "Không rõ"}
+                              </p>
+                              <p className='text-sm text-gray-500'>
+                                Đăng ký:{" "}
+                                <span className='font-medium'>
+                                  {evt.title || "Sự kiện không xác định"}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className='flex items-center gap-3'>
+                            <button
+                              onClick={() => setSelectedRegistration(reg)}
+                              className='px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium'>
+                              Xem & Duyệt
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* Duyệt Manager */}
+              {activeTab === "managers" && (
+                <div className='space-y-4'>
+                  {pendingManagerRequests.length === 0 ? (
+                    <div className='text-center py-12 text-gray-500'>
+                      Không có yêu cầu Manager nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    pendingManagerRequests.map((req) => (
+                      <div
+                        key={req._id}
+                        className='bg-white rounded-xl border p-5 flex items-center justify-between hover:shadow-md transition'>
+                        <div className='flex items-center gap-4'>
+                          <div className='w-12 h-12 rounded-full bg-purple-100 overflow-hidden'>
+                            {req.candidate?.profilePicture ? (
+                              <img
+                                src={req.candidate.profilePicture}
+                                alt=''
+                                className='w-full h-full object-cover'
+                              />
+                            ) : (
+                              <div className='w-full h-full flex items-center justify-center text-purple-700 font-bold'>
+                                {req.candidate?.userName?.[0] || "U"}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <p className='font-semibold'>
+                              {req.candidate?.userName || req.userName}
+                            </p>
+                            <p className='text-sm text-gray-500'>
+                              {req.currentRole || "Volunteer"} •{" "}
+                              {req.experience || 0} năm kinh nghiệm
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setSelectedManagerRequest(req)}
+                          className='px-4 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 font-medium'>
+                          Xem chi tiết
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Quản lý người dùng */}
+              {activeTab === "users_management" && (
+                <UserManagementTable
+                  users={allUsers}
+                  onViewUser={handleViewUser}
+                  onToggleUserStatus={handleToggleUserStatus}
+                  onDeleteUser={handleDeleteUser}
+                />
+              )}
+
+              {/* Quản lý toàn bộ sự kiện */}
+              {activeTab === "events_management" && (
+                <EventManagementTable
+                  events={allEvents}
+                  registrations={pendingRegistrations}
+                  onApprove={handleApproveEvent}
+                  onReject={handleRejectEvent}
+                  onDeleteEvent={handleDeleteEvent}
+                  onViewEvent={handleViewEvent}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modals */}
+      {selectedRegistration && (
+        <VolunteerApprovalModal
+          registration={selectedRegistration}
+          onClose={() => setSelectedRegistration(null)}
+          onApprove={handleApproveRegistration}
+          onReject={handleRejectRegistration}
+        />
+      )}
+
+      {selectedManagerRequest && (
+        <ManagerApprovalModal
+          request={selectedManagerRequest}
+          onClose={() => setSelectedManagerRequest(null)}
+          onApprove={handleApproveManager}
+          onReject={handleRejectManager}
+        />
+      )}
+
+      <UserDetailModal
+        viewingUser={viewingUser}
+        registrations={pendingRegistrations}
+        events={allEvents}
+        addToast={addToast}
+        setConfirmModal={setConfirmModal}
+        onClose={() => setViewingUser(null)}
+        onEventClick={handleViewEvent}
+      />
+
+      <EventDetailModal
+        event={viewingEventDetail}
+        registrations={pendingRegistrations}
+        users={allUsers}
+        onClose={() => setViewingEventDetail(null)}
+        onUserClick={handleViewUser}
+      />
+
+      <ConfirmModal
+        {...confirmModal}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
+      <PromptModal
+        {...promptModal}
+        onClose={() => setPromptModal({ ...promptModal, isOpen: false })}
+      />
+
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+    </div>
+  );
+};
+
+export default AdminDashboard;
