@@ -19,7 +19,6 @@ import { fetchMyRegistrations } from "../features/registrationSlice";
 // Import new components
 import EventFeed from "../components/socials/EventFeed";
 import VolunteersList from "../components/registrations/VolunteersList";
-import EventHeader from "../components/events/EventHeader";
 import EventTabs from "../components/events/EventTabs";
 import MyRegistrationStatus from "../components/registrations/MyRegistrationStatus";
 

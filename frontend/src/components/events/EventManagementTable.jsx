@@ -28,11 +28,12 @@ const EventManagementTable = ({
   const [statusFilter, setStatusFilter] = useState("all");
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Tính số đơn chờ duyệt cho từng sự kiện
+  // Tính số đơn chờ duyệt
   const getPendingCount = (eventId) => {
     return registrations.filter(
       (reg) =>
-        (reg.eventId || reg.event?._id) === eventId && reg.status === "pending"
+        (reg.eventId?._id || reg.eventId || reg.event?._id) === eventId &&
+        (reg.status === "pending" || reg.status === "waitlisted")
     ).length;
   };
 
@@ -84,10 +85,10 @@ const EventManagementTable = ({
   return (
     <div
       className={`bg-white shadow-sm border border-gray-200 transition-all duration-300 flex flex-col rounded-xl overflow-hidden ${
-        isExpanded ? "fixed inset-0 z-50 rounded-none" : "relative h-full"
+        isExpanded ? "fixed inset-4 z-50 rounded-2xl" : "relative h-full"
       }`}>
-      {/* Header */}
-      <div className='p-6 border-b border-gray-100 bg-white flex-none'>
+      {/* HEADER - CỐ ĐỊNH KHI SCROLL */}
+      <div className='sticky top-0 z-10 bg-white border-b border-gray-100 p-6 flex-none'>
         <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
           <div className='flex items-center gap-3'>
             <h2 className='text-xl font-bold text-gray-900'>
@@ -106,7 +107,6 @@ const EventManagementTable = ({
           </div>
 
           <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
-            {/* Search */}
             <div className='relative'>
               <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
               <input
@@ -118,7 +118,6 @@ const EventManagementTable = ({
               />
             </div>
 
-            {/* Filter */}
             <div className='relative'>
               <Filter className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
               <select
@@ -135,13 +134,11 @@ const EventManagementTable = ({
         </div>
       </div>
 
-      {/* Table - Scrollable */}
-      <div
-        className='flex-1 overflow-y-auto bg-gray-50'
-        style={{ maxHeight: isExpanded ? "calc(100vh - 140px)" : "auto" }}>
+      {/* BODY - SCROLL ĐỘC LẬP */}
+      <div className='flex-1 overflow-y-auto bg-gray-50'>
         <div className='p-6'>
           {filteredEvents.length > 0 ? (
-            <div className='grid gap-4 md:grid-cols-1'>
+            <div className='grid gap-5'>
               {filteredEvents.map((event) => {
                 const pendingCount = getPendingCount(event._id || event.id);
                 const status = getStatusConfig(event.status);
@@ -150,24 +147,24 @@ const EventManagementTable = ({
                 return (
                   <div
                     key={event._id || event.id}
-                    className='bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow'>
-                    <div className='flex flex-col lg:flex-row justify-between gap-5'>
+                    className='bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200'>
+                    <div className='flex flex-col lg:flex-row justify-between gap-6'>
                       {/* Thông tin chính */}
                       <div className='flex-1'>
-                        <div className='flex items-start justify-between mb-3'>
-                          <h3 className='text-lg font-semibold text-gray-900 truncate pr-4'>
+                        <div className='flex items-start justify-between mb-4'>
+                          <h3 className='text-lg font-semibold text-gray-900 line-clamp-1'>
                             {event.title}
                           </h3>
                           <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${status.bg} ${status.text} border ${status.border}`}>
-                            <StatusIcon className='w-3.5 h-3.5' />
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${status.bg} ${status.text} border ${status.border}`}>
+                            <StatusIcon className='w-4 h-4' />
                             {status.label}
                           </span>
                         </div>
 
-                        <div className='space-y-2 text-sm text-gray-600'>
+                        <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-600'>
                           <div className='flex items-center gap-2'>
-                            <Calendar className='w-4 h-4 text-gray-500' />
+                            <Calendar className='w-4 h-4 text-gray-500 flex-shrink-0' />
                             <span>
                               {event.startDate
                                 ? new Date(event.startDate).toLocaleDateString(
@@ -177,41 +174,41 @@ const EventManagementTable = ({
                             </span>
                           </div>
                           <div className='flex items-center gap-2'>
-                            <MapPin className='w-4 h-4 text-gray-500' />
+                            <MapPin className='w-4 h-4 text-gray-500 flex-shrink-0' />
                             <span className='truncate'>
                               {event.location || "Chưa có địa điểm"}
                             </span>
                           </div>
                           <div className='flex items-center gap-2'>
-                            <Users className='w-4 h-4 text-gray-500' />
+                            <Users className='w-4 h-4 text-gray-500 flex-shrink-0' />
                             <span>
-                              Tối đa {event.maxParticipants || 0} tình nguyện
+                              Tối đa {event.maxParticipants || "?"} tình nguyện
                               viên
                             </span>
                           </div>
                         </div>
 
                         {pendingCount > 0 && (
-                          <div className='mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-xs font-bold'>
-                            <Clock className='w-3.5 h-3.5' />
+                          <div className='mt-4 inline-flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-sm font-bold'>
+                            <Clock className='w-4 h-4' />
                             {pendingCount} đơn đăng ký mới
                           </div>
                         )}
                       </div>
 
-                      {/* Hành động */}
-                      <div className='flex items-center gap-2 self-start lg:self-center'>
+                      {/* Nút hành động */}
+                      <div className='flex items-center gap-3 self-start lg:self-center'>
                         {event.status === "pending" && (
                           <>
                             <button
                               onClick={() => onApprove(event)}
-                              className='p-2.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition'
+                              className='p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition'
                               title='Duyệt sự kiện'>
                               <CheckCircle className='w-5 h-5' />
                             </button>
                             <button
                               onClick={() => onReject(event)}
-                              className='p-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition'
+                              className='p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition'
                               title='Từ chối'>
                               <XCircle className='w-5 h-5' />
                             </button>
@@ -220,14 +217,14 @@ const EventManagementTable = ({
 
                         <button
                           onClick={() => onViewEvent(event)}
-                          className='p-2.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition'
+                          className='p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition'
                           title='Xem chi tiết'>
                           <Eye className='w-5 h-5' />
                         </button>
 
                         <button
                           onClick={() => onDeleteEvent(event)}
-                          className='p-2.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-red-50 hover:text-red-600 transition'
+                          className='p-3 bg-gray-50 text-gray-500 rounded-xl hover:bg-red-50 hover:text-red-600 transition'
                           title='Xóa sự kiện'>
                           <Trash2 className='w-5 h-5' />
                         </button>
@@ -238,13 +235,10 @@ const EventManagementTable = ({
               })}
             </div>
           ) : (
-            <div className='text-center py-16 text-gray-500'>
-              <p className='text-lg font-medium'>
-                Không tìm thấy sự kiện nào phù hợp
-              </p>
-              <p className='text-sm mt-2'>
-                Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc
-              </p>
+            <div className='text-center py-20 text-gray-500'>
+              <Calendar className='w-16 h-16 mx-auto text-gray-300 mb-4' />
+              <p className='text-lg font-medium'>Không tìm thấy sự kiện nào</p>
+              <p className='text-sm mt-2'>Thử thay đổi từ khóa hoặc bộ lọc</p>
             </div>
           )}
         </div>

@@ -20,7 +20,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 
 // Page components
 import HomePage from "./pages/public/Home.jsx";
-import Dashboard from "./pages/dashboard/dashboard.jsx";
+import Dashboard from "./pages/dashboard/Dashboard.jsx";
 import AdminDashboard from "./pages/dashboard/AdminDashboard.jsx";
 import ManagerDashboard from "./pages/dashboard/ManagerDashboard.jsx";
 import Events from "./pages/public/Events.jsx";

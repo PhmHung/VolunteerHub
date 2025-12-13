@@ -210,12 +210,14 @@ if (!admin.apps.length) {
   }
 }
 
-const firebaseLogin = async (req, res, next) => {
+const firebaseLogin = asyncHandler(async (req, res) => {
   const { idToken } = req.body;
   if (!idToken) {
     res.status(400);
     throw new Error("Firebase ID Token is required.");
   }
+
+  // ... (giữ nguyên phần verify token) ...
   let decodedToken;
   try {
     decodedToken = await admin.auth().verifyIdToken(idToken);
@@ -225,14 +227,15 @@ const firebaseLogin = async (req, res, next) => {
   }
 
   const { email } = decodedToken;
-
   const user = await User.findOne({ userEmail: email });
 
   if (!user) {
     res.status(404);
+    // 👇 Bây giờ dòng này sẽ trả về JSON lỗi 404 cho frontend chứ không làm sập server nữa
     throw new Error("Account not found. Please register first.");
   }
 
+  // ... (phần trả về payload giữ nguyên)
   const payload = {
     _id: user._id,
     userName: user.userName,
@@ -244,10 +247,8 @@ const firebaseLogin = async (req, res, next) => {
     token: generateToken(user._id),
   };
 
-  console.log("Login information:", payload);
-
-  res.status(201).json(payload);
-};
+  res.status(200).json(payload);
+});
 
 export {
   saveCode,

@@ -15,7 +15,7 @@ import {
   createPost,
   createComment,
   toggleReaction,
-} from "../../features/channel/channelSlice";
+} from "../../features/channelSlice";
 
 const EventChannel = ({ eventId, user }) => {
   const dispatch = useDispatch();

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { EVENT_STATUS } from "../../types";
 import { EVENT_CATEGORIES } from "../../utils/constants";
 import { eventValidationSchema } from "../../utils/validationSchemas";
-import LocationPicker from "./LocationPicker";
+import LocationPicker from "./LocationPick";
 
 // Icon
 const CheckIcon = () => (

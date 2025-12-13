@@ -9,7 +9,7 @@ const users = [
     password: bcrypt.hashSync("AP231!", 10),
     role: "admin",
     phoneNumber: "0987654321",
-    biography: "",
+    biography: null,
     status: "active",
   },
   {
@@ -17,7 +17,8 @@ const users = [
     userEmail: "managerA@example.com",
     password: bcrypt.hashSync("MP456@", 10),
     role: "manager",
-    phoneNumber: "",
+    phoneNumber: null,
+    biography: null,
     status: "active",
   },
   {
@@ -26,6 +27,7 @@ const users = [
     password: bcrypt.hashSync("VP789#", 10),
     role: "volunteer",
     phoneNumber: "0912345678",
+    biography: null,
     status: "active",
   },
   {
@@ -34,6 +36,7 @@ const users = [
     password: bcrypt.hashSync("IP123!", 10),
     role: "volunteer",
     phoneNumber: "0355123456",
+    biography: null,
     status: "inactive",
   },
   {
@@ -41,6 +44,7 @@ const users = [
     userEmail: "Dungnguyen@gmail.com",
     password: bcrypt.hashSync("MP123$", 10),
     phoneNumber: "0981234567",
+    biography: null,
     role: "volunteer",
     status: "active",
   },
@@ -50,6 +54,7 @@ const users = [
     password: bcrypt.hashSync("MP456@", 10), // Pass: MP456@
     role: "manager",
     phoneNumber: "0902222222",
+    biography: null,
     status: "active",
   },
   ...[
@@ -84,6 +89,7 @@ const users = [
     password: bcrypt.hashSync("Vol123!", 10),
     role: "volunteer",
     phoneNumber: "09" + Math.floor(100000000 + Math.random() * 900000000),
+    biography: null,
     status: "active",
   })),
 ];

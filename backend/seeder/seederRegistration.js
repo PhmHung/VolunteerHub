@@ -24,7 +24,6 @@ const importData = async () => {
         "LỖI IMPORT: Biến 'Event' chưa nhận được Model. Hãy kiểm tra lại tên file 'eventModel.js' (chữ hoa/thường) trong thư mục models."
       );
     }
-    // ----------------------------------------------------
 
     console.log("1. Đang tải dữ liệu Users và Events...".yellow);
 
@@ -58,14 +57,10 @@ const importData = async () => {
 
     // Duyệt qua từng sự kiện
     for (const event of events) {
-      // Random số lượng tham gia (từ 5 - 15 người)
-      // Riêng sự kiện "Tao Đàn" (nếu có) thì fix cứng 19 người
       let numParticipants = Math.floor(Math.random() * 10) + 5;
       if (event.title && event.title.includes("Tao Đàn")) {
         numParticipants = 19;
       }
-
-      // Xáo trộn volunteer và lấy n người
       const shuffled = volunteers.sort(() => 0.5 - Math.random());
       const selectedVolunteers = shuffled.slice(0, numParticipants);
 

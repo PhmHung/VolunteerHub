@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from "react-redux";
 // Icons
 import {
   Calendar,
-  CheckSquare,
   Users,
   Briefcase,
   Bell,
@@ -13,7 +12,6 @@ import {
   FileJson,
   FileSpreadsheet,
   ArrowUpRight,
-  Eye,
 } from "lucide-react";
 import {
   LineChart,
@@ -51,7 +49,6 @@ import {
 
 // Utils & Components
 import { exportToCSV, exportToJSON } from "../../utils/exportUtils";
-import EventApprovalModal from "../../components/events/EventApprovalModal";
 import VolunteerApprovalModal from "../../components/approvals/VolunteerApprovalModal";
 import ManagerApprovalModal from "../../components/approvals/ManagerApprovalModal";
 import UserDetailModal from "../../components/users/UserDetailModal";
@@ -60,9 +57,9 @@ import { ToastContainer } from "../../components/common/Toast";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import PromptModal from "../../components/common/PromptModal";
 
-// Sub-components (Tabs)
+// NEW COMPONENTS
+import EventManagementTable from "../../components/events/EventManagementTable";
 import UserManagementTable from "../../components/users/UserManagementTable";
-import AdminEventsTab from "../../components/events/EventManagementTable";
 
 const StatCard = ({ title, value, change, icon, color }) => {
   const Icon = icon;
@@ -90,68 +87,66 @@ const StatCard = ({ title, value, change, icon, color }) => {
 const AdminDashboard = ({ user }) => {
   const dispatch = useDispatch();
 
-  // --- Redux State ---
+  // Redux State
   const {
-    list: allEvents,
+    list: allEvents = [],
     successMessage: eventSuccessMessage,
     error: eventError,
   } = useSelector((state) => state.event);
 
   const {
-    users: allUsers,
+    users: allUsers = [],
     message: userMessage,
     error: userError,
   } = useSelector((state) => state.user);
 
   const {
-    pendingRegistrations,
+    pendingRegistrations = [],
     successMessage: regSuccessMessage,
     error: regError,
   } = useSelector((state) => state.registration);
 
-  // --- Local State ---
+  // Local State
   const [activeTab, setActiveTab] = useState("overview");
   const [pendingEvents, setPendingEvents] = useState([]);
   const [pendingManagerRequests, setPendingManagerRequests] = useState([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  // Modal Selections
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  // Modal states
   const [selectedRegistration, setSelectedRegistration] = useState(null);
   const [selectedManagerRequest, setSelectedManagerRequest] = useState(null);
-
-  // Detail Views
   const [viewingUser, setViewingUser] = useState(null);
   const [viewingEventDetail, setViewingEventDetail] = useState(null);
 
   const [toasts, setToasts] = useState([]);
 
-  // Confirmation/Prompt Modals
+  // Confirm / Prompt modals
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: "",
     message: "",
     onConfirm: null,
     type: "question",
+    confirmText: "",
   });
   const [promptModal, setPromptModal] = useState({
     isOpen: false,
     title: "",
     message: "",
     onConfirm: null,
+    confirmText: "",
+    cancelText: "Hủy",
   });
 
-  // --- Helpers ---
+  // Helpers
   const addToast = (message, type = "success") => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
   };
+  const removeToast = (id) =>
+    setToasts((prev) => prev.filter((t) => t.id !== id));
 
-  const removeToast = (id) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
-
-  // --- Effects ---
+  // Effects
   useEffect(() => {
     dispatch(fetchManagementEvents({ status: "", limit: 1000 }));
     dispatch(fetchAllUsers());
@@ -165,7 +160,7 @@ const AdminDashboard = ({ user }) => {
     );
   }, [allEvents, allUsers]);
 
-  // Handle messages
+  // Toast handling
   useEffect(() => {
     if (eventSuccessMessage) {
       addToast(eventSuccessMessage, "success");
@@ -201,7 +196,7 @@ const AdminDashboard = ({ user }) => {
     dispatch,
   ]);
 
-  // --- Handlers ---
+  // Export handler
   const handleExport = (type, format) => {
     const timestamp = new Date().toISOString().split("T")[0];
     let data = [];
@@ -213,38 +208,28 @@ const AdminDashboard = ({ user }) => {
       data = allUsers.filter((u) => u.role === "volunteer");
       filename = `volunteers_export_${timestamp}`;
     }
-    if (format === "csv") {
-      exportToCSV(data, filename);
-    } else {
-      exportToJSON(data, filename);
-    }
+    format === "csv"
+      ? exportToCSV(data, filename)
+      : exportToJSON(data, filename);
     setShowExportMenu(false);
   };
 
-  // View Details
-  const handleViewUser = (user) => {
-    setViewingUser(user);
-    setViewingEventDetail(null);
-  };
+  // View handlers
+  const handleViewUser = (user) => setViewingUser(user);
+  const handleViewEvent = (event) => setViewingEventDetail(event);
 
-  const handleViewEvent = (event) => {
-    console.log("Handling view event in Dashboard:", event);
-    setViewingEventDetail(event);
-  };
-
-  // --- Logic: Event Actions ---
+  // Event actions
   const handleApproveEvent = (event) => {
     setConfirmModal({
       isOpen: true,
       title: "Duyệt sự kiện",
-      message: `Bạn có chắc chắn muốn duyệt sự kiện "${event.title}" không?`,
+      message: `Bạn có chắc muốn duyệt sự kiện "${event.title}"?`,
       type: "success",
-      confirmText: "Duyệt ngay",
+      confirmText: "Duyệt",
       onConfirm: async () => {
         await dispatch(
           approveEvent({ eventId: event._id, status: "approved" })
         ).unwrap();
-        setSelectedEvent(null);
         dispatch(fetchManagementEvents({ status: "" }));
       },
     });
@@ -254,9 +239,8 @@ const AdminDashboard = ({ user }) => {
     setPromptModal({
       isOpen: true,
       title: "Từ chối sự kiện",
-      message: `Vui lòng nhập lý do từ chối sự kiện "${event.title}":`,
+      message: `Lý do từ chối sự kiện "${event.title}":`,
       confirmText: "Từ chối",
-      cancelText: "Hủy bỏ",
       onConfirm: async (reason) => {
         await dispatch(
           approveEvent({
@@ -265,7 +249,6 @@ const AdminDashboard = ({ user }) => {
             adminNote: reason,
           })
         ).unwrap();
-        setSelectedEvent(null);
         dispatch(fetchManagementEvents({ status: "" }));
       },
     });
@@ -278,44 +261,38 @@ const AdminDashboard = ({ user }) => {
       message: (
         <div>
           <p>
-            Bạn có chắc chắn muốn <strong>xóa sự kiện</strong> này không?
+            Bạn chắc chắn muốn <strong>xóa vĩnh viễn</strong> sự kiện?
           </p>
-          <p className='mt-2 text-gray-900 font-medium'>"{event.title}"</p>
-          <p className='mt-2 text-sm text-red-600'>
-            Hành động này <strong>không thể hoàn tác</strong>.
+          <p className='font-medium mt-2'>"{event.title}"</p>
+          <p className='text-sm text-red-600 mt-2'>
+            Hành động này không thể hoàn tác.
           </p>
         </div>
       ),
       type: "danger",
       confirmText: "Xóa vĩnh viễn",
       onConfirm: async () => {
-        try {
-          await dispatch(deleteEvent(event._id)).unwrap();
-          addToast(`Đã xóa sự kiện "${event.title}" thành công!`, "success");
-          dispatch(fetchManagementEvents({ status: "" }));
-        } catch (error) {
-          addToast(error || "Không thể xóa sự kiện.", "error");
-        }
+        await dispatch(deleteEvent(event._id)).unwrap();
+        addToast(`Đã xóa sự kiện "${event.title}"`, "success");
+        dispatch(fetchManagementEvents({ status: "" }));
       },
     });
   };
 
-  // --- Logic: Registration Actions ---
+  // Registration actions
   const handleApproveRegistration = (reg) => {
     setConfirmModal({
       isOpen: true,
-      title: "Duyệt đăng ký",
-      message: `Chấp nhận tình nguyện viên ${reg.volunteer?.userName} tham gia sự kiện?`,
+      title: "Chấp nhận đăng ký",
+      message: `Chấp nhận ${
+        reg.volunteer?.userName || "tình nguyện viên"
+      } tham gia sự kiện?`,
       type: "success",
       confirmText: "Chấp nhận",
       onConfirm: async () => {
-        try {
-          await dispatch(acceptRegistration(reg._id)).unwrap();
-          setSelectedRegistration(null);
-          dispatch(fetchPendingRegistrations());
-        } catch (error) {
-          addToast(error || "Lỗi khi chấp nhận đăng ký", "error");
-        }
+        await dispatch(acceptRegistration(reg._id)).unwrap();
+        setSelectedRegistration(null);
+        dispatch(fetchPendingRegistrations());
       },
     });
   };
@@ -324,40 +301,39 @@ const AdminDashboard = ({ user }) => {
     setPromptModal({
       isOpen: true,
       title: "Từ chối đăng ký",
-      message: `Nhập lý do từ chối tình nguyện viên ${reg.volunteer?.userName}:`,
+      message: `Lý do từ chối ${
+        reg.volunteer?.userName || "tình nguyện viên"
+      }:`,
       confirmText: "Từ chối",
       onConfirm: async (reason) => {
-        try {
-          await dispatch(
-            rejectRegistration({ registrationId: reg._id, reason })
-          ).unwrap();
-          setSelectedRegistration(null);
-          dispatch(fetchPendingRegistrations());
-        } catch (error) {
-          addToast(error || "Lỗi khi từ chối đăng ký", "error");
-        }
+        await dispatch(
+          rejectRegistration({ registrationId: reg._id, reason })
+        ).unwrap();
+        setSelectedRegistration(null);
+        dispatch(fetchPendingRegistrations());
       },
     });
   };
 
-  // --- Logic: Manager Requests ---
+  // Manager request actions
   const handleApproveManager = (req) => {
     setConfirmModal({
       isOpen: true,
-      title: "Duyệt yêu cầu Manager",
-      message: `Xác nhận thăng cấp cho ${req.userName} lên Manager?`,
+      title: "Thăng cấp Manager",
+      message: `Xác nhận thăng cấp ${
+        req.candidate?.userName || req.userName
+      } lên Manager?`,
       type: "success",
       confirmText: "Thăng cấp",
       onConfirm: async () => {
-        try {
-          await dispatch(
-            updateUserRole({ userId: req._id, role: "manager" })
-          ).unwrap();
-          setSelectedManagerRequest(null);
-          dispatch(fetchAllUsers());
-        } catch (error) {
-          addToast(error || "Lỗi khi thăng cấp", "error");
-        }
+        await dispatch(
+          updateUserRole({
+            userId: req._id || req.candidate?._id,
+            role: "manager",
+          })
+        ).unwrap();
+        setSelectedManagerRequest(null);
+        dispatch(fetchAllUsers());
       },
     });
   };
@@ -365,50 +341,41 @@ const AdminDashboard = ({ user }) => {
   const handleRejectManager = (req) => {
     setPromptModal({
       isOpen: true,
-      title: "Từ chối yêu cầu",
-      message: `Nhập lý do từ chối yêu cầu của ${req.userName}:`,
+      title: "Từ chối yêu cầu Manager",
+      message: `Lý do từ chối yêu cầu của ${
+        req.candidate?.userName || req.userName
+      }:`,
       confirmText: "Từ chối",
-      onConfirm: async () => {
-        addToast("Đã từ chối yêu cầu.", "info");
+      onConfirm: () => {
+        addToast("Đã từ chối yêu cầu Manager", "info");
         setSelectedManagerRequest(null);
         dispatch(fetchAllUsers());
       },
     });
   };
 
-  // --- Logic: User Management ---
+  // User management actions
   const handleToggleUserStatus = (user) => {
     const newStatus = user.status === "active" ? "inactive" : "active";
     setConfirmModal({
       isOpen: true,
       title: newStatus === "inactive" ? "Khóa tài khoản" : "Mở khóa tài khoản",
-      message: (
-        <div className='text-center'>
-          <p>
-            Xác nhận{" "}
-            <strong>{newStatus === "inactive" ? "khóa" : "mở khóa"}</strong> tài
-            khoản:
-          </p>
-          <p className='font-bold text-xl mt-2'>"{user.userName}"</p>
-        </div>
-      ),
+      message: `Xác nhận ${
+        newStatus === "inactive" ? "khóa" : "mở khóa"
+      } tài khoản "${user.userName}"?`,
       type: newStatus === "inactive" ? "warning" : "success",
       confirmText: newStatus === "inactive" ? "Khóa" : "Mở khóa",
       onConfirm: async () => {
-        try {
-          await dispatch(
-            updateUserStatus({ userId: user._id, status: newStatus })
-          ).unwrap();
-          addToast(
-            newStatus === "inactive"
-              ? "Đã khóa tài khoản!"
-              : "Đã mở khóa tài khoản!",
-            "success"
-          );
-          dispatch(fetchAllUsers());
-        } catch {
-          addToast("Không thể thay đổi trạng thái", "error");
-        }
+        await dispatch(
+          updateUserStatus({ userId: user._id, status: newStatus })
+        ).unwrap();
+        addToast(
+          newStatus === "inactive"
+            ? "Đã khóa tài khoản"
+            : "Đã mở khóa tài khoản",
+          "success"
+        );
+        dispatch(fetchAllUsers());
       },
     });
   };
@@ -416,100 +383,90 @@ const AdminDashboard = ({ user }) => {
   const handleDeleteUser = (user) => {
     setConfirmModal({
       isOpen: true,
-      title: "Xóa tài khoản người dùng",
+      title: "Xóa tài khoản",
       message: (
         <div>
           <p>
-            Bạn có chắc muốn <strong>xóa vĩnh viễn</strong> tài khoản này?
+            Bạn chắc chắn muốn <strong>xóa vĩnh viễn</strong> tài khoản?
           </p>
-          <p className='mt-2 font-medium text-gray-900'>"{user.userName}"</p>
-          <p className='mt-2 text-sm text-red-600'>
-            Dữ liệu sẽ bị xóa và <strong>không thể khôi phục</strong>.
-          </p>
+          <p className='font-medium mt-2'>"{user.userName}"</p>
+          <p className='text-sm text-red-600 mt-2'>Không thể khôi phục.</p>
         </div>
       ),
       type: "danger",
       confirmText: "Xóa vĩnh viễn",
       onConfirm: async () => {
-        try {
-          await dispatch(deleteUser(user._id)).unwrap();
-          addToast(`Đã xóa người dùng "${user.userName}"`, "success");
-          dispatch(fetchAllUsers());
-        } catch {
-          addToast("Không thể xóa người dùng này", "error");
-        }
+        await dispatch(deleteUser(user._id)).unwrap();
+        addToast(`Đã xóa người dùng "${user.userName}"`, "success");
+        dispatch(fetchAllUsers());
       },
     });
   };
 
-  // Render variables to keep JSX clean
-  const isFullWidthTab =
-    activeTab === "users_management" || activeTab === "events_management";
+  const totalPending =
+    pendingEvents.length +
+    pendingRegistrations.length +
+    pendingManagerRequests.length;
 
   return (
-    // FIX: Sử dụng min-h-screen để trang tự giãn theo nội dung => Dùng thanh cuộn trình duyệt (toàn trang)
-    <div className='min-h-screen bg-gray-50 flex flex-col font-sans'>
-      {/* Top Bar - Sticky: Luôn dính ở trên cùng */}
+    <div className='min-h-screen bg-gray-50 font-sans'>
+      {/* Header */}
       <div className='sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm'>
         <h1 className='text-2xl font-bold text-gray-800'>Admin Dashboard</h1>
         <div className='flex items-center gap-4'>
-          {/* Export Button */}
-          <div className='relative hidden md:block'>
+          {/* Export */}
+          <div className='relative'>
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
-              className='flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition shadow-sm'>
+              className='flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition'>
               <Download className='w-4 h-4' />
               Xuất dữ liệu
             </button>
-
             {showExportMenu && (
-              <div className='absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200'>
-                <div className='px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider'>
+              <div className='absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50'>
+                <div className='px-4 py-2 text-xs font-semibold text-gray-400 uppercase'>
                   Sự kiện
                 </div>
                 <button
                   onClick={() => handleExport("events", "csv")}
-                  className='w-full px-4 py-2 text-left text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2'>
-                  <FileSpreadsheet className='w-4 h-4 text-emerald-600' /> Xuất
-                  CSV
+                  className='w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2'>
+                  <FileSpreadsheet className='w-4 h-4 text-emerald-600' /> CSV
                 </button>
                 <button
                   onClick={() => handleExport("events", "json")}
-                  className='w-full px-4 py-2 text-left text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2'>
-                  <FileJson className='w-4 h-4 text-amber-600' /> Xuất JSON
+                  className='w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2'>
+                  <FileJson className='w-4 h-4 text-amber-600' /> JSON
                 </button>
-                <div className='border-t border-gray-100 my-1'></div>
-                <div className='px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider'>
+                <div className='border-t my-1'></div>
+                <div className='px-4 py-2 text-xs font-semibold text-gray-400 uppercase'>
                   Tình nguyện viên
                 </div>
                 <button
                   onClick={() => handleExport("volunteers", "csv")}
-                  className='w-full px-4 py-2 text-left text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2'>
-                  <FileSpreadsheet className='w-4 h-4 text-emerald-600' /> Xuất
-                  CSV
+                  className='w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2'>
+                  <FileSpreadsheet className='w-4 h-4 text-emerald-600' /> CSV
                 </button>
                 <button
                   onClick={() => handleExport("volunteers", "json")}
-                  className='w-full px-4 py-2 text-left text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2'>
-                  <FileJson className='w-4 h-4 text-amber-600' /> Xuất JSON
+                  className='w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2'>
+                  <FileJson className='w-4 h-4 text-amber-600' /> JSON
                 </button>
               </div>
             )}
           </div>
 
           <div className='relative'>
-            <Bell className='w-6 h-6 text-gray-500 cursor-pointer hover:text-gray-700 transition' />
-            <span className='absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center border-2 border-white'>
-              {pendingEvents.length +
-                pendingRegistrations.length +
-                pendingManagerRequests.length}
-            </span>
+            <Bell className='w-6 h-6 text-gray-500 cursor-pointer hover:text-gray-700' />
+            {totalPending > 0 && (
+              <span className='absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center'>
+                {totalPending > 99 ? "99+" : totalPending}
+              </span>
+            )}
           </div>
-          <div className='flex items-center gap-3 pl-4 border-l border-gray-200'>
+
+          <div className='flex items-center gap-3 pl-4 border-l'>
             <div className='text-right hidden sm:block'>
-              <p className='text-sm font-bold text-gray-800'>
-                {user?.userName || "Admin User"}
-              </p>
+              <p className='font-bold'>{user?.userName || "Admin"}</p>
               <p className='text-xs text-gray-500'>Administrator</p>
             </div>
             <div className='w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold'>
@@ -518,22 +475,23 @@ const AdminDashboard = ({ user }) => {
           </div>
         </div>
       </div>
-      {/* Main Content Area - Không còn overflow-hidden, nội dung sẽ dài ra và dùng scroll của body */}
-      <div className='p-4 md:p-8 flex-1'>
+
+      {/* Main Content */}
+      <div className='p-4 md:p-8'>
         <div className='max-w-7xl mx-auto space-y-6'>
-          {/* Stats Overview - Chỉ hiện ở tab Overview */}
+          {/* Stats - only on overview */}
           {activeTab === "overview" && (
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-4 duration-500'>
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
               <StatCard
                 title='Tổng người dùng'
-                value='1,234'
+                value={allUsers.length}
                 change={12}
                 icon={Users}
                 color='bg-blue-500'
               />
               <StatCard
                 title='Sự kiện hoạt động'
-                value='56'
+                value={allEvents.filter((e) => e.status === "approved").length}
                 change={8}
                 icon={Calendar}
                 color='bg-emerald-500'
@@ -542,7 +500,7 @@ const AdminDashboard = ({ user }) => {
                 title='Chờ duyệt sự kiện'
                 value={pendingEvents.length}
                 change={-5}
-                icon={CheckSquare}
+                icon={Calendar}
                 color='bg-amber-500'
               />
               <StatCard
@@ -555,27 +513,22 @@ const AdminDashboard = ({ user }) => {
             </div>
           )}
 
-          {/* Main Tabs Container */}
-          <div
-            className={`bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col ${
-              isFullWidthTab ? "min-h-[80vh]" : "min-h-[500px]"
-            }`}>
+          {/* Tabs Container */}
+          <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[600px] lg:h-[calc(100vh-140px)]'>
             {/* Tab Navigation */}
-            <div className='border-b border-gray-200 px-6 pt-4 bg-white sticky top-[73px] z-20'>
-              {" "}
-              {/* Sticky dưới header */}
-              <div className='flex gap-8 overflow-x-auto no-scrollbar'>
+            <div className='border-b border-gray-200 px-6 pt-4 bg-white shrink-0 z-20'>
+              <div className='flex gap-8 overflow-x-auto no-scrollbar pb-4'>
                 {[
-                  { id: "overview", label: "Tổng quan", count: 0 },
+                  { id: "overview", label: "Tổng quan" },
                   {
                     id: "events",
-                    label: "Duyệt Sự Kiện",
+                    label: "Duyệt sự kiện",
                     count: pendingEvents.length,
                     color: "amber",
                   },
                   {
                     id: "volunteers",
-                    label: "Duyệt Đăng Ký",
+                    label: "Duyệt đăng ký",
                     count: pendingRegistrations.length,
                     color: "blue",
                   },
@@ -585,21 +538,13 @@ const AdminDashboard = ({ user }) => {
                     count: pendingManagerRequests.length,
                     color: "purple",
                   },
-                  {
-                    id: "users_management",
-                    label: "Quản lý người dùng",
-                    count: 0,
-                  },
-                  {
-                    id: "events_management",
-                    label: "Quản lý sự kiện",
-                    count: 0,
-                  },
+                  { id: "users_management", label: "Quản lý người dùng" },
+                  { id: "events_management", label: "Quản lý sự kiện" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`pb-4 text-sm font-medium transition relative whitespace-nowrap ${
+                    className={`pb-4 text-sm font-medium relative whitespace-nowrap ${
                       activeTab === tab.id
                         ? "text-emerald-600"
                         : "text-gray-500 hover:text-gray-700"
@@ -612,413 +557,215 @@ const AdminDashboard = ({ user }) => {
                       </span>
                     )}
                     {activeTab === tab.id && (
-                      <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-t-full' />
+                      <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600' />
                     )}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Tab Content Area */}
-            <div className={`flex-1 ${isFullWidthTab ? "p-0" : "p-6"}`}>
-              {/* --- TAB: OVERVIEW --- */}
+            {/* Tab Content */}
+            <div className='flex-1 p-6 overflow-y-auto'>
+              {/* Overview */}
               {activeTab === "overview" && (
-                <div className='space-y-8 animate-in fade-in duration-300'>
-                  <div className='grid gap-6 lg:grid-cols-3'>
-                    <div className='lg:col-span-2 rounded-xl bg-white p-4 border border-gray-100'>
-                      <h2 className='text-lg font-semibold text-gray-800 mb-4'>
-                        Hoạt động người tham gia
-                      </h2>
-                      <div className='h-64 w-full min-w-0'>
-                        <ResponsiveContainer width='100%' height='100%'>
-                          <LineChart
-                            data={[
-                              { name: "Jan", attendees: 22 },
-                              { name: "Feb", attendees: 15 },
-                              { name: "Mar", attendees: 35 },
-                              { name: "Apr", attendees: 28 },
-                              { name: "May", attendees: 45 },
-                              { name: "Jun", attendees: 60 },
-                            ]}>
-                            <CartesianGrid
-                              strokeDasharray='3 3'
-                              vertical={false}
-                              stroke='#e2e8f0'
-                            />
-                            <XAxis
-                              dataKey='name'
-                              axisLine={false}
-                              tickLine={false}
-                            />
-                            <YAxis axisLine={false} tickLine={false} />
-                            <Tooltip />
-                            <Line
-                              type='monotone'
-                              dataKey='attendees'
-                              stroke='#10b981'
-                              strokeWidth={3}
-                              dot={{ r: 4 }}
-                              activeDot={{ r: 6 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                    <div className='rounded-xl bg-white p-4 border border-gray-100'>
-                      <h2 className='text-lg font-semibold text-gray-800 mb-4'>
-                        Loại sự kiện
-                      </h2>
-                      <div className='h-48 w-full min-w-0'>
-                        <ResponsiveContainer width='100%' height='100%'>
-                          <PieChart>
-                            <Pie
-                              data={[
-                                {
-                                  name: "Môi trường",
-                                  value: 35,
-                                  color: "#10b981",
-                                },
-                                {
-                                  name: "Giáo dục",
-                                  value: 25,
-                                  color: "#3b82f6",
-                                },
-                                {
-                                  name: "Cộng đồng",
-                                  value: 20,
-                                  color: "#f59e0b",
-                                },
-                                { name: "Y tế", value: 20, color: "#ef4444" },
-                              ]}
-                              dataKey='value'
-                              innerRadius={40}
-                              outerRadius={70}
-                              paddingAngle={4}>
-                              <Cell key={0} fill='#10b981' />
-                              <Cell key={1} fill='#3b82f6' />
-                              <Cell key={2} fill='#f59e0b' />
-                              <Cell key={3} fill='#ef4444' />
-                            </Pie>
-                            <Tooltip />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className='mt-4 grid grid-cols-2 gap-2 text-xs text-gray-500'>
-                        <div className='flex items-center gap-2'>
-                          <span className='w-2 h-2 rounded-full bg-emerald-500'></span>
-                          Môi trường
-                        </div>
-                        <div className='flex items-center gap-2'>
-                          <span className='w-2 h-2 rounded-full bg-blue-500'></span>
-                          Giáo dục
-                        </div>
-                        <div className='flex items-center gap-2'>
-                          <span className='w-2 h-2 rounded-full bg-amber-500'></span>
-                          Cộng đồng
-                        </div>
-                        <div className='flex items-center gap-2'>
-                          <span className='w-2 h-2 rounded-full bg-red-500'></span>
-                          Y tế
-                        </div>
-                      </div>
-                    </div>
+                <div className='grid lg:grid-cols-3 gap-6'>
+                  <div className='lg:col-span-2 bg-white rounded-xl border p-6'>
+                    <h3 className='text-lg font-semibold mb-4'>
+                      Thống kê tham gia
+                    </h3>
+                    <ResponsiveContainer width='100%' height={300}>
+                      <LineChart
+                        data={[
+                          { name: "Jan", v: 30 },
+                          { name: "Feb", v: 45 },
+                          { name: "Mar", v: 38 },
+                          { name: "Apr", v: 62 },
+                          { name: "May", v: 55 },
+                          { name: "Jun", v: 80 },
+                        ]}>
+                        <CartesianGrid strokeDasharray='3 3' />
+                        <XAxis dataKey='name' />
+                        <YAxis />
+                        <Tooltip />
+                        <Line
+                          type='monotone'
+                          dataKey='v'
+                          stroke='#10b981'
+                          strokeWidth={3}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className='bg-white rounded-xl border p-6'>
+                    <h3 className='text-lg font-semibold mb-4'>
+                      Phân loại sự kiện
+                    </h3>
+                    <ResponsiveContainer width='100%' height={240}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Môi trường", value: 40, color: "#10b981" },
+                            { name: "Giáo dục", value: 25, color: "#3b82f6" },
+                            { name: "Cộng đồng", value: 20, color: "#f59e0b" },
+                            { name: "Y tế", value: 15, color: "#ef4444" },
+                          ]}
+                          dataKey='value'
+                          innerRadius={50}
+                          outerRadius={80}
+                          paddingAngle={5}>
+                          <Cell fill='#10b981' />
+                          <Cell fill='#3b82f6' />
+                          <Cell fill='#f59e0b' />
+                          <Cell fill='#ef4444' />
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               )}
 
-              {/* --- TAB: EVENTS APPROVAL --- */}
+              {/* Duyệt sự kiện (chỉ pending) */}
               {activeTab === "events" && (
-                <div className='overflow-x-auto animate-in fade-in duration-300'>
-                  <table className='w-full text-left border-collapse'>
-                    <thead>
-                      <tr className='border-b border-gray-100'>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider'>
-                          Sự kiện
-                        </th>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider'>
-                          Manager
-                        </th>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider'>
-                          Thời gian
-                        </th>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right'>
-                          Hành động
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className='divide-y divide-gray-50'>
-                      {pendingEvents.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan='4'
-                            className='py-12 text-center text-gray-500'>
-                            Không có sự kiện nào đang chờ duyệt.
-                          </td>
-                        </tr>
-                      ) : (
-                        pendingEvents.map((event) => (
-                          <tr
-                            key={event.id || event._id}
-                            className='hover:bg-gray-50 transition group'>
-                            <td className='py-4 px-4'>
-                              <div className='flex items-center gap-3'>
-                                <img
-                                  src={
-                                    event.image ||
-                                    "https://via.placeholder.com/40"
-                                  }
-                                  alt=''
-                                  className='w-12 h-12 rounded-lg object-cover shadow-sm bg-gray-100'
-                                />
-                                <div>
-                                  <p className='font-medium text-gray-900'>
-                                    {event.title}
-                                  </p>
-                                  <span className='text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full'>
-                                    {event.tags?.[0] || "Khác"}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-                            <td className='py-4 px-4 text-sm text-gray-500'>
-                              {event.createdBy?.userName || "N/A"}
-                            </td>
-                            <td className='py-4 px-4 text-sm text-gray-500'>
-                              {new Date(event.startDate).toLocaleDateString(
-                                "vi-VN"
-                              )}
-                            </td>
-                            <td className='py-4 px-4 text-right'>
-                              <button
-                                onClick={() => setSelectedEvent(event)}
-                                className='inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-sm font-medium transition'>
-                                <Eye className='w-4 h-4' /> Xem chi tiết
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                <EventManagementTable
+                  events={pendingEvents}
+                  registrations={pendingRegistrations}
+                  onApprove={handleApproveEvent}
+                  onReject={handleRejectEvent}
+                  onDeleteEvent={handleDeleteEvent}
+                  onViewEvent={handleViewEvent}
+                />
               )}
 
-              {/* --- TAB: VOLUNTEER REGISTRATIONS APPROVAL --- */}
+              {/* Duyệt đăng ký tình nguyện viên */}
               {activeTab === "volunteers" && (
-                <div className='overflow-x-auto animate-in fade-in duration-300'>
-                  <table className='w-full text-left border-collapse'>
-                    <thead>
-                      <tr className='border-b border-gray-100'>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider'>
-                          Tình nguyện viên
-                        </th>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider'>
-                          Đăng ký sự kiện
-                        </th>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider'>
-                          Ngày đăng ký
-                        </th>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right'>
-                          Hành động
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className='divide-y divide-gray-50'>
-                      {pendingRegistrations.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan='4'
-                            className='py-12 text-center text-gray-500'>
-                            Không có đăng ký nào đang chờ duyệt.
-                          </td>
-                        </tr>
-                      ) : (
-                        pendingRegistrations.map((reg) => {
-                          // FIX: Tạo biến an toàn để tránh lỗi crash khi user bị null
-                          const volunteer = reg.volunteer || {};
-                          const event = reg.event || {};
-
-                          return (
-                            <tr
-                              key={reg._id}
-                              className='hover:bg-gray-50 transition'>
-                              <td className='py-4 px-4'>
-                                <div className='flex items-center gap-3'>
-                                  <div className='w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden'>
-                                    {/* Kiểm tra profilePicture an toàn */}
-                                    {volunteer?.profilePicture ? (
-                                      <img
-                                        src={volunteer.profilePicture}
-                                        alt=''
-                                        className='w-full h-full object-cover'
-                                      />
-                                    ) : (
-                                      <span className='text-gray-400 font-bold'>
-                                        {/* Fallback ký tự đầu tiên hoặc "U" nếu không có tên */}
-                                        {volunteer?.userName?.charAt(0) || "U"}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <p className='font-medium text-gray-900'>
-                                      {/* Fallback tên hiển thị */}
-                                      {volunteer?.userName ||
-                                        "Người dùng đã xóa"}
-                                    </p>
-                                    <p className='text-xs text-gray-500'>
-                                      {volunteer?.userEmail || "---"}
-                                    </p>
-                                  </div>
+                <div className='space-y-4'>
+                  {pendingRegistrations.length === 0 ? (
+                    <div className='text-center py-12 text-gray-500'>
+                      Không có đăng ký nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    pendingRegistrations.map((reg) => {
+                      const vol = reg.volunteer || {};
+                      const evt = reg.event || {};
+                      return (
+                        <div
+                          key={reg._id}
+                          className='bg-white rounded-xl border p-5 flex items-center justify-between hover:shadow-md transition'>
+                          <div className='flex items-center gap-4'>
+                            <div className='w-12 h-12 rounded-full bg-gray-100 overflow-hidden'>
+                              {vol.profilePicture ? (
+                                <img
+                                  src={vol.profilePicture}
+                                  alt=''
+                                  className='w-full h-full object-cover'
+                                />
+                              ) : (
+                                <div className='w-full h-full flex items-center justify-center text-gray-500 font-bold'>
+                                  {vol.userName?.[0] || "U"}
                                 </div>
-                              </td>
-                              <td className='py-4 px-4'>
-                                <p className='text-sm font-medium text-gray-900 truncate max-w-[200px]'>
-                                  {event?.title || "Sự kiện không xác định"}
-                                </p>
-                              </td>
-                              <td className='py-4 px-4 text-sm text-gray-500'>
-                                {new Date(reg.registeredAt).toLocaleDateString(
-                                  "vi-VN"
-                                )}
-                              </td>
-                              <td className='py-4 px-4 text-right'>
-                                <button
-                                  onClick={() => setSelectedRegistration(reg)}
-                                  className='inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-sm font-medium transition'>
-                                  <Eye className='w-4 h-4' /> Xem hồ sơ
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+                              )}
+                            </div>
+                            <div>
+                              <p className='font-semibold'>
+                                {vol.userName || "Không rõ"}
+                              </p>
+                              <p className='text-sm text-gray-500'>
+                                Đăng ký:{" "}
+                                <span className='font-medium'>
+                                  {evt.title || "Sự kiện không xác định"}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className='flex items-center gap-3'>
+                            <button
+                              onClick={() => setSelectedRegistration(reg)}
+                              className='px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium'>
+                              Xem & Duyệt
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               )}
 
-              {/* --- TAB: MANAGER REQUESTS APPROVAL --- */}
+              {/* Duyệt Manager */}
               {activeTab === "managers" && (
-                <div className='overflow-x-auto animate-in fade-in duration-300'>
-                  <table className='w-full text-left border-collapse'>
-                    <thead>
-                      <tr className='border-b border-gray-100'>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider'>
-                          Ứng viên
-                        </th>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider'>
-                          Công việc hiện tại
-                        </th>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider'>
-                          Kinh nghiệm
-                        </th>
-                        <th className='py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right'>
-                          Hành động
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className='divide-y divide-gray-50'>
-                      {pendingManagerRequests.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan='4'
-                            className='py-12 text-center text-gray-500'>
-                            Không có yêu cầu nào đang chờ duyệt.
-                          </td>
-                        </tr>
-                      ) : (
-                        pendingManagerRequests.map((req) => (
-                          <tr
-                            key={req.id}
-                            className='hover:bg-gray-50 transition'>
-                            <td className='py-4 px-4'>
-                              <div className='flex items-center gap-3'>
-                                <div className='w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center overflow-hidden'>
-                                  {req.candidate.profilePicture ? (
-                                    <img
-                                      src={req.candidate.profilePicture}
-                                      alt=''
-                                      className='w-full h-full object-cover'
-                                    />
-                                  ) : (
-                                    <span className='text-purple-600 font-bold'>
-                                      {req.candidate.userName?.charAt(0)}
-                                    </span>
-                                  )}
-                                </div>
-                                <div>
-                                  <p className='font-medium text-gray-900'>
-                                    {req.candidate.userName}
-                                  </p>
-                                  <p className='text-xs text-gray-500'>
-                                    {req.candidate.userEmail}
-                                  </p>
-                                </div>
+                <div className='space-y-4'>
+                  {pendingManagerRequests.length === 0 ? (
+                    <div className='text-center py-12 text-gray-500'>
+                      Không có yêu cầu Manager nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    pendingManagerRequests.map((req) => (
+                      <div
+                        key={req._id}
+                        className='bg-white rounded-xl border p-5 flex items-center justify-between hover:shadow-md transition'>
+                        <div className='flex items-center gap-4'>
+                          <div className='w-12 h-12 rounded-full bg-purple-100 overflow-hidden'>
+                            {req.candidate?.profilePicture ? (
+                              <img
+                                src={req.candidate.profilePicture}
+                                alt=''
+                                className='w-full h-full object-cover'
+                              />
+                            ) : (
+                              <div className='w-full h-full flex items-center justify-center text-purple-700 font-bold'>
+                                {req.candidate?.userName?.[0] || "U"}
                               </div>
-                            </td>
-                            <td className='py-4 px-4'>
-                              <p className='text-sm text-gray-900'>
-                                {req.currentRole}
-                              </p>
-                              <p className='text-xs text-gray-500'>
-                                {req.organization}
-                              </p>
-                            </td>
-                            <td className='py-4 px-4 text-sm text-gray-500'>
-                              {req.experience} năm
-                            </td>
-                            <td className='py-4 px-4 text-right'>
-                              <button
-                                onClick={() => setSelectedManagerRequest(req)}
-                                className='inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-sm font-medium transition'>
-                                <Eye className='w-4 h-4' /> Xem chi tiết
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            )}
+                          </div>
+                          <div>
+                            <p className='font-semibold'>
+                              {req.candidate?.userName || req.userName}
+                            </p>
+                            <p className='text-sm text-gray-500'>
+                              {req.currentRole || "Volunteer"} •{" "}
+                              {req.experience || 0} năm kinh nghiệm
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setSelectedManagerRequest(req)}
+                          className='px-4 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 font-medium'>
+                          Xem chi tiết
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
 
-              {/* --- TAB: USERS MANAGEMENT --- */}
+              {/* Quản lý người dùng */}
               {activeTab === "users_management" && (
-                <div className='h-full animate-in fade-in duration-300'>
-                  <UserManagementTable
-                    users={allUsers}
-                    onViewUser={handleViewUser}
-                    onToggleUserStatus={handleToggleUserStatus}
-                    onDeleteUser={handleDeleteUser}
-                  />
-                </div>
+                <UserManagementTable
+                  users={allUsers}
+                  onViewUser={handleViewUser}
+                  onToggleUserStatus={handleToggleUserStatus}
+                  onDeleteUser={handleDeleteUser}
+                />
               )}
 
-              {/* --- TAB: EVENTS MANAGEMENT --- */}
+              {/* Quản lý toàn bộ sự kiện */}
               {activeTab === "events_management" && (
-                <div className='h-full animate-in fade-in duration-300'>
-                  <AdminEventsTab
-                    events={allEvents}
-                    registrations={pendingRegistrations}
-                    onApprove={handleApproveEvent}
-                    onReject={handleRejectEvent}
-                    onDeleteEvent={handleDeleteEvent}
-                    onViewEvent={handleViewEvent}
-                  />
-                </div>
+                <EventManagementTable
+                  events={allEvents}
+                  registrations={pendingRegistrations}
+                  onApprove={handleApproveEvent}
+                  onReject={handleRejectEvent}
+                  onDeleteEvent={handleDeleteEvent}
+                  onViewEvent={handleViewEvent}
+                />
               )}
             </div>
           </div>
         </div>
       </div>
-      {selectedEvent && (
-        <EventApprovalModal
-          event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
-          onApprove={handleApproveEvent}
-          onReject={handleRejectEvent}
-        />
-      )}
+
+      {/* Modals */}
       {selectedRegistration && (
         <VolunteerApprovalModal
           registration={selectedRegistration}
@@ -1027,6 +774,7 @@ const AdminDashboard = ({ user }) => {
           onReject={handleRejectRegistration}
         />
       )}
+
       {selectedManagerRequest && (
         <ManagerApprovalModal
           request={selectedManagerRequest}
@@ -1035,7 +783,7 @@ const AdminDashboard = ({ user }) => {
           onReject={handleRejectManager}
         />
       )}
-      {/* Detail View Modals */}
+
       <UserDetailModal
         viewingUser={viewingUser}
         registrations={pendingRegistrations}
@@ -1045,6 +793,7 @@ const AdminDashboard = ({ user }) => {
         onClose={() => setViewingUser(null)}
         onEventClick={handleViewEvent}
       />
+
       <EventDetailModal
         event={viewingEventDetail}
         registrations={pendingRegistrations}
@@ -1052,25 +801,16 @@ const AdminDashboard = ({ user }) => {
         onClose={() => setViewingEventDetail(null)}
         onUserClick={handleViewUser}
       />
-      {/* Common Modals */}
+
       <ConfirmModal
-        isOpen={confirmModal.isOpen}
+        {...confirmModal}
         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        type={confirmModal.type}
-        confirmText={confirmModal.confirmText}
       />
       <PromptModal
-        isOpen={promptModal.isOpen}
+        {...promptModal}
         onClose={() => setPromptModal({ ...promptModal, isOpen: false })}
-        onConfirm={promptModal.onConfirm}
-        title={promptModal.title}
-        message={promptModal.message}
-        confirmText={promptModal.confirmText}
-        cancelText={promptModal.cancelText}
       />
+
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
