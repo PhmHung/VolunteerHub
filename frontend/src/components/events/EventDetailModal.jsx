@@ -11,6 +11,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  Star,
 } from "lucide-react";
 
 const EventDetailModal = ({
@@ -285,6 +286,24 @@ const EventDetailModal = ({
                     <p className='text-gray-900'>
                       {event.maxParticipants} tình nguyện viên
                     </p>
+                  </div>
+                </div>
+                <div className='flex items-start gap-3'>
+                  <Star className='w-5 h-5 text-yellow-500 mt-0.5 fill-yellow-500' />{" "}
+                  {/* fill-yellow-500 để tô màu vàng */}
+                  <div>
+                    <p className='font-semibold text-gray-700'>Đánh giá</p>
+                    <div className='flex items-baseline gap-2'>
+                      <p className='text-xl font-bold text-gray-900'>
+                        {event.averageRating || 0}
+                        <span className='text-sm font-normal text-gray-500 ml-1'>
+                          / 5
+                        </span>
+                      </p>
+                      <span className='text-sm text-gray-500'>
+                        ({event.ratingCount || 0} lượt)
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

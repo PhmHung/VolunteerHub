@@ -16,8 +16,8 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     user.userName = req.body.userName || user.userName;
     //Update Phone number
     user.phoneNumber = req.body.phoneNumber || user.phoneNumber;
-    //Update Biology
-    user.biology = req.body.biology || user.biology;
+    //Update Biography
+    user.biography = req.body.biography || user.biography;
     //Update Profile Picture
     if (req.file && req.file.path) {
       user.profilePicture = req.file.path;
@@ -30,7 +30,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       userEmail: updatedUser.userEmail,
       role: updatedUser.role,
       phoneNumber: updatedUser.phoneNumber,
-      biology: updatedUser.biology,
+      biography: updatedUser.biography,
       profilePicture: updatedUser.profilePicture,
       token: generateToken(updatedUser._id),
     });
@@ -67,26 +67,49 @@ const deleteUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "User removed" });
 });
 
-// @desc   GET user by ID
-// @route  GET/api/users/:id
+// @desc   GET user by ID (with real participation history from Attendance)
+// @route  GET /api/users/:id
 // @access Private/Admin,Manager
 const getUserById = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select("-password");
-  if (user) {
-    // 2. Lấy danh sách đăng ký sự kiện của User này
-    const history = await Registration.find({ userId: req.params.id })
-      .populate("eventId", "title startDate endDate location status image")
-      .sort({ createdAt: -1 });
+  const userId = req.params.id;
 
-    // 3. Trả về object kết hợp (User info + History array)
-    res.json({
-      ...user.toObject(),
-      history: history,
-    });
-  } else {
+  // 1. Lấy thông tin user cơ bản (ẩn password)
+  const user = await User.findById(userId).select("-password");
+
+  if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
+
+  const attendanceHistory = await Attendance.find({})
+    .populate({
+      path: "regId",
+      match: { userId: userId },
+      populate: {
+        path: "eventId",
+        select: "title startDate endDate location status image",
+      },
+    })
+    .sort({ checkIn: -1 })
+    .exec();
+
+  const history = attendanceHistory
+    .filter((att) => att.regId && att.regId.eventId)
+    .map((att) => ({
+      attendanceId: att._id,
+      checkIn: att.checkIn,
+      checkOut: att.checkOut,
+      status: att.status,
+      feedback: att.feedback,
+      event: att.regId.eventId,
+      registeredAt: att.regId.createdAt,
+    }));
+
+  // 3. Trả về user + lịch sử tham gia thực tế
+  res.json({
+    ...user.toObject(),
+    history,
+  });
 });
 
 // @desc   Update user role, Admin only
@@ -166,7 +189,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
       userEmail: user.userEmail,
       role: user.role,
       phoneNumber: user.phoneNumber,
-      biology: user.biology,
+      biography: user.biography,
       profilePicture: user.profilePicture,
     });
   } else {

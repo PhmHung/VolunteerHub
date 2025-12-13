@@ -9,13 +9,15 @@ import Registration from "../models/registrationModel.js";
 // @route   GET /api/events
 // @access  Public
 const getEvents = asyncHandler(async (req, res) => {
+  // 1. Phân trang
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
+  // 2. Bộ lọc cơ bản (Chỉ lấy sự kiện đã duyệt)
   const filter = { status: "approved" };
 
-  // Tìm kiếm theo từ khóa
+  // 3. Tìm kiếm từ khóa (Title hoặc Description)
   if (req.query.search) {
     filter.$or = [
       { title: { $regex: req.query.search, $options: "i" } },
@@ -23,23 +25,66 @@ const getEvents = asyncHandler(async (req, res) => {
     ];
   }
 
-  // Lọc theo tag
+  // 4. Lọc theo Tag
   if (req.query.tag) {
     filter.tags = req.query.tag;
   }
 
+  // 5. [MỚI] Lọc theo số sao tối thiểu (VD: ?minRating=4)
+  if (req.query.minRating) {
+    filter.averageRating = { $gte: parseFloat(req.query.minRating) };
+  }
+
+  // 6. [MỚI] Xử lý Sắp xếp (Sort)
+  // Mặc định: Sắp xếp theo ngày bắt đầu (Sự kiện sắp tới hiện trước)
+  let sortOption = { startDate: 1 };
+
+  if (req.query.sort) {
+    switch (req.query.sort) {
+      case "rating_desc":
+        // Đánh giá cao nhất (Nếu bằng điểm thì ưu tiên cái nào nhiều vote hơn)
+        sortOption = { averageRating: -1, ratingCount: -1 };
+        break;
+      case "rating_asc":
+        // Đánh giá thấp nhất
+        sortOption = { averageRating: 1 };
+        break;
+      case "popular":
+        // Nhiều lượt đánh giá nhất
+        sortOption = { ratingCount: -1 };
+        break;
+      case "newest":
+        // Mới tạo gần đây nhất
+        sortOption = { createdAt: -1 };
+        break;
+      case "upcoming":
+        // Sắp diễn ra (Default)
+        sortOption = { startDate: 1 };
+        break;
+      default:
+        sortOption = { startDate: 1 };
+    }
+  }
+
+  // 7. Thực thi Query
   const events = await Event.find(filter)
-    .sort({ startDate: 1 })
+    .sort(sortOption) // Áp dụng sort
     .skip(skip)
     .limit(limit)
-    .select("-__v")
-    .populate("createdBy", "name email");
+    .select("-__v") // Loại bỏ field version key
+    // Populate user tạo sự kiện (Lấy thêm ảnh và SĐT để hiển thị card đẹp hơn)
+    .populate("createdBy", "userName userEmail profilePicture phoneNumber");
 
   const total = await Event.countDocuments(filter);
 
   res.json({
-    message: "Danh sách sự kiện được duyệt",
-    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    message: "Danh sách sự kiện",
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
     data: events,
   });
 });

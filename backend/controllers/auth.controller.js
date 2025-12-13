@@ -166,7 +166,7 @@ const login = asyncHandler(async (req, res) => {
       userEmail: user.userEmail,
       role: user.role,
       phoneNumber: user.phoneNumber,
-      biology: user.biology,
+      biography: user.biology,
       profilePicture: user.profilePicture,
       token: generateToken(user._id),
     };

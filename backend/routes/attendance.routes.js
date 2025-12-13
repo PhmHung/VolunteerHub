@@ -5,8 +5,7 @@ import {
   recordCheckIn,
   recordCheckOut,
   addFeedback,
-  getEventPublicRating,
-  getEventPrivateFeedbacks,
+  getAttendancesByEvent, // 👇 MỚI: Import thêm hàm này
 } from "../controllers/attendance.controller.js";
 import {
   protect,
@@ -14,6 +13,8 @@ import {
 } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
+
+// --- CÁC ROUTE CƠ BẢN (Volunteer thao tác) ---
 
 // @desc    Check-in
 // @route   POST /api/attendances/checkin
@@ -30,16 +31,13 @@ router.route("/checkout").post(protect, recordCheckOut);
 // @access  Private (Volunteer)
 router.route("/:id/feedback").put(protect, addFeedback);
 
-// @desc    Xem rating công khai của sự kiện
-// @route   GET /api/events/:eventId/rating
-// @access  Public
-router.route("/events/:eventId/rating").get(getEventPublicRating);
+// --- CÁC ROUTE QUẢN LÝ (Manager/Admin thao tác) ---
 
-// @desc    Xem toàn bộ feedback (Manager/Admin)
-// @route   GET /api/events/:eventId/feedbacks
+// @desc    Lấy danh sách điểm danh của 1 sự kiện (Để Manager hiển thị bảng điểm danh)
+// @route   GET /api/attendances/event/:eventId
 // @access  Private (Manager/Admin)
 router
-  .route("/events/:eventId/feedbacks")
-  .get(protect, allowAdminOrManager, getEventPrivateFeedbacks);
+  .route("/event/:eventId")
+  .get(protect, allowAdminOrManager, getAttendancesByEvent);
 
 export default router;

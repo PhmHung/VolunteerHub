@@ -21,7 +21,17 @@ const eventSchema = new mongoose.Schema(
     endDate: { type: Date, required: true },
     maxParticipants: { type: Number, min: 5, max: 100, required: true },
     currentParticipants: { type: Number, default: 0 },
-
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+      set: (v) => Math.round(v * 10) / 10,
+    },
+    ratingCount: {
+      type: Number,
+      default: 0,
+    },
     volunteers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     managers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
