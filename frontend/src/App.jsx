@@ -1,4 +1,5 @@
 /**
+ * @format
  * @file App.jsx
  * @description Main application component with routing and authentication
  * @pattern Container Component Pattern
@@ -10,7 +11,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 // Redux
 import { useDispatch, useSelector } from "react-redux";
-import { fetchUserProfile, userLogout } from "./features/user/userSlice";
+import { fetchUserProfile, userLogout } from "./features/userSlice.js";
 
 // Layout components
 import Header from "./layouts/Header.jsx";
@@ -35,8 +36,10 @@ import AuthModal from "./components/auth/AuthModal.jsx";
  */
 export default function App() {
   const dispatch = useDispatch();
-  const { profile: user, profileLoading: loadingUser } = useSelector((state) => state.user);
-  
+  const { profile: user, profileLoading: loadingUser } = useSelector(
+    (state) => state.user
+  );
+
   // Local state
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
 
@@ -81,43 +84,100 @@ export default function App() {
   };
 
   if (loadingUser) {
-    return <div className="min-h-screen w-full flex items-center justify-center bg-gray-100">Đang tải...</div>;
+    return (
+      <div className='min-h-screen w-full flex items-center justify-center bg-gray-100'>
+        Đang tải...
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-[#A8D0E6]/20 via-white to-[#F0F0F0] transition-colors">
-      <div className="min-h-screen w-full bg-[#F0F0F0]/30 transition-colors">
+    <div className='min-h-screen w-full bg-gradient-to-b from-[#A8D0E6]/20 via-white to-[#F0F0F0] transition-colors'>
+      <div className='min-h-screen w-full bg-[#F0F0F0]/30 transition-colors'>
         <Header
           setAuthModal={setAuthModal}
           user={user}
           handleLogout={handleLogout}
         />
-      
-        <main className="w-full">
+
+        <main className='w-full'>
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={user ? <Navigate to={user.role === 'admin' ? "/admin/dashboard" : user.role === 'manager' ? "/manager/dashboard" : "/dashboard"} replace /> : <HomePage user={user} openAuth={setAuthModal} />} />
-            <Route path="/about" element={<About user={user} openAuth={setAuthModal} />} />
-            <Route path="/events" element={<Events user={user} openAuth={setAuthModal} />} />
+            <Route
+              path='/'
+              element={
+                user ? (
+                  <Navigate
+                    to={
+                      user.role === "admin"
+                        ? "/admin/dashboard"
+                        : user.role === "manager"
+                        ? "/manager/dashboard"
+                        : "/dashboard"
+                    }
+                    replace
+                  />
+                ) : (
+                  <HomePage user={user} openAuth={setAuthModal} />
+                )
+              }
+            />
+            <Route
+              path='/about'
+              element={<About user={user} openAuth={setAuthModal} />}
+            />
+            <Route
+              path='/events'
+              element={<Events user={user} openAuth={setAuthModal} />}
+            />
 
             {/* Admin routes */}
-            <Route element={<ProtectedRoute user={user} loading={loadingUser} requiredRole="admin" redirectTo="/dashboard" />}>
-              <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />
+            <Route
+              element={
+                <ProtectedRoute
+                  user={user}
+                  loading={loadingUser}
+                  requiredRole='admin'
+                  redirectTo='/dashboard'
+                />
+              }>
+              <Route
+                path='/admin/dashboard'
+                element={<AdminDashboard user={user} />}
+              />
             </Route>
 
             {/* Manager routes */}
-            <Route element={<ProtectedRoute user={user} loading={loadingUser} requiredRole="manager" redirectTo="/dashboard" />}>
-              <Route path="/manager/dashboard" element={<ManagerDashboard user={user} />} />
+            <Route
+              element={
+                <ProtectedRoute
+                  user={user}
+                  loading={loadingUser}
+                  requiredRole='manager'
+                  redirectTo='/dashboard'
+                />
+              }>
+              <Route
+                path='/manager/dashboard'
+                element={<ManagerDashboard user={user} />}
+              />
             </Route>
 
             {/* Volunteer/authenticated user routes */}
-            <Route element={<ProtectedRoute user={user} loading={loadingUser} />}>
-              <Route path="/dashboard" element={<Dashboard user={user} />} />
-              <Route path="/information" element={<Information />} />
-              <Route path="/history" element={<VolunteerHistory user={user} />} />
-              <Route path="/media" element={<Media user={user} openAuth={setAuthModal} />} />
+            <Route
+              element={<ProtectedRoute user={user} loading={loadingUser} />}>
+              <Route path='/dashboard' element={<Dashboard user={user} />} />
+              <Route path='/information' element={<Information />} />
+              <Route
+                path='/history'
+                element={<VolunteerHistory user={user} />}
+              />
+              <Route
+                path='/media'
+                element={<Media user={user} openAuth={setAuthModal} />}
+              />
             </Route>
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path='*' element={<Navigate to='/' />} />
           </Routes>
         </main>
 

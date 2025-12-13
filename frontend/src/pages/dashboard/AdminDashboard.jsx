@@ -34,20 +34,20 @@ import {
   approveEvent,
   clearEventMessages,
   deleteEvent,
-} from "../../features/event/eventSlice";
+} from "../../features/eventSlice";
 import {
   fetchAllUsers,
   updateUserRole,
   clearMessages,
   deleteUser,
   updateUserStatus,
-} from "../../features/user/userSlice";
+} from "../../features/userSlice";
 import {
   clearRegistrationMessages,
   fetchPendingRegistrations,
   acceptRegistration,
   rejectRegistration,
-} from "../../features/registration/registrationSlice";
+} from "../../features/registrationSlice";
 
 // Utils & Components
 import { exportToCSV, exportToJSON } from "../../utils/exportUtils";

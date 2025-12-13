@@ -1,14 +1,21 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import Post from './Post';
-import CreatePost from './CreatePost';
-import { fetchChannelByEventId, createPost, createComment, toggleReaction } from '../../features/channel/channelSlice';
-import { Filter, TrendingUp, Clock } from 'lucide-react';
+/** @format */
+
+import React, { useState, useMemo, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import Post from "./Post";
+import CreatePost from "./CreatePost";
+import {
+  fetchChannelByEventId,
+  createPost,
+  createComment,
+  toggleReaction,
+} from "../../features/channelSlice";
+import { Filter, TrendingUp, Clock } from "lucide-react";
 
 const EventFeed = ({ user, event }) => {
   const dispatch = useDispatch();
   const { currentChannel } = useSelector((state) => state.channel || {});
-  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'popular'
+  const [sortBy, setSortBy] = useState("newest"); // 'newest' | 'popular'
 
   // Load channel data
   useEffect(() => {
@@ -19,27 +26,30 @@ const EventFeed = ({ user, event }) => {
 
   const posts = useMemo(() => {
     if (!currentChannel?.posts) return [];
-    return currentChannel.posts.map(p => ({
+    return currentChannel.posts.map((p) => ({
       ...p,
       id: p._id,
-      time: new Date(p.createdAt).toLocaleString('vi-VN'),
-      isLiked: p.reactions?.some(r => r.user === user?._id && r.type === 'like'),
-      likes: p.reactions?.filter(r => r.type === 'like').length || 0,
-      comments: (p.comments || []).map(c => ({
+      time: new Date(p.createdAt).toLocaleString("vi-VN"),
+      isLiked: p.reactions?.some(
+        (r) => r.user === user?._id && r.type === "like"
+      ),
+      likes: p.reactions?.filter((r) => r.type === "like").length || 0,
+      comments: (p.comments || []).map((c) => ({
         ...c,
         id: c._id,
-        time: new Date(c.createdAt).toLocaleString('vi-VN')
-      }))
+        time: new Date(c.createdAt).toLocaleString("vi-VN"),
+      })),
     }));
   }, [currentChannel, user]);
 
   const sortedPosts = useMemo(() => {
     if (!posts.length) return [];
-    const isManager = user?.role === 'manager' || user?.role === 'admin';
-    const visiblePosts = posts.filter(p => 
-        p.status === 'approved' || 
-        !p.status || 
-        isManager || 
+    const isManager = user?.role === "manager" || user?.role === "admin";
+    const visiblePosts = posts.filter(
+      (p) =>
+        p.status === "approved" ||
+        !p.status ||
+        isManager ||
         p.author?._id === user?._id
     );
 
@@ -54,53 +64,57 @@ const EventFeed = ({ user, event }) => {
 
   const handleCreatePost = async (postData) => {
     if (!currentChannel?._id) return;
-    await dispatch(createPost({
-      channelId: currentChannel._id,
-      content: postData.text,
-      image: postData.attachment
-    }));
+    await dispatch(
+      createPost({
+        channelId: currentChannel._id,
+        content: postData.text,
+        image: postData.attachment,
+      })
+    );
     dispatch(fetchChannelByEventId(event._id || event.id));
   };
 
   const handleApprove = (postId) => {
-    console.log('Approve post:', postId);
+    console.log("Approve post:", postId);
     // TODO: Implement approve post API
   };
 
   const handleReject = (postId) => {
-    console.log('Reject post:', postId);
+    console.log("Reject post:", postId);
     // TODO: Implement reject post API
   };
 
   const handleLike = async (postId) => {
     if (!user) return;
-    await dispatch(toggleReaction({
-      targetId: postId,
-      type: 'like',
-      targetType: 'post'
-    }));
+    await dispatch(
+      toggleReaction({
+        targetId: postId,
+        type: "like",
+        targetType: "post",
+      })
+    );
     dispatch(fetchChannelByEventId(event._id || event.id));
   };
 
   const handleComment = async (postId, content) => {
-    const post = posts.find(p => p.id === postId);
+    const post = posts.find((p) => p.id === postId);
     if (!post) return;
     await dispatch(createComment({ post, content }));
     dispatch(fetchChannelByEventId(event._id || event.id));
   };
 
   const handleDeletePost = (postId) => {
-    console.log('Delete post:', postId);
+    console.log("Delete post:", postId);
     // TODO: Implement delete post API
   };
 
   const handleEditPost = (postId, newContent) => {
-    console.log('Edit post:', postId, newContent);
+    console.log("Edit post:", postId, newContent);
     // TODO: Implement edit post API
   };
 
   const handleDeleteComment = (postId, commentId) => {
-    console.log('Delete comment:', postId, commentId);
+    console.log("Delete comment:", postId, commentId);
     // TODO: Implement delete comment API
   };
 

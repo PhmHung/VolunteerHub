@@ -4,23 +4,23 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Calendar, MapPin, Users } from "lucide-react";
 //import EventForm from "../components/events/EventForm.jsx";
-import { EventDetail } from "../components/events/EventDetail.jsx";
+import { EventDetail } from "../../components/events/EventComponents.jsx";
 import { FaEye } from "react-icons/fa";
-import { fetchUserById } from "../features/user/userSlice.js";
-import UserDetailModal from "../components/manager/UserDetailModal.jsx";
-import { REGISTRATION_STATUS, ATTENDANCE_STATUS } from "../types";
+import { fetchUserById } from "../../features/userSlice.js";
+import UserDetailModal from "../../components/events/EventDetailModal.jsx";
+import { REGISTRATION_STATUS, ATTENDANCE_STATUS } from "../../types";
 import {
   fetchEvents,
   createEvent,
   updateEvent,
   fetchEventRegistrations,
-} from "../features/event/eventSlice";
+} from "../../features/eventSlice";
 import {
   fetchPendingRegistrations,
   acceptRegistration,
   rejectRegistration,
-} from "../features/registration/registrationSlice";
-import { ToastContainer } from "../components/common/Toast";
+} from "../../features/registrationSlice";
+import { ToastContainer } from "../../components/common/Toast";
 
 // Helper map status
 const mapStatusToRequestStatus = (status) => {

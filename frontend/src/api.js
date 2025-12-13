@@ -12,8 +12,6 @@ const api = axios.create({
     Accept: "application/json",
     "Content-Type": "application/json",
   },
-  // ❌ Xóa adapter: 'fetch' để Service Worker cache được
-  // adapter: 'fetch', 
 });
 
 // 1. Request Interceptor: Gắn Token
@@ -29,12 +27,11 @@ api.interceptors.request.use((config) => {
 // 2. Response Interceptor: Xử lý lỗi & Chặn HTML "lặp trang"
 api.interceptors.response.use(
   (response) => {
-    // --- CHỐT CHẶN QUAN TRỌNG ---
-    // Nếu API trả về HTML (do Service Worker trả nhầm index.html khi lỗi)
     if (
-      response.data && 
-      typeof response.data === 'string' && 
-      (response.data.includes('<!doctype html>') || response.data.includes('<html'))
+      response.data &&
+      typeof response.data === "string" &&
+      (response.data.includes("<!doctype html>") ||
+        response.data.includes("<html"))
     ) {
       console.error("⛔ Đã chặn HTML chui lọt vào API (Lỗi lặp trang)");
       return Promise.reject(new Error("API trả về HTML thay vì JSON"));
@@ -63,8 +60,6 @@ export function fullUrl(path) {
   if (typeof path !== "string") return path;
   return path.startsWith("http") ? path : `${API_BASE}${path}`;
 }
-
-// === CÁC API CON GIỮ NGUYÊN ===
 
 export const approvalRequestApi = {
   // Lấy danh sách yêu cầu chờ duyệt

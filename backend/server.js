@@ -44,5 +44,5 @@ app.use(errorMiddleware);
 app.listen(process.env.PORT, async () => {
   console.log(`API is running on http://localhost:${process.env.PORT}`);
 
-  await connectDB(); //session commitTransaction() vào DB đang chạy
+  await connectDB();
 });

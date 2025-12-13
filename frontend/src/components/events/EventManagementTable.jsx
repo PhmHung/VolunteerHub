@@ -1,4 +1,3 @@
-
 /** @format */
 
 import React, { useState } from "react";
@@ -8,16 +7,16 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  User,
   Trash2,
   Calendar,
   MapPin,
+  Users,
   Filter,
   Maximize2,
   Minimize2,
 } from "lucide-react";
 
-const AdminEventsTab = ({
+const EventManagementTable = ({
   events = [],
   registrations = [],
   onApprove,
@@ -27,43 +26,77 @@ const AdminEventsTab = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [isExpanded, setIsExpanded] = useState(false); // State mở rộng
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Tính số đơn chờ duyệt cho từng sự kiện
+  const getPendingCount = (eventId) => {
+    return registrations.filter(
+      (reg) =>
+        (reg.eventId || reg.event?._id) === eventId && reg.status === "pending"
+    ).length;
+  };
 
   // Lọc sự kiện
   const filteredEvents = events.filter((event) => {
+    const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
-      event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.location?.toLowerCase().includes(searchTerm.toLowerCase());
+      event.title?.toLowerCase().includes(searchLower) ||
+      event.location?.toLowerCase().includes(searchLower);
+
     const matchesStatus =
       statusFilter === "all" || event.status === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
-  const getPendingCount = (eventId) => {
-    return (
-      registrations?.filter(
-        (reg) => reg.eventId === eventId && reg.status === "pending"
-      ).length || 0
-    );
+  const getStatusConfig = (status) => {
+    switch (status) {
+      case "approved":
+        return {
+          label: "Đã duyệt",
+          icon: CheckCircle,
+          color: "emerald",
+          bg: "bg-emerald-50",
+          text: "text-emerald-700",
+          border: "border-emerald-200",
+        };
+      case "pending":
+        return {
+          label: "Chờ duyệt",
+          icon: Clock,
+          color: "amber",
+          bg: "bg-amber-50",
+          text: "text-amber-700",
+          border: "border-amber-200",
+        };
+      default:
+        return {
+          label: "Từ chối",
+          icon: XCircle,
+          color: "red",
+          bg: "bg-red-50",
+          text: "text-red-700",
+          border: "border-red-200",
+        };
+    }
   };
 
   return (
     <div
-      className={`bg-white shadow-sm border border-gray-200 transition-all duration-300 flex flex-col ${
-        isExpanded
-          ? "fixed inset-0 z-50 rounded-none h-screen"
-          : "relative rounded-xl h-full"
+      className={`bg-white shadow-sm border border-gray-200 transition-all duration-300 flex flex-col rounded-xl overflow-hidden ${
+        isExpanded ? "fixed inset-0 z-50 rounded-none" : "relative h-full"
       }`}>
-      {/* --- HEADER & FILTERS --- */}
-      <div className='p-6 border-b border-gray-100 flex-none bg-white'>
+      {/* Header */}
+      <div className='p-6 border-b border-gray-100 bg-white flex-none'>
         <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
-          {/* Title & Expand Button */}
           <div className='flex items-center gap-3'>
-            <h2 className='text-lg font-bold text-gray-900'>Quản lý sự kiện</h2>
+            <h2 className='text-xl font-bold text-gray-900'>
+              Quản lý sự kiện tình nguyện
+            </h2>
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className='p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition'
-              title={isExpanded ? "Thu gọn" : "Mở rộng"}>
+              className='p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition'
+              title={isExpanded ? "Thu gọn" : "Mở rộng toàn màn hình"}>
               {isExpanded ? (
                 <Minimize2 className='w-5 h-5' />
               ) : (
@@ -72,16 +105,16 @@ const AdminEventsTab = ({
             </button>
           </div>
 
-          <div className='flex gap-2 w-full sm:w-auto'>
+          <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
             {/* Search */}
-            <div className='relative flex-1 sm:flex-none'>
+            <div className='relative'>
               <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
               <input
                 type='text'
-                placeholder='Tìm sự kiện, địa điểm...'
+                placeholder='Tìm tên sự kiện, địa điểm...'
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className='pl-9 pr-4 py-2 w-full sm:w-64 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500'
+                className='pl-10 pr-4 py-2.5 w-full sm:w-64 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
               />
             </div>
 
@@ -91,8 +124,8 @@ const AdminEventsTab = ({
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className='pl-9 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none cursor-pointer'>
-                <option value='all'>Tất cả</option>
+                className='pl-10 pr-8 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white appearance-none cursor-pointer'>
+                <option value='all'>Tất cả trạng thái</option>
                 <option value='pending'>Chờ duyệt</option>
                 <option value='approved'>Đã duyệt</option>
                 <option value='rejected'>Đã từ chối</option>
@@ -102,171 +135,122 @@ const AdminEventsTab = ({
         </div>
       </div>
 
-      {/* --- TABLE CONTENT (SCROLLABLE) --- */}
+      {/* Table - Scrollable */}
       <div
-        className='flex-1 overflow-y-auto bg-white p-6 pt-0'
-        style={{ maxHeight: isExpanded ? "calc(100vh - 80px)" : "600px" }}>
-        <div className='border border-gray-100 rounded-lg overflow-hidden mt-6'>
-          <table className='w-full text-left border-collapse'>
-            <thead className='sticky top-0 z-10'>
-              <tr className='border-b border-gray-100 text-xs uppercase text-gray-500 bg-gray-50'>
-                <th className='px-4 py-3 font-semibold'>Thông tin sự kiện</th>
-                <th className='px-4 py-3 font-semibold'>Người quản lý</th>
-                <th className='px-4 py-3 font-semibold'>Trạng thái</th>
-                <th className='px-4 py-3 font-semibold'>Thống kê</th>
-                <th className='px-4 py-3 font-semibold text-right'>
-                  Hành động
-                </th>
-              </tr>
-            </thead>
-            <tbody className='text-sm divide-y divide-gray-50 bg-white'>
-              {filteredEvents.length > 0 ? (
-                filteredEvents.map((event) => {
-                  const pendingCount = getPendingCount(event._id || event.id);
-                  return (
-                    <tr
-                      key={event._id || event.id}
-                      className='hover:bg-gray-50/80 transition-colors'>
-                      {/* Event Info */}
-                      <td className='px-4 py-3 max-w-[300px]'>
-                        <div
-                          className='font-medium text-gray-900 mb-1 truncate'
-                          title={event.title}>
-                          {event.title}
+        className='flex-1 overflow-y-auto bg-gray-50'
+        style={{ maxHeight: isExpanded ? "calc(100vh - 140px)" : "auto" }}>
+        <div className='p-6'>
+          {filteredEvents.length > 0 ? (
+            <div className='grid gap-4 md:grid-cols-1'>
+              {filteredEvents.map((event) => {
+                const pendingCount = getPendingCount(event._id || event.id);
+                const status = getStatusConfig(event.status);
+                const StatusIcon = status.icon;
+
+                return (
+                  <div
+                    key={event._id || event.id}
+                    className='bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow'>
+                    <div className='flex flex-col lg:flex-row justify-between gap-5'>
+                      {/* Thông tin chính */}
+                      <div className='flex-1'>
+                        <div className='flex items-start justify-between mb-3'>
+                          <h3 className='text-lg font-semibold text-gray-900 truncate pr-4'>
+                            {event.title}
+                          </h3>
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${status.bg} ${status.text} border ${status.border}`}>
+                            <StatusIcon className='w-3.5 h-3.5' />
+                            {status.label}
+                          </span>
                         </div>
-                        <div className='flex flex-col gap-1 text-xs text-gray-500'>
-                          <div className='flex items-center gap-1'>
-                            <Calendar className='w-3 h-3' />
-                            {event.startDate
-                              ? new Date(event.startDate).toLocaleDateString(
-                                  "vi-VN"
-                                )
-                              : "N/A"}
+
+                        <div className='space-y-2 text-sm text-gray-600'>
+                          <div className='flex items-center gap-2'>
+                            <Calendar className='w-4 h-4 text-gray-500' />
+                            <span>
+                              {event.startDate
+                                ? new Date(event.startDate).toLocaleDateString(
+                                    "vi-VN"
+                                  )
+                                : "Chưa xác định"}
+                            </span>
                           </div>
-                          <div className='flex items-center gap-1'>
-                            <MapPin className='w-3 h-3' />
-                            <span
-                              className='truncate max-w-[200px]'
-                              title={event.location}>
-                              {event.location}
+                          <div className='flex items-center gap-2'>
+                            <MapPin className='w-4 h-4 text-gray-500' />
+                            <span className='truncate'>
+                              {event.location || "Chưa có địa điểm"}
+                            </span>
+                          </div>
+                          <div className='flex items-center gap-2'>
+                            <Users className='w-4 h-4 text-gray-500' />
+                            <span>
+                              Tối đa {event.maxParticipants || 0} tình nguyện
+                              viên
                             </span>
                           </div>
                         </div>
-                      </td>
 
-                      {/* Manager */}
-                      <td className='px-4 py-3 text-gray-600'>
-                        <div className='flex items-center gap-2'>
-                          <div className='w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500'>
-                            {event.createdBy?.userName?.[0] || (
-                              <User className='w-3 h-3' />
-                            )}
+                        {pendingCount > 0 && (
+                          <div className='mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-xs font-bold'>
+                            <Clock className='w-3.5 h-3.5' />
+                            {pendingCount} đơn đăng ký mới
                           </div>
-                          <div className='flex flex-col'>
-                            <span className='text-sm font-medium'>
-                              {event.createdBy?.userName || "Unknown"}
-                            </span>
-                            <span className='text-xs text-gray-400'>
-                              {event.createdBy?.userEmail}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
+                        )}
+                      </div>
 
-                      {/* Status */}
-                      <td className='px-4 py-3'>
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            event.status === "approved"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                              : event.status === "pending"
-                              ? "bg-amber-50 text-amber-700 border-amber-100"
-                              : "bg-red-50 text-red-700 border-red-100"
-                          }`}>
-                          {event.status === "approved" ? (
-                            <CheckCircle className='w-3 h-3' />
-                          ) : event.status === "pending" ? (
-                            <Clock className='w-3 h-3' />
-                          ) : (
-                            <XCircle className='w-3 h-3' />
-                          )}
-                          {event.status === "approved"
-                            ? "Đã duyệt"
-                            : event.status === "pending"
-                            ? "Chờ duyệt"
-                            : "Từ chối"}
-                        </span>
-                      </td>
+                      {/* Hành động */}
+                      <div className='flex items-center gap-2 self-start lg:self-center'>
+                        {event.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() => onApprove(event)}
+                              className='p-2.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition'
+                              title='Duyệt sự kiện'>
+                              <CheckCircle className='w-5 h-5' />
+                            </button>
+                            <button
+                              onClick={() => onReject(event)}
+                              className='p-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition'
+                              title='Từ chối'>
+                              <XCircle className='w-5 h-5' />
+                            </button>
+                          </>
+                        )}
 
-                      {/* Stats */}
-                      <td className='px-4 py-3 text-gray-600'>
-                        <div className='space-y-1'>
-                          <div className='text-xs flex items-center gap-1'>
-                            <span className='font-semibold'>
-                              {event.maxParticipants}
-                            </span>{" "}
-                            slot
-                          </div>
-                          {pendingCount > 0 && (
-                            <span className='inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold'>
-                              +{pendingCount} đơn mới
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                        <button
+                          onClick={() => onViewEvent(event)}
+                          className='p-2.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition'
+                          title='Xem chi tiết'>
+                          <Eye className='w-5 h-5' />
+                        </button>
 
-                      {/* Actions */}
-                      <td className='px-4 py-3 text-right'>
-                        <div className='flex items-center justify-end gap-1'>
-                          {event.status === "pending" && (
-                            <>
-                              <button
-                                onClick={() => onApprove && onApprove(event)}
-                                className='p-1.5 hover:bg-emerald-50 text-emerald-600 rounded-md transition'
-                                title='Duyệt'>
-                                <CheckCircle className='w-4 h-4' />
-                              </button>
-                              <button
-                                onClick={() => onReject && onReject(event)}
-                                className='p-1.5 hover:bg-red-50 text-red-600 rounded-md transition'
-                                title='Từ chối'>
-                                <XCircle className='w-4 h-4' />
-                              </button>
-                              <div className='w-px h-4 bg-gray-200 mx-1'></div>
-                            </>
-                          )}
-                          <button
-                            onClick={() => onViewEvent && onViewEvent(event)}
-                            className='p-1.5 hover:bg-blue-50 text-blue-600 rounded-md transition'
-                            title='Chi tiết'>
-                            <Eye className='w-4 h-4' />
-                          </button>
-                          <button
-                            onClick={() =>
-                              onDeleteEvent && onDeleteEvent(event)
-                            }
-                            className='p-1.5 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-md transition'
-                            title='Xóa'>
-                            <Trash2 className='w-4 h-4' />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan='5' className='py-8 text-center text-gray-500'>
-                    Không tìm thấy sự kiện nào phù hợp.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                        <button
+                          onClick={() => onDeleteEvent(event)}
+                          className='p-2.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-red-50 hover:text-red-600 transition'
+                          title='Xóa sự kiện'>
+                          <Trash2 className='w-5 h-5' />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className='text-center py-16 text-gray-500'>
+              <p className='text-lg font-medium'>
+                Không tìm thấy sự kiện nào phù hợp
+              </p>
+              <p className='text-sm mt-2'>
+                Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default AdminEventsTab;
+export default EventManagementTable;

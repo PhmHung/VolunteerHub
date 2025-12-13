@@ -9,6 +9,7 @@ const users = [
     password: bcrypt.hashSync("AP231!", 10),
     role: "admin",
     phoneNumber: "0987654321",
+    biography: "",
     status: "active",
   },
   {

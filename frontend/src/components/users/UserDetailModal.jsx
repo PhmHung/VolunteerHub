@@ -1,4 +1,4 @@
-  /** @format */
+/** @format */
 
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -23,7 +23,7 @@ import {
   updateUserRole,
   updateUserStatus,
   deleteUser,
-} from "../../features/user/userSlice";
+} from "../../features/userSlice";
 
 const UserDetailModal = ({
   viewingUser, // User object từ danh sách (chỉ dùng để lấy ID ban đầu)
@@ -367,7 +367,8 @@ const UserDetailModal = ({
                           <button
                             onClick={handleDeleteUser}
                             className='sm:col-span-2 flex items-center justify-center gap-2 w-full py-3 px-4 bg-red-50 text-red-700 rounded-xl font-medium hover:bg-red-100 transition border border-red-200 mt-2'>
-                            <Trash2 className='w-4 h-4' /> Xóa tài khoản vĩnh viễn
+                            <Trash2 className='w-4 h-4' /> Xóa tài khoản vĩnh
+                            viễn
                           </button>
                         )}
                       </div>

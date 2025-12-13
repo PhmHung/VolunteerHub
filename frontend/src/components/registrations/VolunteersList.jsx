@@ -14,11 +14,11 @@ import {
 } from "lucide-react";
 
 // SỬA: Import từ eventSlice (để đồng bộ với Dashboard)
-import { fetchEventRegistrations } from "../../features/event/eventSlice";
+import { fetchEventRegistrations } from "../../features/eventSlice";
 import {
   acceptRegistration,
   rejectRegistration,
-} from "../../features/registration/registrationSlice";
+} from "../../features/registrationSlice";
 import { REGISTRATION_STATUS } from "../../utils/constants";
 
 // --- Volunteer Card Component ---

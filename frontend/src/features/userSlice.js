@@ -1,8 +1,7 @@
 /** @format */
 
-// src/features/user/userSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../api";
+import api from "../api";
 
 // 1. Async Thunks
 export const fetchUserProfile = createAsyncThunk(
@@ -21,13 +20,11 @@ export const updateUserProfile = createAsyncThunk(
   "user/updateProfile",
   async (formData, { rejectWithValue }) => {
     try {
-      // formData có thể là object thường hoặc FormData (khi có ảnh)
-      const config =
-        formData instanceof FormData
-          ? { headers: { "Content-Type": "multipart/form-data" } }
-          : {};
+      // --- ĐÃ SỬA: Bỏ config set header thủ công ---
+      // Axios sẽ tự động phát hiện FormData và thêm header 'Content-Type: multipart/form-data; boundary=...'
+      // Nếu set thủ công sẽ làm mất boundary -> Backend không nhận được file.
 
-      const { data } = await api.put("/api/user/profile", formData, config);
+      const { data } = await api.put("/api/user/profile", formData);
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -67,7 +64,6 @@ export const fetchUserById = createAsyncThunk(
   "user/fetchById",
   async (userId, { rejectWithValue }) => {
     try {
-      //API: GET /api/users/:id
       const { data } = await api.get(`/api/user/${userId}`);
       return data;
     } catch (err) {
@@ -88,13 +84,13 @@ export const deleteUser = createAsyncThunk(
   }
 );
 
-//lock
+// Lock Account
 export const updateUserStatus = createAsyncThunk(
   "user/updateStatus",
   async ({ userId, status }, { rejectWithValue }) => {
     try {
       const { data } = await api.put(`/api/user/${userId}/status`, { status });
-      return data; // { message, user: { ... } }
+      return data; // Mong đợi: { message, user: { ... } }
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Không thể thay đổi trạng thái tài khoản"
@@ -102,13 +98,14 @@ export const updateUserStatus = createAsyncThunk(
     }
   }
 );
-//role
+
+// Update Role
 export const updateUserRole = createAsyncThunk(
   "user/updateRole",
   async ({ userId, role }, { rejectWithValue }) => {
     try {
       const { data } = await api.put(`/api/user/${userId}/role`, { role });
-      return data;
+      return data; // ⚠️ Cần đảm bảo Backend trả về { user: ... } hoặc { message, user: ... }
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -127,12 +124,12 @@ const userSlice = createSlice({
     usersLoading: false,
     usersError: null,
 
-    selectedUser: null, // Lưu thông tin chi tiết user
+    selectedUser: null,
     selectedUserLoading: false,
     selectedUserError: null,
 
-    message: null, // thông báo thành công
-    error: null, // lỗi chung
+    message: null,
+    error: null,
   },
   reducers: {
     clearMessages: (state) => {
@@ -156,8 +153,8 @@ const userSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Profile
     builder
+      // Profile
       .addCase(fetchUserProfile.pending, (state) => {
         state.profileLoading = true;
         state.profileError = null;
@@ -173,7 +170,9 @@ const userSlice = createSlice({
 
       // Update Profile
       .addCase(updateUserProfile.fulfilled, (state, action) => {
-        state.profile = action.payload;
+        // Cần đảm bảo API trả về object user đã update, hoặc wrapper { user: ... }
+        // Nếu API trả về { message, user }, cần sửa thành action.payload.user
+        state.profile = action.payload.user || action.payload;
         state.message = "Cập nhật hồ sơ thành công!";
       })
 
@@ -185,7 +184,7 @@ const userSlice = createSlice({
         state.error = action.payload;
       })
 
-      // All Users (Admin/Manager)
+      // All Users
       .addCase(fetchAllUsers.pending, (state) => {
         state.usersLoading = true;
       })
@@ -206,17 +205,22 @@ const userSlice = createSlice({
 
       // Update Role
       .addCase(updateUserRole.fulfilled, (state, action) => {
-        const updated = action.payload;
+        // --- ĐÃ SỬA: Kiểm tra cấu trúc trả về ---
+        // Giả sử API trả về { message, user } giống updateStatus
+        const updatedUser = action.payload.user || action.payload;
+
         state.users = state.users.map((u) =>
-          u._id === updated._id ? { ...u, role: updated.role } : u
+          u._id === updatedUser._id ? { ...u, role: updatedUser.role } : u
         );
-        if (state.profile?._id === updated._id) {
-          state.profile.role = updated.role;
+        if (state.profile?._id === updatedUser._id) {
+          state.profile.role = updatedUser.role;
         }
-        state.message = "Cập nhật vai trò thành công";
+        state.message = action.payload.message || "Cập nhật vai trò thành công";
       })
 
+      // Update Status
       .addCase(updateUserStatus.fulfilled, (state, action) => {
+        // Giả sử API trả về { message, user }
         const { user: updatedUser, message } = action.payload;
         state.users = state.users.map((u) =>
           u._id === updatedUser._id ? { ...u, status: updatedUser.status } : u
@@ -230,11 +234,11 @@ const userSlice = createSlice({
         state.error = action.payload;
       })
 
-      // 3. Selected User by ID
+      // Fetch By ID
       .addCase(fetchUserById.pending, (state) => {
         state.selectedUserLoading = true;
         state.selectedUserError = null;
-        state.selectedUser = null; // Xóa data cũ để tránh hiển thị nhầm
+        state.selectedUser = null;
       })
       .addCase(fetchUserById.fulfilled, (state, action) => {
         state.selectedUserLoading = false;

@@ -14,10 +14,10 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   if (user) {
     //Update User name
     user.userName = req.body.userName || user.userName;
-
     //Update Phone number
+    user.phoneNumber = req.body.phoneNumber || user.phoneNumber;
+    //Update Biology
     user.biology = req.body.biology || user.biology;
-
     //Update Profile Picture
     if (req.file && req.file.path) {
       user.profilePicture = req.file.path;
@@ -29,6 +29,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       userName: updatedUser.userName,
       userEmail: updatedUser.userEmail,
       role: updatedUser.role,
+      phoneNumber: updatedUser.phoneNumber,
       biology: updatedUser.biology,
       profilePicture: updatedUser.profilePicture,
       token: generateToken(updatedUser._id),
@@ -164,6 +165,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
       userName: user.userName,
       userEmail: user.userEmail,
       role: user.role,
+      phoneNumber: user.phoneNumber,
       biology: user.biology,
       profilePicture: user.profilePicture,
     });
@@ -219,6 +221,7 @@ const updateUserStatus = asyncHandler(async (req, res) => {
       userName: user.userName,
       userEmail: user.userEmail,
       phoneNumber: user.phoneNumber,
+      biology: user.biology,
       role: user.role,
       status: user.status,
     },

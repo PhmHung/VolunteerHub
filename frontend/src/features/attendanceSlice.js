@@ -52,7 +52,7 @@ const attendanceSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(checkinAttendance.fulfilled, (state, action) => {
+      .addCase(checkinAttendance.fulfilled, (state) => {
         state.successMessage = "Điểm danh thành công!";
       })
       .addCase(checkinAttendance.rejected, (state, action) => {

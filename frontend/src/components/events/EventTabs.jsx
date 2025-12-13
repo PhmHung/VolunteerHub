@@ -1,38 +1,72 @@
 /** @format */
 
 import React from "react";
-import { MessageSquare, Info, Users, Image } from "lucide-react";
+import { MessageSquare, Info, Users, ImageIcon, Bell } from "lucide-react";
 
-const EventTabs = ({ activeTab, setActiveTab }) => {
-  const tabs = [
-    { id: "discussion", label: "Thảo luận", icon: MessageSquare },
-    { id: "about", label: "Giới thiệu", icon: Info },
-    { id: "members", label: "Thành viên", icon: Users },
-    { id: "media", label: "Ảnh/File", icon: Image },
-  ];
+// Định nghĩa cấu hình tab ở đây để dễ quản lý và mở rộng
+const TABS_CONFIG = [
+  {
+    id: "discussion",
+    label: "Thảo luận",
+    icon: MessageSquare,
+    badge: null, // Có thể truyền số: 5 (ví dụ: bình luận mới)
+  },
+  {
+    id: "about",
+    label: "Giới thiệu",
+    icon: Info,
+    badge: null,
+  },
+  {
+    id: "members",
+    label: "Thành viên",
+    icon: Users,
+    badge: null, // Ví dụ: 12 thành viên mới → badge: 12
+  },
+  {
+    id: "media",
+    label: "Ảnh & File",
+    icon: ImageIcon,
+    badge: null,
+  },
+];
+
+const EventTabs = ({ activeTab, setActiveTab, badgeCounts = {} }) => {
+  // badgeCounts là object: { discussion: 8, members: 3, ... }
 
   return (
     <div className='bg-gray-50 border-b border-gray-200 sticky top-0 z-20'>
-      <div className='max-w-6xl mx-auto px-4 lg:px-8'>
-        <div className='flex items-center gap-2 py-2 overflow-x-auto no-scrollbar'>
-          {tabs.map((tab) => {
+      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+        <nav className='flex items-center gap-1 py-2 overflow-x-auto no-scrollbar'>
+          {TABS_CONFIG.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+            const count = badgeCounts[tab.id] || tab.badge;
+
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-2.5 px-4 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
-                  isActive
-                    ? "bg-white text-blue-600 shadow-sm border border-gray-200"
-                    : "text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm"
-                }`}>
-                <Icon className='w-4 h-4' />
-                {tab.label}
+                aria-current={isActive ? "page" : undefined}
+                className={`flex items-center gap-2.5 px-5 py-3 text-sm font-medium rounded-lg transition-all whitespace-nowrap relative
+                  ${
+                    isActive
+                      ? "bg-white text-primary-600 shadow-sm border border-gray-200"
+                      : "text-gray-600 hover:bg-white/80 hover:text-gray-900"
+                  }`}>
+                <Icon className='w-4.5 h-4.5' />
+                <span>{tab.label}</span>
+
+                {/* Badge thông báo nếu có */}
+                {count > 0 && (
+                  <span className='absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full'>
+                    {count > 99 ? "99+" : count}
+                  </span>
+                )}
               </button>
             );
           })}
-        </div>
+        </nav>
       </div>
     </div>
   );

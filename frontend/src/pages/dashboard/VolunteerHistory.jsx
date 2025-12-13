@@ -1,32 +1,55 @@
+/** @format */
+
 import { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { 
-  Calendar, 
-  MapPin, 
-  Clock, 
-  History, 
-  CheckCircle2, 
-  XCircle, 
-  Hourglass, 
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  History,
+  CheckCircle2,
+  XCircle,
+  Hourglass,
   Award,
   TrendingUp,
   Filter,
-  Search
+  Search,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { fetchMyRegistrations } from "../../features/registration/registrationSlice";
+import { fetchMyRegistrations } from "../../features/registrationSlice";
+import { REGISTRATION_STATUS } from "../../types";
 
 // Trạng thái đăng ký
 const STATUS_MAP = {
-  pending: { label: "Chờ duyệt", color: "bg-yellow-100 text-yellow-700", icon: Hourglass },
-  accepted: { label: "Đã duyệt", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
-  rejected: { label: "Bị từ chối", color: "bg-red-100 text-red-700", icon: XCircle },
+  pending: {
+    label: "Chờ duyệt",
+    color: "bg-yellow-100 text-yellow-700",
+    icon: Hourglass,
+  },
+  accepted: {
+    label: "Đã duyệt",
+    color: "bg-green-100 text-green-700",
+    icon: CheckCircle2,
+  },
+  rejected: {
+    label: "Bị từ chối",
+    color: "bg-red-100 text-red-700",
+    icon: XCircle,
+  },
 };
 
 // Trạng thái hoàn thành
 const COMPLETION_MAP = {
-  completed: { label: "Đã hoàn thành", color: "bg-blue-100 text-blue-700", icon: Award },
-  "not-completed": { label: "Chưa hoàn thành", color: "bg-gray-100 text-gray-600", icon: Clock },
+  completed: {
+    label: "Đã hoàn thành",
+    color: "bg-blue-100 text-blue-700",
+    icon: Award,
+  },
+  "not-completed": {
+    label: "Chưa hoàn thành",
+    color: "bg-gray-100 text-gray-600",
+    icon: Clock,
+  },
 };
 
 // Filter options
@@ -45,8 +68,10 @@ const COMPLETION_FILTERS = [
 
 export default function VolunteerHistory({ user }) {
   const dispatch = useDispatch();
-  const { myRegistrations, myLoading } = useSelector((state) => state.registration);
-  
+  const { myRegistrations, myLoading } = useSelector(
+    (state) => state.registration
+  );
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [completionFilter, setCompletionFilter] = useState("all");
@@ -60,25 +85,38 @@ export default function VolunteerHistory({ user }) {
 
   // Map registrations from Redux state
   const registrations = useMemo(() => {
-    return myRegistrations.map(reg => ({
+    return myRegistrations.map((reg) => ({
       ...reg,
-      event: reg.eventId, // Backend populates eventId with event data
+      event: reg.eventId,
+      status: reg.status || "pending",
     }));
   }, [myRegistrations]);
-
   const loading = myLoading;
 
   // Tính toán thống kê
   const stats = useMemo(() => {
     const total = registrations.length;
-    const pending = registrations.filter(r => r.status === "pending").length;
-    const accepted = registrations.filter(r => r.status === "accepted").length;
-    const rejected = registrations.filter(r => r.status === "rejected").length;
-    const completed = registrations.filter(r => r.completionStatus === "completed").length;
 
-    // Tính tổng số giờ từ các sự kiện đã hoàn thành
+    // Đếm theo Enum chuẩn
+    const pending = registrations.filter(
+      (r) => r.status === REGISTRATION_STATUS.WAITLISTED
+    ).length;
+
+    const accepted = registrations.filter(
+      (r) => r.status === REGISTRATION_STATUS.REGISTERED
+    ).length;
+
+    const rejected = registrations.filter(
+      (r) => r.status === REGISTRATION_STATUS.CANCELLED
+    ).length;
+
+    const completed = registrations.filter(
+      (r) => r.completionStatus === "completed"
+    ).length;
+
+    // Tính giờ (logic cũ giữ nguyên, chỉ đảm bảo tính trên đơn đã xác nhận)
     const totalHours = registrations
-      .filter(r => r.completionStatus === "completed" && r.event)
+      .filter((r) => r.completionStatus === "completed" && r.event)
       .reduce((sum, r) => {
         if (!r.event?.startDate || !r.event?.endDate) return sum;
         const start = new Date(r.event.startDate);
@@ -87,22 +125,32 @@ export default function VolunteerHistory({ user }) {
         return sum + hours;
       }, 0);
 
-    return { total, pending, accepted, rejected, completed, totalHours: Math.round(totalHours) };
+    return {
+      total,
+      pending,
+      accepted,
+      rejected,
+      completed,
+      totalHours: Math.round(totalHours),
+    };
   }, [registrations]);
 
   // Filter registrations
   const filteredRegistrations = useMemo(() => {
-    return registrations.filter(reg => {
+    return registrations.filter((reg) => {
       // Search
-      const matchesSearch = !searchQuery || 
+      const matchesSearch =
+        !searchQuery ||
         reg.event?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         reg.event?.location?.toLowerCase().includes(searchQuery.toLowerCase());
 
       // Status filter
-      const matchesStatus = statusFilter === "all" || reg.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "all" || reg.status === statusFilter;
 
       // Completion filter
-      const matchesCompletion = completionFilter === "all" || 
+      const matchesCompletion =
+        completionFilter === "all" ||
         (reg.completionStatus || "not-completed") === completionFilter;
 
       return matchesSearch && matchesStatus && matchesCompletion;
@@ -111,137 +159,197 @@ export default function VolunteerHistory({ user }) {
 
   // Sort: mới nhất lên đầu
   const sortedRegistrations = useMemo(() => {
-    return [...filteredRegistrations].sort((a, b) => 
-      new Date(b.registeredAt) - new Date(a.registeredAt)
+    return [...filteredRegistrations].sort(
+      (a, b) => new Date(b.registeredAt) - new Date(a.registeredAt)
     );
   }, [filteredRegistrations]);
 
   if (loading) {
     return (
-      <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Đang tải dữ liệu...</p>
+      <div className='w-full min-h-screen bg-gray-50 flex items-center justify-center'>
+        <div className='text-center'>
+          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto'></div>
+          <p className='mt-4 text-gray-600'>Đang tải dữ liệu...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 px-4 sm:px-6 py-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className='w-full min-h-screen bg-gray-50 px-4 sm:px-6 py-8'>
+      <div className='max-w-6xl mx-auto space-y-6'>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <History className="h-6 w-6 text-blue-600" />
+        <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+          <div className='flex items-center gap-3'>
+            <div className='p-3 bg-blue-100 rounded-xl'>
+              <History className='h-6 w-6 text-blue-600' />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Lịch sử tham gia</h1>
-              <p className="text-sm text-gray-500">Theo dõi các sự kiện bạn đã đăng ký</p>
+              <h1 className='text-2xl font-bold text-gray-900'>
+                Lịch sử tham gia
+              </h1>
+              <p className='text-sm text-gray-500'>
+                Theo dõi các sự kiện bạn đã đăng ký
+              </p>
             </div>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatCard 
-            label="Tổng đăng ký" 
-            value={stats.total} 
-            icon={<Calendar className="h-5 w-5" />}
-            color="bg-blue-500"
+        <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4'>
+          <StatCard
+            label='Tổng đăng ký'
+            value={stats.total}
+            icon={<Calendar className='h-5 w-5' />}
+            color='bg-blue-500'
           />
-          <StatCard 
-            label="Chờ duyệt" 
-            value={stats.pending} 
-            icon={<Hourglass className="h-5 w-5" />}
-            color="bg-yellow-500"
+          <StatCard
+            label='Chờ duyệt'
+            value={stats.pending}
+            icon={<Hourglass className='h-5 w-5' />}
+            color='bg-yellow-500'
           />
-          <StatCard 
-            label="Đã duyệt" 
-            value={stats.accepted} 
-            icon={<CheckCircle2 className="h-5 w-5" />}
-            color="bg-green-500"
+          <StatCard
+            label='Đã duyệt'
+            value={stats.accepted}
+            icon={<CheckCircle2 className='h-5 w-5' />}
+            color='bg-green-500'
           />
-          <StatCard 
-            label="Bị từ chối" 
-            value={stats.rejected} 
-            icon={<XCircle className="h-5 w-5" />}
-            color="bg-red-500"
+          <StatCard
+            label='Bị từ chối'
+            value={stats.rejected}
+            icon={<XCircle className='h-5 w-5' />}
+            color='bg-red-500'
           />
-          <StatCard 
-            label="Đã hoàn thành" 
-            value={stats.completed} 
-            icon={<Award className="h-5 w-5" />}
-            color="bg-purple-500"
+          <StatCard
+            label='Đã hoàn thành'
+            value={stats.completed}
+            icon={<Award className='h-5 w-5' />}
+            color='bg-purple-500'
           />
-          <StatCard 
-            label="Số giờ TNV" 
-            value={`${stats.totalHours}h`} 
-            icon={<TrendingUp className="h-5 w-5" />}
-            color="bg-indigo-500"
+          <StatCard
+            label='Số giờ TNV'
+            value={`${stats.totalHours}h`}
+            icon={<TrendingUp className='h-5 w-5' />}
+            color='bg-indigo-500'
           />
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm sự kiện..."
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-              />
+        {/* Filters */}
+        <div className='bg-white rounded-xl shadow-sm p-4 border border-gray-100'>
+          <div className='flex flex-col lg:flex-row gap-4 lg:items-end'>
+            {/* 1. Search Box */}
+            <div className='flex-1'>
+              <label className='block text-xs font-medium text-gray-500 mb-1 ml-1'>
+                Tìm kiếm
+              </label>
+              <div className='relative'>
+                <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400' />
+                <input
+                  type='text'
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder='Tìm theo tên sự kiện, địa điểm...'
+                  className='w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900'
+                />
+              </div>
             </div>
 
-            {/* Status Filter */}
-            <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-              >
-                {STATUS_FILTERS.map(f => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
+            {/* 2. Filter: Trạng thái Đăng ký (Chờ duyệt/Đã duyệt...) */}
+            <div className='flex flex-col gap-1 min-w-[200px]'>
+              <label className='text-xs font-medium text-gray-500 ml-1'>
+                Trạng thái đăng ký
+              </label>
+              <div className='relative'>
+                <div className='absolute left-3 top-1/2 -translate-y-1/2'>
+                  <Filter className='h-4 w-4 text-gray-400' />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className='w-full pl-9 pr-8 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 appearance-none cursor-pointer'>
+                  {STATUS_FILTERS.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                {/* Mũi tên dropdown tùy chỉnh (optional) */}
+                <div className='absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none'>
+                  <svg
+                    className='h-4 w-4 text-gray-400'
+                    fill='none'
+                    stroke='currentColor'
+                    viewBox='0 0 24 24'>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth='2'
+                      d='M19 9l-7 7-7-7'></path>
+                  </svg>
+                </div>
+              </div>
             </div>
 
-            {/* Completion Filter */}
-            <div>
-              <select
-                value={completionFilter}
-                onChange={(e) => setCompletionFilter(e.target.value)}
-                className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-              >
-                {COMPLETION_FILTERS.map(f => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
+            {/* 3. Filter: Trạng thái Hoàn thành (Đã xong/Chưa xong) */}
+            <div className='flex flex-col gap-1 min-w-[200px]'>
+              <label className='text-xs font-medium text-gray-500 ml-1'>
+                Kết quả tham gia
+              </label>
+              <div className='relative'>
+                <div className='absolute left-3 top-1/2 -translate-y-1/2'>
+                  <Award className='h-4 w-4 text-gray-400' />
+                </div>
+                <select
+                  value={completionFilter}
+                  onChange={(e) => setCompletionFilter(e.target.value)}
+                  className='w-full pl-9 pr-8 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 appearance-none cursor-pointer'>
+                  {COMPLETION_FILTERS.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <div className='absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none'>
+                  <svg
+                    className='h-4 w-4 text-gray-400'
+                    fill='none'
+                    stroke='currentColor'
+                    viewBox='0 0 24 24'>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth='2'
+                      d='M19 9l-7 7-7-7'></path>
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Registration List */}
-        <div className="space-y-4">
+        <div className='space-y-4'>
           {sortedRegistrations.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
-              <History className="h-16 w-16 text-gray-300 mx-auto" />
-              <h3 className="mt-4 text-lg font-semibold text-gray-900">Chưa có lịch sử</h3>
-              <p className="mt-2 text-gray-500">
-                {registrations.length === 0 
-                  ? "Bạn chưa đăng ký tham gia sự kiện nào." 
+            <div className='bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100'>
+              <History className='h-16 w-16 text-gray-300 mx-auto' />
+              <h3 className='mt-4 text-lg font-semibold text-gray-900'>
+                Chưa có lịch sử
+              </h3>
+              <p className='mt-2 text-gray-500'>
+                {registrations.length === 0
+                  ? "Bạn chưa đăng ký tham gia sự kiện nào."
                   : "Không tìm thấy kết quả phù hợp với bộ lọc."}
               </p>
             </div>
           ) : (
             sortedRegistrations.map((reg, index) => (
-              <RegistrationCard key={reg._id} registration={reg} index={index} />
+              <RegistrationCard
+                key={reg._id}
+                registration={reg}
+                index={index}
+              />
             ))
           )}
         </div>
@@ -256,15 +364,12 @@ function StatCard({ label, value, icon, color }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl shadow-sm p-4 border border-gray-100"
-    >
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${color} text-white`}>
-          {icon}
-        </div>
+      className='bg-white rounded-xl shadow-sm p-4 border border-gray-100'>
+      <div className='flex items-center gap-3'>
+        <div className={`p-2 rounded-lg ${color} text-white`}>{icon}</div>
         <div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-xs text-gray-500">{label}</p>
+          <p className='text-2xl font-bold text-gray-900'>{value}</p>
+          <p className='text-xs text-gray-500'>{label}</p>
         </div>
       </div>
     </motion.div>
@@ -273,10 +378,16 @@ function StatCard({ label, value, icon, color }) {
 
 // Registration Card Component
 function RegistrationCard({ registration, index }) {
-  const { event, status, completionStatus = "not-completed", registeredAt } = registration;
-  
+  const {
+    event,
+    status,
+    completionStatus = "not-completed",
+    registeredAt,
+  } = registration;
+
   const statusInfo = STATUS_MAP[status] || STATUS_MAP.pending;
-  const completionInfo = COMPLETION_MAP[completionStatus] || COMPLETION_MAP["not-completed"];
+  const completionInfo =
+    COMPLETION_MAP[completionStatus] || COMPLETION_MAP["not-completed"];
   const StatusIcon = statusInfo.icon;
   const CompletionIcon = completionInfo.icon;
 
@@ -316,37 +427,38 @@ function RegistrationCard({ registration, index }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
-    >
-      <div className="flex flex-col sm:flex-row">
+      className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow'>
+      <div className='flex flex-col sm:flex-row'>
         {/* Event Image */}
         {event.imageUrl && (
-          <div className="sm:w-48 h-32 sm:h-auto flex-shrink-0">
-            <img 
-              src={event.imageUrl} 
+          <div className='sm:w-48 h-32 sm:h-auto flex-shrink-0'>
+            <img
+              src={event.imageUrl}
               alt={event.title}
-              className="w-full h-full object-cover"
+              className='w-full h-full object-cover'
             />
           </div>
         )}
 
         {/* Content */}
-        <div className="flex-1 p-4 sm:p-5">
+        <div className='flex-1 p-4 sm:p-5'>
           {/* Title & Status Badges */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
-            <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
+          <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3'>
+            <h3 className='text-lg font-semibold text-gray-900 line-clamp-2'>
               {event.title}
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className='flex flex-wrap gap-2'>
               {/* Trạng thái đăng ký */}
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                <StatusIcon className="h-3.5 w-3.5" />
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                <StatusIcon className='h-3.5 w-3.5' />
                 {statusInfo.label}
               </span>
               {/* Trạng thái hoàn thành (chỉ hiện khi đã được duyệt) */}
               {status === "accepted" && (
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${completionInfo.color}`}>
-                  <CompletionIcon className="h-3.5 w-3.5" />
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${completionInfo.color}`}>
+                  <CompletionIcon className='h-3.5 w-3.5' />
                   {completionInfo.label}
                 </span>
               )}
@@ -354,32 +466,33 @@ function RegistrationCard({ registration, index }) {
           </div>
 
           {/* Event Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-400" />
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600'>
+            <div className='flex items-center gap-2'>
+              <Calendar className='h-4 w-4 text-gray-400' />
               <span>{formatDate(event.startDate)}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-gray-400" />
-              <span>{formatTime(event.startDate)} - {formatTime(event.endDate)}</span>
+            <div className='flex items-center gap-2'>
+              <Clock className='h-4 w-4 text-gray-400' />
+              <span>
+                {formatTime(event.startDate)} - {formatTime(event.endDate)}
+              </span>
               {hours !== null && (
-                <span className="text-blue-600 font-medium">({hours}h)</span>
+                <span className='text-blue-600 font-medium'>({hours}h)</span>
               )}
             </div>
-            <div className="flex items-center gap-2 sm:col-span-2">
-              <MapPin className="h-4 w-4 text-gray-400" />
-              <span className="line-clamp-1">{event.location}</span>
+            <div className='flex items-center gap-2 sm:col-span-2'>
+              <MapPin className='h-4 w-4 text-gray-400' />
+              <span className='line-clamp-1'>{event.location}</span>
             </div>
           </div>
 
           {/* Tags */}
           {event.tags && event.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3">
+            <div className='flex flex-wrap gap-1.5 mt-3'>
               {event.tags.slice(0, 3).map((tag, i) => (
-                <span 
+                <span
                   key={i}
-                  className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
-                >
+                  className='px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs'>
                   #{tag}
                 </span>
               ))}
@@ -387,7 +500,7 @@ function RegistrationCard({ registration, index }) {
           )}
 
           {/* Registration Info */}
-          <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
+          <div className='mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500'>
             Đăng ký lúc: {new Date(registeredAt).toLocaleString("vi-VN")}
           </div>
         </div>
