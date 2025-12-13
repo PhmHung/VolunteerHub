@@ -42,7 +42,7 @@ import {
 } from "../../features/userSlice";
 import {
   clearRegistrationMessages,
-  fetchPendingRegistrations,
+  fetchAllRegistrations,
   acceptRegistration,
   rejectRegistration,
 } from "../../features/registrationSlice";
@@ -58,6 +58,7 @@ import ConfirmModal from "../../components/common/ConfirmModal";
 import PromptModal from "../../components/common/PromptModal";
 
 // NEW COMPONENTS
+import RegistrationManagementTable from "../../components/registrations/RegistrationManagementTable";
 import EventManagementTable from "../../components/events/EventManagementTable";
 import UserManagementTable from "../../components/users/UserManagementTable";
 
@@ -150,7 +151,7 @@ const AdminDashboard = ({ user }) => {
   useEffect(() => {
     dispatch(fetchManagementEvents({ status: "", limit: 1000 }));
     dispatch(fetchAllUsers());
-    dispatch(fetchPendingRegistrations());
+    dispatch(fetchAllRegistrations());
   }, [dispatch]);
 
   useEffect(() => {
@@ -280,6 +281,7 @@ const AdminDashboard = ({ user }) => {
   };
 
   // Registration actions
+  // Registration actions
   const handleApproveRegistration = (reg) => {
     setConfirmModal({
       isOpen: true,
@@ -292,7 +294,7 @@ const AdminDashboard = ({ user }) => {
       onConfirm: async () => {
         await dispatch(acceptRegistration(reg._id)).unwrap();
         setSelectedRegistration(null);
-        dispatch(fetchPendingRegistrations());
+        dispatch(fetchAllRegistrations());
       },
     });
   };
@@ -310,7 +312,7 @@ const AdminDashboard = ({ user }) => {
           rejectRegistration({ registrationId: reg._id, reason })
         ).unwrap();
         setSelectedRegistration(null);
-        dispatch(fetchPendingRegistrations());
+        dispatch(fetchAllRegistrations());
       },
     });
   };
@@ -639,57 +641,14 @@ const AdminDashboard = ({ user }) => {
 
               {/* Duyệt đăng ký tình nguyện viên */}
               {activeTab === "volunteers" && (
-                <div className='space-y-4'>
-                  {pendingRegistrations.length === 0 ? (
-                    <div className='text-center py-12 text-gray-500'>
-                      Không có đăng ký nào đang chờ duyệt.
-                    </div>
-                  ) : (
-                    pendingRegistrations.map((reg) => {
-                      const vol = reg.volunteer || {};
-                      const evt = reg.event || {};
-                      return (
-                        <div
-                          key={reg._id}
-                          className='bg-white rounded-xl border p-5 flex items-center justify-between hover:shadow-md transition'>
-                          <div className='flex items-center gap-4'>
-                            <div className='w-12 h-12 rounded-full bg-gray-100 overflow-hidden'>
-                              {vol.profilePicture ? (
-                                <img
-                                  src={vol.profilePicture}
-                                  alt=''
-                                  className='w-full h-full object-cover'
-                                />
-                              ) : (
-                                <div className='w-full h-full flex items-center justify-center text-gray-500 font-bold'>
-                                  {vol.userName?.[0] || "U"}
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <p className='font-semibold'>
-                                {vol.userName || "Không rõ"}
-                              </p>
-                              <p className='text-sm text-gray-500'>
-                                Đăng ký:{" "}
-                                <span className='font-medium'>
-                                  {evt.title || "Sự kiện không xác định"}
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-                          <div className='flex items-center gap-3'>
-                            <button
-                              onClick={() => setSelectedRegistration(reg)}
-                              className='px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium'>
-                              Xem & Duyệt
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                <RegistrationManagementTable
+                  registrations={pendingRegistrations}
+                  users={allUsers}
+                  events={allEvents}
+                  onApprove={handleApproveRegistration}
+                  onReject={handleRejectRegistration}
+                  loading={false}
+                />
               )}
 
               {/* Duyệt Manager */}

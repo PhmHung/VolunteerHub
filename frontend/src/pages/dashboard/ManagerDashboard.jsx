@@ -9,7 +9,7 @@ import {
   fetchEventRegistrations,
 } from "../../features/eventSlice";
 import {
-  fetchPendingRegistrations,
+  fetchAllRegistrations,
   acceptRegistration,
   rejectRegistration,
 } from "../../features/registrationSlice";
@@ -66,7 +66,7 @@ export default function ManagerDashboard({ user }) {
   // Fetch data
   useEffect(() => {
     dispatch(fetchEvents());
-    dispatch(fetchPendingRegistrations());
+    dispatch(fetchAllRegistrations());
   }, [dispatch]);
 
   // Lấy danh sách sự kiện mà manager phụ trách (approved)
@@ -162,7 +162,7 @@ export default function ManagerDashboard({ user }) {
         try {
           await dispatch(acceptRegistration(regId)).unwrap();
           addToast("Đã chấp nhận đăng ký", "success");
-          dispatch(fetchPendingRegistrations());
+          dispatch(fetchAllRegistrations());
           if (selectedEvent)
             dispatch(fetchEventRegistrations(selectedEvent._id));
         } catch {
@@ -184,7 +184,7 @@ export default function ManagerDashboard({ user }) {
             rejectRegistration({ registrationId: regId, reason })
           ).unwrap();
           addToast("Đã từ chối đăng ký", "info");
-          dispatch(fetchPendingRegistrations());
+          dispatch(fetchAllRegistrations());
           if (selectedEvent)
             dispatch(fetchEventRegistrations(selectedEvent._id));
         } catch {

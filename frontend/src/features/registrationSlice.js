@@ -78,7 +78,6 @@ export const rejectRegistration = createAsyncThunk(
   "registration/reject",
   async ({ registrationId, reason }, { rejectWithValue }) => {
     try {
-      // --- SỬA LỖI Ở ĐÂY: PATCH -> PUT ---
       const { data } = await api.put(
         `/api/registrations/${registrationId}/reject`,
         { reason }
@@ -90,11 +89,13 @@ export const rejectRegistration = createAsyncThunk(
   }
 );
 
-// 7. (Dành cho Admin/Manager) Lấy tất cả đăng ký pending
-export const fetchPendingRegistrations = createAsyncThunk(
-  "registration/fetchPending",
+// 7. (Dành cho Admin/Manager) Lấy TẤT CẢ đăng ký (Pending + Approved + Rejected)
+// Đã đổi tên từ fetchPending -> fetchAll
+export const fetchAllRegistrations = createAsyncThunk(
+  "registration/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
+      // Gọi API mà bạn đã sửa ở Controller (lấy tất cả không lọc status)
       const { data } = await api.get("/api/registrations/pending");
       return data;
     } catch (err) {
@@ -111,8 +112,12 @@ const registrationSlice = createSlice({
     myError: null,
     eventRegistrations: {},
     eventLoading: false,
+
+    // Vẫn giữ tên biến là pendingRegistrations để đỡ phải sửa AdminDashboard
+    // Nhưng thực tế nó chứa TẤT CẢ các loại đăng ký
     pendingRegistrations: [],
     pendingLoading: false,
+
     successMessage: null,
     error: null,
   },
@@ -153,38 +158,52 @@ const registrationSlice = createSlice({
       state.eventRegistrations[eventId] = registrations;
     });
 
-    // ACCEPT
+    // ACCEPT (DUYỆT) - SỬA LOGIC: CẬP NHẬT STATUS
     builder.addCase(acceptRegistration.fulfilled, (state, action) => {
       state.successMessage = "Đã chấp nhận tình nguyện viên!";
-      const idToRemove = action.meta.arg;
+      const idToUpdate = action.meta.arg;
 
-      if (Array.isArray(state.pendingRegistrations)) {
-        state.pendingRegistrations = state.pendingRegistrations.filter(
-          (reg) => reg._id !== idToRemove
-        );
+      // Tìm và cập nhật status thay vì xóa
+      const index = state.pendingRegistrations.findIndex(
+        (reg) => reg._id === idToUpdate
+      );
+      if (index !== -1) {
+        state.pendingRegistrations[index].status = "registered"; // Hoặc "approved" tùy Enum bạn dùng
       }
     });
-    // REJECT
+
+    // REJECT (TỪ CHỐI) - SỬA LOGIC: CẬP NHẬT STATUS
     builder.addCase(rejectRegistration.fulfilled, (state, action) => {
       state.successMessage = "Đã từ chối tình nguyện viên.";
-      const idToRemove = action.meta.arg.registrationId;
-      if (Array.isArray(state.pendingRegistrations)) {
-        state.pendingRegistrations = state.pendingRegistrations.filter(
-          (reg) => reg._id !== idToRemove
-        );
+      const idToUpdate = action.meta.arg.registrationId;
+
+      // Tìm và cập nhật status thay vì xóa
+      const index = state.pendingRegistrations.findIndex(
+        (reg) => reg._id === idToUpdate
+      );
+      if (index !== -1) {
+        state.pendingRegistrations[index].status = "cancelled"; // Hoặc "rejected" tùy Enum bạn dùng
       }
     });
 
-    // FETCH PENDING
-    builder.addCase(fetchPendingRegistrations.fulfilled, (state, action) => {
+    // FETCH ALL (Thay cho Fetch Pending)
+    builder.addCase(fetchAllRegistrations.pending, (state) => {
+      state.pendingLoading = true;
+    });
+    builder.addCase(fetchAllRegistrations.fulfilled, (state, action) => {
+      state.pendingLoading = false;
       const data = action.payload.data || action.payload;
 
       if (Array.isArray(data)) {
         state.pendingRegistrations = data;
       } else {
-        console.warn("Dữ liệu pending không phải mảng:", data);
+        console.warn("Dữ liệu không phải mảng:", data);
         state.pendingRegistrations = [];
       }
+    });
+    builder.addCase(fetchAllRegistrations.rejected, (state, action) => {
+      state.pendingLoading = false;
+      state.error = action.payload;
     });
   },
 });
