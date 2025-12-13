@@ -6,55 +6,80 @@ const users = [
   {
     userName: "Admin",
     userEmail: "admin@example.com",
-    password: bcrypt.hashSync("AP231!", 10),
+    password: bcrypt.hashSync("123456", 10),
     role: "admin",
+<<<<<<< Updated upstream
     phoneNumber: "0987654321",
     biography: null,
+=======
+    biology: "0987654321",
+>>>>>>> Stashed changes
     status: "active",
   },
   {
     userName: "Quản Lý A",
     userEmail: "managerA@example.com",
-    password: bcrypt.hashSync("MP456@", 10),
+    password: bcrypt.hashSync("123456", 10),
     role: "manager",
+<<<<<<< Updated upstream
     phoneNumber: null,
     biography: null,
+=======
+    biology: "",
+>>>>>>> Stashed changes
     status: "active",
   },
   {
     userName: "Nguyễn Văn B",
     userEmail: "vanb@gmail.com",
-    password: bcrypt.hashSync("VP789#", 10),
+    password: bcrypt.hashSync("123456", 10),
     role: "volunteer",
+<<<<<<< Updated upstream
     phoneNumber: "0912345678",
     biography: null,
+=======
+    biology: "0912345678",
+>>>>>>> Stashed changes
     status: "active",
   },
   {
     userName: "Nguyễn Văn C",
     userEmail: "vanc@outlook.com",
-    password: bcrypt.hashSync("IP123!", 10),
+    password: bcrypt.hashSync("123456", 10),
     role: "volunteer",
+<<<<<<< Updated upstream
     phoneNumber: "0355123456",
     biography: null,
+=======
+    biology: "0355123456",
+>>>>>>> Stashed changes
     status: "inactive",
   },
   {
     userName: "Tình Nguyện Viên Dũng",
     userEmail: "Dungnguyen@gmail.com",
+<<<<<<< Updated upstream
     password: bcrypt.hashSync("MP123$", 10),
     phoneNumber: "0981234567",
     biography: null,
+=======
+    password: bcrypt.hashSync("123456", 10),
+    biology: "0981234567",
+>>>>>>> Stashed changes
     role: "volunteer",
     status: "active",
   },
   {
     userName: "Quản Lý B (Kẻ Xâm Nhập)",
     userEmail: "managerB@example.com",
-    password: bcrypt.hashSync("MP456@", 10), // Pass: MP456@
+    password: bcrypt.hashSync("123456", 10), 
     role: "manager",
+<<<<<<< Updated upstream
     phoneNumber: "0902222222",
     biography: null,
+=======
+    biology: "0902222222",
+>>>>>>> Stashed changes
     status: "active",
   },
   ...[
@@ -86,10 +111,14 @@ const users = [
   ].map((name) => ({
     userName: name,
     userEmail: `${name.toLowerCase().replace(/ /g, ".")}@gmail.com`,
-    password: bcrypt.hashSync("Vol123!", 10),
+    password: bcrypt.hashSync("123456", 10),
     role: "volunteer",
+<<<<<<< Updated upstream
     phoneNumber: "09" + Math.floor(100000000 + Math.random() * 900000000),
     biography: null,
+=======
+    biology: "09" + Math.floor(100000000 + Math.random() * 900000000),
+>>>>>>> Stashed changes
     status: "active",
   })),
 ];
