@@ -23,6 +23,7 @@ import {
 
 // 2. Import ảnh mặc định (để tránh lỗi ReferenceError)
 import defaultAvatar from "../assets/defaultAvatar.jpeg";
+import { registerPush } from "../utils/pushSubscription.js";
 
 export default function Information({ onProfileUpdate }) {
   const dispatch = useDispatch();
@@ -322,6 +323,15 @@ export default function Information({ onProfileUpdate }) {
               className='inline-flex items-center gap-2 rounded-full bg-white/20 border border-white px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/30'>
               Đổi mật khẩu
             </button>
+
+            <button
+              type="button"
+              onClick={registerPush}
+              className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-green-700"
+            >
+              Đăng ký thông báo
+            </button>
+
             <button
               type='button'
               onClick={handleDelete}

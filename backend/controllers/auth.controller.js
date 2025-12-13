@@ -128,6 +128,7 @@ const register = asyncHandler(async (req, res) => {
     password: password || null,
     phoneNumber,
     biology,
+    profilePicture: req.file ? req.file.path : null,
     role: role,
   });
 
@@ -180,7 +181,7 @@ const login = asyncHandler(async (req, res) => {
   }
 });
 
-// Khởi tạo Firebase Admin (nên làm 1 lần trong app)
+// Khởi tạo Firebase Admin (làm 1 lần trong app)
 if (!admin.apps.length) {
   try {
     const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } =
@@ -247,7 +248,13 @@ const firebaseLogin = asyncHandler(async (req, res) => {
     token: generateToken(user._id),
   };
 
+<<<<<<< Updated upstream
   res.status(200).json(payload);
+=======
+  console.log("Login information:", payload);  
+
+  res.status(201).json(payload);  
+>>>>>>> Stashed changes
 });
 
 export {

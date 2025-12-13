@@ -133,7 +133,6 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     }
     };
 
-
   // ========== FUNCTION: ĐĂNG NHẬP ==========
   // Gửi email + password đến backend để xác thực
   const handleLogin = async () => {
