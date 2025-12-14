@@ -41,6 +41,10 @@ const eventSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected", "cancelled"],
       default: "pending",
     },
+    //HỦY
+    cancellationReason: { type: String },
+    cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    cancelledAt: { type: Date },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

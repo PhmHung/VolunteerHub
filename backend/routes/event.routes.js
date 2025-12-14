@@ -10,6 +10,7 @@ import {
   deleteEvent,
   approveEvent,
   getEventRegistrations,
+  cancelEvent,
 } from "../controllers/event.controller.js";
 import {
   protect,
@@ -70,5 +71,5 @@ router.get(
 
 // Admin - Approve
 router.patch("/:eventId/approve", protect, allowAdminOnly, approveEvent);
-
+router.route("/:id/cancel").put(protect, allowAdminOrManager, cancelEvent); // Manager/Admin: Hủy sự kiện
 export default router;

@@ -92,6 +92,34 @@ const users = [
     biography: null,
     status: "active",
   })),
+  {
+    userName: "Ứng Viên Quản Lý Xuân",
+    userEmail: "xuan.apply@example.com",
+    password: bcrypt.hashSync("Apply123", 10),
+    role: "volunteer",
+    phoneNumber: "0918765432",
+    biography: "Có 2 năm kinh nghiệm tổ chức sự kiện cộng đồng.",
+    status: "active",
+  },
+  {
+    userName: "Tình Nguyện Viên Hồng",
+    userEmail: "hong.volunteer@example.com",
+    password: bcrypt.hashSync("Volun!456", 10),
+    role: "volunteer",
+    phoneNumber: "0357951357",
+    biography: null,
+    status: "active",
+  },
+
+  {
+    userName: "Quản Lý Thanh",
+    userEmail: "managerThanh@example.com",
+    password: bcrypt.hashSync("Thanh!789", 10),
+    role: "manager",
+    phoneNumber: "0909090909",
+    biography: "Chuyên quản lý các sự kiện môi trường.",
+    status: "active",
+  },
 ];
 
 export default users;

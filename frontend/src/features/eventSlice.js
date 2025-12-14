@@ -148,6 +148,22 @@ export const deleteEvent = createAsyncThunk(
   }
 );
 
+export const cancelEvent = createAsyncThunk(
+  "event/cancel",
+  async ({ eventId, reason }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put(`/api/events/${eventId}/cancel`, {
+        reason,
+      });
+      return data.data; // Trả về sự kiện đã được cập nhật
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Hủy sự kiện thất bại"
+      );
+    }
+  }
+);
+
 // =============================================
 // Slice
 const eventSlice = createSlice({
@@ -351,6 +367,31 @@ const eventSlice = createSlice({
         state.successMessage = "Đã xóa sự kiện thành công!";
       })
       .addCase(deleteEvent.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+
+    // CANCELED
+    builder
+      .addCase(cancelEvent.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(cancelEvent.fulfilled, (state, action) => {
+        state.loading = false;
+        const cancelledEvent = action.payload;
+        state.successMessage = "Đã hủy sự kiện thành công!";
+
+        // Cập nhật trong danh sách
+        state.list = state.list.map((e) =>
+          e._id === cancelledEvent._id ? cancelledEvent : e
+        );
+
+        // Cập nhật current nếu đang xem
+        if (state.current?._id === cancelledEvent._id) {
+          state.current = cancelledEvent;
+        }
+      })
+      .addCase(cancelEvent.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

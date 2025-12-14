@@ -340,6 +340,58 @@ const deleteEvent = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Manager/Admin: Hủy sự kiện đã được duyệt
+// @route   PUT /api/events/:id/cancel
+// @access  Private/Manager, Admin
+const cancelEvent = asyncHandler(async (req, res) => {
+  const eventId = req.params.id;
+  const { reason } = req.body; // Cần lý do hủy từ người dùng
+
+  const event = await Event.findById(eventId);
+
+  if (!event) {
+    res.status(404);
+    throw new Error("Không tìm thấy sự kiện");
+  }
+
+  // 1. KIỂM TRA QUYỀN
+  const isOwner = event.organizer.toString() === req.user._id.toString();
+  const isAdmin = req.user.role === "admin";
+
+  if (!isOwner && !isAdmin) {
+    res.status(403);
+    throw new Error("Bạn không có quyền hủy sự kiện này.");
+  }
+
+  // 2. KIỂM TRA TRẠNG THÁI HIỆN TẠI
+  if (event.status === "cancelled" || event.status === "rejected") {
+    res.status(400);
+    throw new Error(`Sự kiện đã ở trạng thái ${event.status}.`);
+  }
+
+  // 3. CẬP NHẬT TRẠNG THÁI EVENT
+  event.status = "cancelled";
+  event.cancellationReason = reason || "Không có lý do cụ thể.";
+  event.cancelledBy = req.user._id;
+  await event.save();
+
+  await Registration.updateMany(
+    { eventId: eventId, status: { $ne: "cancelled" } },
+    { status: "event_cancelled" }
+  );
+
+  if (isOwner && !isAdmin) {
+    console.log(
+      `[ALERT] Manager ${req.user.userName} đã hủy sự kiện: ${event.title}`
+    );
+  }
+
+  res.json({
+    message: "Đã hủy sự kiện thành công và thông báo tới người đăng ký.",
+    data: event,
+  });
+});
+
 export {
   getEvents,
   getAllEvents,
@@ -349,4 +401,5 @@ export {
   deleteEvent,
   approveEvent,
   getEventRegistrations,
+  cancelEvent,
 };

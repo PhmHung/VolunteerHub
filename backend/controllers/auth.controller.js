@@ -92,9 +92,14 @@ const verifyCode = async (req, res, next) => {
 // @route  POST /api/auth/register
 // @access Public
 const register = asyncHandler(async (req, res) => {
+  // Lấy role mong muốn (role) và các trường khác
   const { userName, verifyToken, password, role, biology, phoneNumber } =
     req.body;
-  if (!userName || !password || !role) {
+
+  // Lưu role mong muốn của user
+  const requestedRole = role;
+
+  if (!userName || !password || !requestedRole) {
     res.status(400);
     throw new Error("Vui lòng điền đầy đủ tất cả các trường bắt buộc.");
   }
@@ -116,10 +121,18 @@ const register = asyncHandler(async (req, res) => {
 
   // Kiểm tra email đã tồn tại chưa
   const userExists = await User.findOne({ userEmail });
-
   if (userExists) {
     res.status(400);
     throw new Error("Địa chỉ email này đã được sử dụng.");
+  }
+
+  let initialRole = requestedRole;
+  if (requestedRole === "manager") {
+    initialRole = "volunteer"; // Set tạm thời là volunteer
+  }
+  if (requestedRole === "admin") {
+    res.status(400);
+    throw new Error("Không thể đăng ký trực tiếp vai trò Admin.");
   }
 
   const user = await User.create({
@@ -128,19 +141,39 @@ const register = asyncHandler(async (req, res) => {
     password: password || null,
     phoneNumber,
     biology,
-    role: role,
+    role: initialRole, // SỬ DỤNG initialRole
   });
 
+  let registrationMessage = "Đăng ký thành công!";
+
   if (user) {
+    // 2. TẠO YÊU CẦU DUYỆT NẾU ROLE BAN ĐẦU LÀ MANAGER
+    if (requestedRole === "manager") {
+      // Dù là user mới nhưng để tránh lỗi, gọi hàm tính toán (sẽ trả về 0)
+      const experienceStats = await calculateVolunteerExperience(user._id);
+
+      await ApprovalRequest.create({
+        type: "manager_promotion",
+        requestedBy: user._id,
+        status: "pending",
+        // Dữ liệu kinh nghiệm (sẽ là 0 vì là user mới)
+        promotionData: experienceStats,
+      });
+      registrationMessage =
+        "Đăng ký thành công! Yêu cầu cấp quyền Quản Lý của bạn đang chờ Admin phê duyệt.";
+    }
+
+    // 3. Trả về payload
     const payload = {
       _id: user._id,
       userName: user.userName,
       userEmail: user.userEmail,
-      role: user.role,
+      role: user.role, // Vẫn là role đã lưu (volunteer)
       phoneNumber: user.phoneNumber,
       biology: user.biology,
       profilePicture: user.profilePicture,
       token: generateToken(user._id),
+      message: registrationMessage, // Thêm message thông báo
     };
 
     console.log("Login information:", payload);

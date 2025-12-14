@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
 import Registration from "../models/registrationModel.js";
+import Attendance from "../models/attendanceModel.js";
 import generateToken from "../utils/generateToken.js";
 
 // @desc   Update user profile
@@ -73,7 +74,6 @@ const deleteUser = asyncHandler(async (req, res) => {
 const getUserById = asyncHandler(async (req, res) => {
   const userId = req.params.id;
 
-  // 1. Lấy thông tin user cơ bản (ẩn password)
   const user = await User.findById(userId).select("-password");
 
   if (!user) {
@@ -81,31 +81,39 @@ const getUserById = asyncHandler(async (req, res) => {
     throw new Error("User not found");
   }
 
-  const attendanceHistory = await Attendance.find({})
+  const registrationIds = await Registration.find({ userId: userId }).distinct(
+    "_id"
+  );
+
+  const attendanceHistory = await Attendance.find({
+    regId: { $in: registrationIds },
+    status: { $in: ["completed", "absent"] },
+  })
     .populate({
       path: "regId",
-      match: { userId: userId },
+      select: "eventId createdAt status",
       populate: {
         path: "eventId",
         select: "title startDate endDate location status image",
       },
     })
-    .sort({ checkIn: -1 })
+    .sort({ checkOut: -1, checkIn: -1 })
     .exec();
-
   const history = attendanceHistory
-    .filter((att) => att.regId && att.regId.eventId)
+
+    .filter((att) => att.regId && att.regId.eventId && att.regId.eventId.title)
     .map((att) => ({
       attendanceId: att._id,
       checkIn: att.checkIn,
       checkOut: att.checkOut,
       status: att.status,
       feedback: att.feedback,
-      event: att.regId.eventId,
-      registeredAt: att.regId.createdAt,
+
+      event: att.regId?.eventId,
+      registeredAt: att.regId?.createdAt,
+      registrationStatus: att.regId?.status,
     }));
 
-  // 3. Trả về user + lịch sử tham gia thực tế
   res.json({
     ...user.toObject(),
     history,
@@ -251,6 +259,51 @@ const updateUserStatus = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Gửi yêu cầu thăng cấp lên Manager (dành cho Volunteer đã có tài khoản)
+// @route   POST /api/users/request-manager
+// @access  Private (Chỉ cần bảo vệ route, logic kiểm tra vai trò sẽ xử lý ở đây)
+const requestManagerRole = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  // 1. KIỂM TRA TRẠNG THÁI HIỆN TẠI VÀ QUYỀN GỬI
+  const user = await User.findById(userId);
+
+  if (user.role === "manager" || user.role === "admin") {
+    res.status(400);
+    throw new Error("Bạn đã là Manager hoặc Admin.");
+  }
+
+  // 2. KIỂM TRA YÊU CẦU ĐANG CHỜ DUYỆT
+  const existingRequest = await ApprovalRequest.findOne({
+    requestedBy: userId,
+    type: "manager_promotion",
+    status: "pending",
+  });
+
+  if (existingRequest) {
+    res.status(400);
+    throw new Error("Bạn đã có một yêu cầu thăng cấp Manager đang chờ duyệt.");
+  }
+
+  // 3. TÍNH TOÁN KINH NGHIỆM THỰC TẾ
+  // Lưu ý: Hàm calculateVolunteerExperience phải được import/định nghĩa đúng
+  const experienceStats = await calculateVolunteerExperience(userId);
+
+  // 4. TẠO APPROVAL REQUEST
+  const request = await ApprovalRequest.create({
+    type: "manager_promotion",
+    requestedBy: userId,
+    status: "pending",
+    // Chèn dữ liệu đã tính toán
+    promotionData: experienceStats,
+  });
+
+  res.status(201).json({
+    message:
+      "Đã gửi yêu cầu thăng cấp Manager thành công. Vui lòng chờ Admin duyệt.",
+    data: request,
+  });
+});
 export {
   updateUserProfile,
   getAllUsers,
@@ -260,4 +313,5 @@ export {
   changeUserPassword,
   getUserProfile,
   updateUserStatus,
+  requestManagerRole,
 };

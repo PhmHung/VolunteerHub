@@ -18,6 +18,7 @@ import {
   changeUserPassword,
   getUserProfile,
   updateUserStatus,
+  requestManagerRole,
 } from "../controllers/user.controller.js";
 const router = express.Router();
 
@@ -48,4 +49,6 @@ router.put("/:id/role", protect, allowAdminOnly, updateUserRole);
 // @desc    Admin hoặc Manager khóa/mở khóa tài khoản
 // @access  Private (Admin hoặc Manager)
 router.put("/:id/status", protect, allowAdminOrManager, updateUserStatus);
+
+router.route("/request-manager").post(protect, requestManagerRole);
 export default router;

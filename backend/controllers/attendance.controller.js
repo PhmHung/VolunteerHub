@@ -88,13 +88,11 @@ const recordCheckIn = asyncHandler(async (req, res) => {
       status: "in-progress",
     });
   }
-  res
-    .status(201)
-    .json({
-      message: "Check-In thành công.",
-      attendanceId: attendance._id,
-      checkInTime: attendance.checkIn,
-    });
+  res.status(201).json({
+    message: "Check-In thành công.",
+    attendanceId: attendance._id,
+    checkInTime: attendance.checkIn,
+  });
 });
 
 const recordCheckOut = asyncHandler(async (req, res) => {
@@ -210,9 +208,6 @@ const getEventPublicRating = asyncHandler(async (req, res) => {
     },
   });
 });
-
-// ... (Giữ nguyên getAttendanceByRegId, getEventPrivateFeedbacks, getAttendancesByEvent) ...
-// (Copy lại 3 hàm getAttendanceByRegId, getEventPrivateFeedbacks, getAttendancesByEvent từ code cũ vào đây)
 
 const getAttendanceByRegId = asyncHandler(async (req, res) => {
   const { regId } = req.params;
