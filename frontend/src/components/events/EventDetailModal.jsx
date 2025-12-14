@@ -13,7 +13,7 @@ import {
   XCircle,
   Star,
 } from "lucide-react";
-
+import VolunteersList from "../registrations/VolunteersList";
 const EventDetailModal = ({
   event,
   registrations = [],

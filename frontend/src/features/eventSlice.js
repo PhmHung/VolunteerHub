@@ -5,7 +5,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api"; // axios instance đã gắn token
 
 // =============================================
-// 1. PUBLIC: Lấy danh sách sự kiện (Đã thêm sort và minRating)
+// 1. PUBLIC: Lấy danh sách sự kiện
 export const fetchEvents = createAsyncThunk(
   "event/fetchAll",
   async (
@@ -22,15 +22,7 @@ export const fetchEvents = createAsyncThunk(
   ) => {
     try {
       const { data } = await api.get("/api/events", {
-        params: {
-          page,
-          limit,
-          search,
-          tag,
-          status,
-          sort,
-          minRating,
-        },
+        params: { page, limit, search, tag, status, sort, minRating },
       });
       return data;
     } catch (err) {
@@ -40,15 +32,15 @@ export const fetchEvents = createAsyncThunk(
     }
   }
 );
-// 1b. MANAGER/ADMIN: Lấy danh sách sự kiện của mình
+
+// 1b. MANAGER/ADMIN: Lấy danh sách sự kiện quản lý
 export const fetchManagementEvents = createAsyncThunk(
   "event/fetchManagement",
   async (
-    { page = 1, limit = 10, search = "", status = "" } = {}, // status rỗng = lấy tất cả
+    { page = 1, limit = 10, search = "", status = "" } = {},
     { rejectWithValue }
   ) => {
     try {
-      // Gọi đúng endpoint /management đã khai báo trong route
       const { data } = await api.get("/api/events/management", {
         params: { page, limit, search, status },
       });
@@ -60,20 +52,23 @@ export const fetchManagementEvents = createAsyncThunk(
     }
   }
 );
-// 2. Lấy chi tiết 1 sự kiện (public nếu approved, private nếu pending + có quyền)
+
+// 2. Lấy chi tiết 1 sự kiện
 export const fetchEventById = createAsyncThunk(
   "event/fetchById",
   async (eventId, { rejectWithValue }) => {
     try {
       const { data } = await api.get(`/api/events/${eventId}`);
-      return data.data; // backend trả { message, data }
+      return data.data;
     } catch (err) {
-      const msg = err.response?.data?.message || "Không tìm thấy sự kiện";
-      return rejectWithValue(msg);
+      return rejectWithValue(
+        err.response?.data?.message || "Không tìm thấy sự kiện"
+      );
     }
   }
 );
-// 3. Manager: Tạo sự kiện mới (tự động gửi yêu cầu duyệt)
+
+// 3. Manager: Tạo sự kiện mới
 export const createEvent = createAsyncThunk(
   "event/create",
   async (eventData, { rejectWithValue }) => {
@@ -87,7 +82,8 @@ export const createEvent = createAsyncThunk(
     }
   }
 );
-// 4. Manager: Cập nhật sự kiện (chỉ được sửa nếu chưa duyệt)
+
+// 4. Manager: Cập nhật sự kiện
 export const updateEvent = createAsyncThunk(
   "event/update",
   async ({ eventId, eventData }, { rejectWithValue }) => {
@@ -101,6 +97,7 @@ export const updateEvent = createAsyncThunk(
     }
   }
 );
+
 // 5. Admin: Duyệt / Từ chối sự kiện
 export const approveEvent = createAsyncThunk(
   "event/approve",
@@ -119,14 +116,13 @@ export const approveEvent = createAsyncThunk(
   }
 );
 
-//6. Manager: Lấy danh sách đăng ký của sự kiện
-// Gọi API: /api/events/:eventId/registrations
+// 6. Lấy danh sách đăng ký của sự kiện
 export const fetchEventRegistrations = createAsyncThunk(
   "event/fetchRegistrations",
   async (eventId, { rejectWithValue }) => {
     try {
       const { data } = await api.get(`/api/events/${eventId}/registrations`);
-      return data; // Backend trả về mảng registrations trực tiếp
+      return data;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Lỗi tải danh sách đăng ký"
@@ -134,8 +130,8 @@ export const fetchEventRegistrations = createAsyncThunk(
     }
   }
 );
-//7.
-// Thêm action xóa sự kiện
+
+// 7. Xóa sự kiện
 export const deleteEvent = createAsyncThunk(
   "event/deleteEvent",
   async (eventId, { rejectWithValue }) => {
@@ -148,6 +144,7 @@ export const deleteEvent = createAsyncThunk(
   }
 );
 
+// 8. ADMIN: Hủy sự kiện (Force Cancel)
 export const cancelEvent = createAsyncThunk(
   "event/cancel",
   async ({ eventId, reason }, { rejectWithValue }) => {
@@ -155,10 +152,29 @@ export const cancelEvent = createAsyncThunk(
       const { data } = await api.put(`/api/events/${eventId}/cancel`, {
         reason,
       });
-      return data.data; // Trả về sự kiện đã được cập nhật
+      // 👇 QUAN TRỌNG: Trả về data.data (object Event) để đồng bộ reducer
+      return data.data;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Hủy sự kiện thất bại"
+      );
+    }
+  }
+);
+
+// 9. MANAGER: Yêu cầu hủy sự kiện
+export const requestCancelEvent = createAsyncThunk(
+  "event/requestCancel",
+  async ({ eventId, reason }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put(`/api/events/${eventId}/cancel`, {
+        reason,
+      });
+      // 👇 QUAN TRỌNG: Trả về data.data (object Event - status đã là cancel_pending)
+      return data.data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Gửi yêu cầu hủy thất bại"
       );
     }
   }
@@ -169,37 +185,22 @@ export const cancelEvent = createAsyncThunk(
 const eventSlice = createSlice({
   name: "event",
   initialState: {
-    // Danh sách sự kiện (public + phân trang)
     list: [],
-    pagination: {
-      page: 1,
-      limit: 12,
-      total: 0,
-      pages: 0,
-    },
-
-    // 👇 [MỚI] State quản lý bộ lọc & sắp xếp
+    pagination: { page: 1, limit: 12, total: 0, pages: 0 },
     filters: {
       search: "",
       tag: "",
       status: "approved",
-      sort: "upcoming", // Mặc định: Sắp diễn ra
-      minRating: 0, // Mặc định: Lấy tất cả
+      sort: "upcoming",
+      minRating: 0,
       page: 1,
     },
-
     loading: false,
     error: null,
-
-    // Sự kiện đang xem chi tiết
     current: null,
     currentLoading: false,
-
-    // Danh sách đăng ký cho sự kiện hiện tại
     registrations: [],
     registrationsLoading: false,
-
-    // Thông báo thành công
     successMessage: null,
   },
 
@@ -218,13 +219,9 @@ const eventSlice = createSlice({
       state.registrations = [];
       state.registrationsLoading = false;
     },
-
-    // 👇 [MỚI] Action cập nhật bộ lọc
     setFilters: (state, action) => {
-      // Gộp filter cũ với filter mới (VD: chỉ đổi page, giữ nguyên search)
       state.filters = { ...state.filters, ...action.payload };
     },
-    // 👇 [MỚI] Reset bộ lọc về mặc định
     resetFilters: (state) => {
       state.filters = {
         search: "",
@@ -298,11 +295,8 @@ const eventSlice = createSlice({
     builder
       .addCase(updateEvent.fulfilled, (state, action) => {
         state.successMessage = "Cập nhật sự kiện thành công!";
-        // Cập nhật vào current nếu đang xem
-        if (state.current?._id === action.payload._id) {
+        if (state.current?._id === action.payload._id)
           state.current = action.payload;
-        }
-        // 👇 [FIX] Cập nhật luôn vào list để danh sách hiển thị đúng mà không cần reload
         state.list = state.list.map((e) =>
           e._id === action.payload._id ? action.payload : e
         );
@@ -319,22 +313,17 @@ const eventSlice = createSlice({
           updatedEvent.status === "approved"
             ? "Sự kiện đã được duyệt!"
             : "Đã từ chối sự kiện.";
-
-        // Cập nhật trong danh sách
         state.list = state.list.map((e) =>
           e._id === updatedEvent._id ? updatedEvent : e
         );
-
-        // Cập nhật current nếu đang xem
-        if (state.current?._id === updatedEvent._id) {
+        if (state.current?._id === updatedEvent._id)
           state.current = updatedEvent;
-        }
       })
       .addCase(approveEvent.rejected, (state, action) => {
         state.error = action.payload;
       });
 
-    // === FETCH EVENT REGISTRATIONS ===
+    // === REGISTRATIONS ===
     builder
       .addCase(fetchEventRegistrations.pending, (state) => {
         state.registrationsLoading = true;
@@ -356,14 +345,8 @@ const eventSlice = createSlice({
       })
       .addCase(deleteEvent.fulfilled, (state, action) => {
         state.loading = false;
-        // Xóa khỏi danh sách
         state.list = state.list.filter((event) => event._id !== action.payload);
-
-        // 👇 [FIX] Nếu đang xem chi tiết sự kiện vừa xóa -> Clear luôn để tránh lỗi UI
-        if (state.current?._id === action.payload) {
-          state.current = null;
-        }
-
+        if (state.current?._id === action.payload) state.current = null;
         state.successMessage = "Đã xóa sự kiện thành công!";
       })
       .addCase(deleteEvent.rejected, (state, action) => {
@@ -371,27 +354,44 @@ const eventSlice = createSlice({
         state.error = action.payload;
       });
 
-    // CANCELED
+    // === CANCEL (ADMIN) ===
     builder
       .addCase(cancelEvent.pending, (state) => {
         state.loading = true;
       })
       .addCase(cancelEvent.fulfilled, (state, action) => {
         state.loading = false;
+        // 👇 Giờ payload chính là object Event -> Xử lý dễ dàng
         const cancelledEvent = action.payload;
         state.successMessage = "Đã hủy sự kiện thành công!";
 
-        // Cập nhật trong danh sách
         state.list = state.list.map((e) =>
           e._id === cancelledEvent._id ? cancelledEvent : e
         );
-
-        // Cập nhật current nếu đang xem
-        if (state.current?._id === cancelledEvent._id) {
+        if (state.current?._id === cancelledEvent._id)
           state.current = cancelledEvent;
-        }
       })
       .addCase(cancelEvent.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+
+    // === REQUEST CANCEL (MANAGER) ===
+    builder
+      .addCase(requestCancelEvent.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(requestCancelEvent.fulfilled, (state, action) => {
+        state.loading = false;
+        // 👇 Giờ payload cũng là object Event -> Nhất quán
+        const updatedEvent = action.payload;
+        state.successMessage = "Đã gửi yêu cầu hủy thành công!";
+
+        state.list = state.list.map((e) =>
+          e._id === updatedEvent._id ? updatedEvent : e
+        );
+      })
+      .addCase(requestCancelEvent.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
@@ -403,8 +403,8 @@ export const {
   clearCurrentEvent,
   clearEventError,
   clearRegistrations,
-  setFilters, // <--- Nhớ export action này
-  resetFilters, // <--- Nhớ export action này
+  setFilters,
+  resetFilters,
 } = eventSlice.actions;
 
 export default eventSlice.reducer;

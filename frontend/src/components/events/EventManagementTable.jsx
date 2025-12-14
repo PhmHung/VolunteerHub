@@ -15,21 +15,27 @@ import {
   Maximize2,
   Minimize2,
   Star,
+  FileX,
+  Ban, // Icon Hủy
 } from "lucide-react";
 
 const EventManagementTable = ({
   events = [],
   registrations = [],
-  onApprove,
-  onReject,
+  cancelRequests = [],
+  onApprove, // Nếu undefined (Manager) -> Sẽ ẩn nút duyệt
+  onReject, // Nếu undefined (Manager) -> Sẽ ẩn nút từ chối
   onDeleteEvent,
   onViewEvent,
+  onCancelEvent,
+  onApproveCancellation,
+  onRejectCancellation,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Tính số đơn chờ duyệt
+  // 1. Tính toán số lượng pending registration
   const getPendingCount = (eventId) => {
     return registrations.filter(
       (reg) =>
@@ -38,7 +44,7 @@ const EventManagementTable = ({
     ).length;
   };
 
-  // Lọc sự kiện
+  // 2. Logic Lọc dữ liệu
   const filteredEvents = events.filter((event) => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
@@ -51,13 +57,13 @@ const EventManagementTable = ({
     return matchesSearch && matchesStatus;
   });
 
+  // 3. Cấu hình hiển thị Badge
   const getStatusConfig = (status) => {
     switch (status) {
       case "approved":
         return {
           label: "Đã duyệt",
           icon: CheckCircle,
-          color: "emerald",
           bg: "bg-emerald-50",
           text: "text-emerald-700",
           border: "border-emerald-200",
@@ -66,39 +72,162 @@ const EventManagementTable = ({
         return {
           label: "Chờ duyệt",
           icon: Clock,
-          color: "amber",
           bg: "bg-amber-50",
           text: "text-amber-700",
           border: "border-amber-200",
         };
-      default:
+      case "rejected":
         return {
-          label: "Từ chối",
+          label: "Đã từ chối",
           icon: XCircle,
-          color: "red",
           bg: "bg-red-50",
           text: "text-red-700",
           border: "border-red-200",
         };
+      case "cancelled":
+        return {
+          label: "Đã hủy",
+          icon: Ban,
+          bg: "bg-gray-100",
+          text: "text-gray-600",
+          border: "border-gray-300",
+        };
+      default:
+        return {
+          label: status,
+          icon: Clock,
+          bg: "bg-gray-50",
+          text: "text-gray-700",
+          border: "border-gray-200",
+        };
     }
+  };
+
+  // 4. Render Card
+  const renderEventCard = (event) => {
+    const pendingCount = getPendingCount(event._id || event.id);
+    const statusConfig = getStatusConfig(event.status);
+    const StatusIcon = statusConfig.icon;
+
+    return (
+      <div
+        key={event._id}
+        className='bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group'>
+        <div className='flex flex-col lg:flex-row justify-between gap-6'>
+          {/* CỘT TRÁI: THÔNG TIN */}
+          <div className='flex-1'>
+            <div className='flex items-start justify-between mb-4'>
+              <h3 className='text-lg font-bold text-gray-900 line-clamp-1 group-hover:text-blue-700 transition-colors'>
+                {event.title}
+              </h3>
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border}`}>
+                <StatusIcon className='w-4 h-4' />
+                {statusConfig.label}
+              </span>
+            </div>
+
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600'>
+              <div className='flex items-center gap-2'>
+                <Calendar className='w-4 h-4 text-gray-400' />
+                {new Date(event.startDate).toLocaleDateString("vi-VN")}
+              </div>
+              <div className='flex items-center gap-2'>
+                <MapPin className='w-4 h-4 text-gray-400' />
+                <span className='truncate max-w-[150px]'>
+                  {event.location || "Chưa xác định"}
+                </span>
+              </div>
+              <div className='flex items-center gap-2'>
+                <Users className='w-4 h-4 text-gray-400' />
+                {event.registeredCount || 0} / {event.maxParticipants}
+              </div>
+              <div className='flex items-center gap-2'>
+                <Star className='w-4 h-4 text-yellow-400 fill-yellow-400' />
+                {event.averageRating || 0}
+              </div>
+            </div>
+
+            {/* Hiển thị số lượng đăng ký mới */}
+            {pendingCount > 0 && event.status === "approved" && (
+              <div className='mt-3 inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-bold border border-blue-100'>
+                <Clock className='w-3 h-3' /> {pendingCount} đơn đăng ký mới cần
+                duyệt
+              </div>
+            )}
+          </div>
+
+          {/* CỘT PHẢI: HÀNH ĐỘNG */}
+          <div className='flex items-center gap-2 self-start lg:self-center'>
+            {/* 👇 SỬA LỖI: Chỉ hiện nút Duyệt/Từ chối nếu có prop onApprove (tức là Admin) */}
+            {event.status === "pending" && onApprove && (
+              <>
+                <button
+                  onClick={() => onApprove(event)}
+                  className='p-2.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition'
+                  title='Duyệt sự kiện'>
+                  <CheckCircle className='w-5 h-5' />
+                </button>
+                <button
+                  onClick={() => onReject(event)}
+                  className='p-2.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition'
+                  title='Từ chối sự kiện'>
+                  <XCircle className='w-5 h-5' />
+                </button>
+              </>
+            )}
+
+            {/* Nút Hủy (Admin Force Cancel hoặc Manager Request) */}
+            {event.status === "approved" && onCancelEvent && (
+              <button
+                onClick={() => onCancelEvent(event)}
+                className='p-2.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition'
+                title={onApprove ? "Hủy sự kiện (Khẩn cấp)" : "Yêu cầu hủy"}>
+                <Ban className='w-5 h-5' />
+              </button>
+            )}
+
+            <div className='w-px h-8 bg-gray-200 mx-1'></div>
+
+            <button
+              onClick={() => onViewEvent(event)}
+              className='p-2.5 bg-gray-100 text-blue-600 rounded-lg hover:bg-blue-100 transition'
+              title='Xem chi tiết'>
+              <Eye className='w-5 h-5' />
+            </button>
+
+            {/* Nút Xóa (Nếu có quyền xóa) */}
+            {onDeleteEvent && (
+              <button
+                onClick={() => onDeleteEvent(event)}
+                className='p-2.5 bg-gray-100 text-gray-500 rounded-lg hover:bg-red-100 hover:text-red-600 transition'
+                title='Xóa dữ liệu'>
+                <Trash2 className='w-5 h-5' />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div
-      className={`bg-white shadow-sm border border-gray-200 transition-all duration-300 flex flex-col rounded-xl overflow-hidden ${
-        isExpanded ? "fixed inset-4 z-50 rounded-2xl" : "relative h-full"
+      className={`bg-white shadow-sm border border-gray-200 flex flex-col rounded-xl overflow-hidden transition-all ${
+        isExpanded
+          ? "fixed inset-4 z-50 rounded-2xl shadow-2xl"
+          : "relative h-full"
       }`}>
-      {/* HEADER - CỐ ĐỊNH KHI SCROLL */}
+      {/* HEADER */}
       <div className='sticky top-0 z-10 bg-white border-b border-gray-100 p-6 flex-none'>
         <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
           <div className='flex items-center gap-3'>
             <h2 className='text-xl font-bold text-gray-900'>
-              Quản lý sự kiện tình nguyện
+              Danh sách sự kiện
             </h2>
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className='p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition'
-              title={isExpanded ? "Thu gọn" : "Mở rộng toàn màn hình"}>
+              className='p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition'>
               {isExpanded ? (
                 <Minimize2 className='w-5 h-5' />
               ) : (
@@ -108,150 +237,116 @@ const EventManagementTable = ({
           </div>
 
           <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
-            <div className='relative'>
+            {/* Ô TÌM KIẾM */}
+            <div className='relative flex-1'>
               <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
               <input
                 type='text'
-                placeholder='Tìm tên sự kiện, địa điểm...'
+                placeholder='Tìm kiếm sự kiện...'
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className='pl-10 pr-4 py-2.5 w-full sm:w-64 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
+                className='pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 w-full sm:w-64'
               />
             </div>
 
+            {/* BỘ LỌC (Đã bỏ icon) */}
             <div className='relative'>
               <Filter className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className='pl-10 pr-8 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white appearance-none cursor-pointer'>
+                className='pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white appearance-none cursor-pointer font-medium text-gray-700'>
                 <option value='all'>Tất cả trạng thái</option>
-                <option value='pending'>Chờ duyệt</option>
+                <option value='pending'>
+                  Chờ duyệt (
+                  {events.filter((e) => e.status === "pending").length})
+                </option>
                 <option value='approved'>Đã duyệt</option>
                 <option value='rejected'>Đã từ chối</option>
+                <option value='cancelled'>Đã hủy</option>
               </select>
             </div>
           </div>
         </div>
       </div>
 
-      {/* BODY - SCROLL ĐỘC LẬP */}
-      <div className='flex-1 overflow-y-auto bg-gray-50'>
-        <div className='p-6'>
-          {filteredEvents.length > 0 ? (
-            <div className='grid gap-5'>
-              {filteredEvents.map((event) => {
-                const pendingCount = getPendingCount(event._id || event.id);
-                const status = getStatusConfig(event.status);
-                const StatusIcon = status.icon;
-
-                return (
-                  <div
-                    key={event._id || event.id}
-                    className='bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200'>
-                    <div className='flex flex-col lg:flex-row justify-between gap-6'>
-                      {/* Thông tin chính */}
-                      <div className='flex-1'>
-                        <div className='flex items-start justify-between mb-4'>
-                          <h3 className='text-lg font-semibold text-gray-900 line-clamp-1'>
-                            {event.title}
-                          </h3>
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${status.bg} ${status.text} border ${status.border}`}>
-                            <StatusIcon className='w-4 h-4' />
-                            {status.label}
-                          </span>
-                        </div>
-
-                        <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-600'>
-                          <div className='flex items-center gap-2'>
-                            <Calendar className='w-4 h-4 text-gray-500 flex-shrink-0' />
-                            <span>
-                              {event.startDate
-                                ? new Date(event.startDate).toLocaleDateString(
-                                    "vi-VN"
-                                  )
-                                : "Chưa xác định"}
-                            </span>
-                          </div>
-                          <div className='flex items-center gap-2'>
-                            <MapPin className='w-4 h-4 text-gray-500 flex-shrink-0' />
-                            <span className='truncate'>
-                              {event.location || "Chưa có địa điểm"}
-                            </span>
-                          </div>
-                          <div className='flex items-center gap-2'>
-                            <Users className='w-4 h-4 text-gray-500 flex-shrink-0' />
-                            <span>
-                              Tối đa {event.maxParticipants || "?"} tình nguyện
-                              viên
-                            </span>
-                          </div>
-                          <div className='flex items-center gap-2'>
-                            <Star className='w-4 h-4 text-yellow-500 flex-shrink-0 fill-yellow-500' />
-                            <span className='font-medium text-gray-700'>
-                              {event.averageRating || 0}{" "}
-                              <span className='text-gray-400 font-normal'>
-                                ({event.ratingCount || 0})
-                              </span>
-                            </span>
-                          </div>
-                        </div>
-
-                        {pendingCount > 0 && (
-                          <div className='mt-4 inline-flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-sm font-bold'>
-                            <Clock className='w-4 h-4' />
-                            {pendingCount} đơn đăng ký mới
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Nút hành động */}
-                      <div className='flex items-center gap-3 self-start lg:self-center'>
-                        {event.status === "pending" && (
-                          <>
-                            <button
-                              onClick={() => onApprove(event)}
-                              className='p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition'
-                              title='Duyệt sự kiện'>
-                              <CheckCircle className='w-5 h-5' />
-                            </button>
-                            <button
-                              onClick={() => onReject(event)}
-                              className='p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition'
-                              title='Từ chối'>
-                              <XCircle className='w-5 h-5' />
-                            </button>
-                          </>
-                        )}
-
-                        <button
-                          onClick={() => onViewEvent(event)}
-                          className='p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition'
-                          title='Xem chi tiết'>
-                          <Eye className='w-5 h-5' />
-                        </button>
-
-                        <button
-                          onClick={() => onDeleteEvent(event)}
-                          className='p-3 bg-gray-50 text-gray-500 rounded-xl hover:bg-red-50 hover:text-red-600 transition'
-                          title='Xóa sự kiện'>
-                          <Trash2 className='w-5 h-5' />
-                        </button>
-                      </div>
+      {/* BODY */}
+      <div className='flex-1 overflow-y-auto bg-gray-50 p-6'>
+        {/* KHỐI YÊU CẦU HỦY */}
+        {cancelRequests.length > 0 && (
+          <div className='bg-red-50 border border-red-200 rounded-xl p-6 mb-8 animate-in slide-in-from-top-2'>
+            {/* ... (Giữ nguyên logic hiển thị yêu cầu hủy) */}
+            <h3 className='text-lg font-bold text-red-800 flex items-center gap-2 mb-4'>
+              <span className='relative flex h-3 w-3'>
+                <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75'></span>
+                <span className='relative inline-flex rounded-full h-3 w-3 bg-red-500'></span>
+              </span>
+              Yêu cầu Hủy Sự kiện cần xử lý ({cancelRequests.length})
+            </h3>
+            {/* Map cancelRequests ở đây... */}
+            <div className='grid gap-4'>
+              {cancelRequests.map((req) => (
+                <div
+                  key={req._id}
+                  className='bg-white border border-red-100 rounded-lg p-4 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4'>
+                  <div className='flex-1'>
+                    <div className='flex items-center gap-2 mb-1'>
+                      <span className='px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded uppercase'>
+                        Khẩn cấp
+                      </span>
+                      <h4 className='font-bold text-gray-900 text-lg'>
+                        {req.event?.title || "Sự kiện không xác định"}
+                      </h4>
+                    </div>
+                    <p className='text-gray-700 mt-1'>
+                      <span className='font-semibold'>Lý do hủy:</span> "
+                      {req.reason}"
+                    </p>
+                    <div className='flex items-center gap-3 mt-2 text-xs text-gray-500'>
+                      <span>
+                        Từ: <strong>{req.requestedBy?.userName}</strong>
+                      </span>
+                      <span>•</span>
+                      <span>
+                        {new Date(req.createdAt).toLocaleString("vi-VN")}
+                      </span>
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className='flex gap-2 shrink-0'>
+                    <button
+                      onClick={() => onRejectCancellation(req)}
+                      className='px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm transition'>
+                      Từ chối (Giữ lại)
+                    </button>
+                    <button
+                      onClick={() => onApproveCancellation(req)}
+                      className='px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm shadow-sm transition flex items-center gap-2'>
+                      <Trash2 className='w-4 h-4' /> Xác nhận Hủy
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div className='text-center py-20 text-gray-500'>
-              <Calendar className='w-16 h-16 mx-auto text-gray-300 mb-4' />
-              <p className='text-lg font-medium'>Không tìm thấy sự kiện nào</p>
-              <p className='text-sm mt-2'>Thử thay đổi từ khóa hoặc bộ lọc</p>
+          </div>
+        )}
+
+        {/* DANH SÁCH SỰ KIỆN */}
+        {filteredEvents.length > 0 ? (
+          <div className='grid gap-5'>
+            {filteredEvents.map(renderEventCard)}
+          </div>
+        ) : (
+          <div className='text-center py-20 text-gray-500'>
+            <div className='bg-gray-100 p-4 rounded-full inline-block mb-3'>
+              <FileX className='w-8 h-8 text-gray-400' />
             </div>
-          )}
-        </div>
+            <p className='font-medium text-lg'>Không tìm thấy sự kiện nào.</p>
+            <p className='text-sm'>
+              Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

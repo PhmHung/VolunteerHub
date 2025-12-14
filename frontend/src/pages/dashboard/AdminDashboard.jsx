@@ -32,6 +32,7 @@ import {
   approveEvent,
   clearEventMessages,
   deleteEvent,
+  requestCancelEvent,
 } from "../../features/eventSlice";
 import {
   fetchAllUsers,
@@ -64,7 +65,7 @@ import PromptModal from "../../components/common/PromptModal";
 import PotentialManagerList from "../../components/approvals/PotentialManagerList";
 // NEW COMPONENTS
 import RegistrationManagementTable from "../../components/registrations/RegistrationManagementTable";
-import EventManagementTable from "../../components/events/EventManagementTable";
+import EventManagementTable from "../../components/events/EventManagementTable"; // Component mới cập nhật
 import UserManagementTable from "../../components/users/UserManagementTable";
 
 const StatCard = ({ title, value, change, icon, color }) => {
@@ -113,10 +114,25 @@ const AdminDashboard = ({ user }) => {
     error: regError,
   } = useSelector((state) => state.registration);
 
+  const {
+    pendingList: pendingRequests = [],
+    successMessage: approvalSuccessMessage,
+    error: approvalError,
+  } = useSelector((state) => state.approval);
+
+  // Filter Requests
+  const pendingManagerRequests = pendingRequests.filter(
+    (req) => req.type === "manager_promotion"
+  );
+  const pendingCancelRequests = pendingRequests.filter(
+    (req) => req.type === "event_cancellation"
+  );
+  const pendingNewEvents = allEvents.filter((e) => e.status === "pending");
+
   // Local State
   const [activeTab, setActiveTab] = useState("overview");
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const pendingEvents = allEvents.filter((e) => e.status === "pending");
+
   // Modal states
   const [selectedRegistration, setSelectedRegistration] = useState(null);
   const [selectedManagerRequest, setSelectedManagerRequest] = useState(null);
@@ -125,15 +141,6 @@ const AdminDashboard = ({ user }) => {
 
   const [toasts, setToasts] = useState([]);
 
-  const {
-    pendingList: pendingRequests = [],
-    successMessage: approvalSuccessMessage,
-    error: approvalError,
-  } = useSelector((state) => state.approval);
-
-  const pendingManagerRequests = pendingRequests.filter(
-    (req) => req.type === "manager_promotion"
-  );
   // Confirm / Prompt modals
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -237,7 +244,8 @@ const AdminDashboard = ({ user }) => {
   const handleViewUser = (user) => setViewingUser(user);
   const handleViewEvent = (event) => setViewingEventDetail(event);
 
-  // Event actions
+  // --- EVENT ACTIONS (Duyệt/Từ chối Event Mới & Xóa/Hủy Event Cũ) ---
+
   const handleApproveEvent = (event) => {
     setConfirmModal({
       isOpen: true,
@@ -297,50 +305,132 @@ const AdminDashboard = ({ user }) => {
       },
     });
   };
-  const handleRecommendManager = (user) => {
+
+  // Admin Force Cancel (Hủy trực tiếp sự kiện đang chạy)
+  const handleAdminForceCancel = (event) => {
     setConfirmModal({
       isOpen: true,
-      title: "Đề cử thăng cấp Manager",
+      title: "Hủy sự kiện đang hoạt động",
       message: (
         <div>
-          <p>Bạn có chắc muốn thăng cấp trực tiếp cho thành viên này?</p>
-          <p className='font-bold mt-2 text-green-700'>{user.userName}</p>
-          <p className='text-sm text-gray-500 mt-1'>Email: {user.userEmail}</p>
-          <p className='text-xs text-red-500 mt-3'>
-            *Lưu ý: Hành động này sẽ chuyển vai trò người dùng sang Manager ngay
-            lập tức mà không cần qua bước duyệt.
+          <p>
+            Bạn có chắc chắn muốn hủy sự kiện <strong>{event.title}</strong>?
           </p>
+          <div className='mt-3 bg-orange-50 p-3 rounded-lg border border-orange-200 text-sm text-orange-800'>
+            <p className='font-bold flex items-center gap-1'>Cảnh báo:</p>
+            <ul className='list-disc list-inside mt-1 ml-1 space-y-1'>
+              <li>Trạng thái sự kiện sẽ chuyển thành "Cancelled".</li>
+              <li>
+                Tất cả {event.registeredCount || 0} tình nguyện viên đã đăng ký
+                sẽ bị hủy vé.
+              </li>
+            </ul>
+          </div>
         </div>
       ),
-      type: "success", // Hoặc "info"
-      confirmText: "Thăng cấp ngay",
+      type: "danger",
+      confirmText: "Xác nhận Hủy",
       onConfirm: async () => {
         try {
-          // Gọi action update role có sẵn trong userSlice
+          // Gọi API requestCancel nhưng với role Admin nó sẽ hủy luôn
           await dispatch(
-            updateUserRole({ userId: user._id, role: "manager" })
+            requestCancelEvent({
+              eventId: event._id,
+              reason: "Admin hủy trực tiếp từ Dashboard quản lý.",
+            })
           ).unwrap();
 
-          addToast(`Đã thăng cấp thành công cho ${user.userName}`, "success");
-
-          // Refresh lại danh sách user để cập nhật UI
-          dispatch(fetchAllUsers());
-        } catch (error) {
-          addToast("Lỗi khi thăng cấp: " + error, "error");
+          dispatch(fetchManagementEvents({ status: "" }));
+          addToast("Đã hủy sự kiện thành công", "success");
+        } catch (err) {
+          addToast("Lỗi hủy sự kiện: " + err, "error");
         }
       },
     });
   };
 
-  // Registration actions
-  // Registration actions
+  // --- CANCEL REQUEST ACTIONS (Xử lý yêu cầu hủy từ Manager) ---
+
+  const handleApproveCancellation = (req) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Xác nhận HỦY sự kiện",
+      message: (
+        <div>
+          <p>Bạn đang chấp thuận yêu cầu hủy sự kiện:</p>
+          <p className='font-bold text-red-600 my-2'>{req.event?.title}</p>
+          <p>Hành động này sẽ:</p>
+          <ul className='list-disc list-inside text-sm text-gray-600'>
+            <li>Chuyển trạng thái sự kiện sang "Cancelled".</li>
+            <li>Hủy toàn bộ vé đã đăng ký của tình nguyện viên.</li>
+          </ul>
+        </div>
+      ),
+      type: "danger",
+      confirmText: "Đồng ý Hủy",
+      onConfirm: async () => {
+        await dispatch(
+          processApprovalRequest({
+            requestId: req._id,
+            actionType: "approve",
+          })
+        ).unwrap();
+        dispatch(fetchPendingApprovals());
+        dispatch(fetchManagementEvents({ status: "" }));
+      },
+    });
+  };
+
+  const handleRejectCancellation = (req) => {
+    setPromptModal({
+      isOpen: true,
+      title: "Từ chối yêu cầu hủy",
+      message: "Nhập lý do từ chối (Sự kiện sẽ tiếp tục hoạt động):",
+      confirmText: "Gửi lý do",
+      onConfirm: async (reason) => {
+        await dispatch(
+          processApprovalRequest({
+            requestId: req._id,
+            actionType: "reject",
+            adminNote: reason,
+          })
+        ).unwrap();
+        dispatch(fetchPendingApprovals());
+        dispatch(fetchManagementEvents({ status: "" }));
+      },
+    });
+  };
+
+  // --- OTHER ACTIONS (User/Manager/Reg) ---
+
+  const handleRecommendManager = (user) => {
+    /* ... giữ nguyên ... */
+    setConfirmModal({
+      isOpen: true,
+      title: "Đề cử thăng cấp Manager",
+      message: `Bạn có chắc muốn thăng cấp "${user.userName}"?`,
+      type: "success",
+      confirmText: "Thăng cấp ngay",
+      onConfirm: async () => {
+        try {
+          await dispatch(
+            updateUserRole({ userId: user._id, role: "manager" })
+          ).unwrap();
+          addToast(`Đã thăng cấp thành công cho ${user.userName}`, "success");
+          dispatch(fetchAllUsers());
+        } catch (error) {
+          addToast("Lỗi: " + error, "error");
+        }
+      },
+    });
+  };
+
   const handleApproveRegistration = (reg) => {
+    /* ... giữ nguyên ... */
     setConfirmModal({
       isOpen: true,
       title: "Chấp nhận đăng ký",
-      message: `Chấp nhận ${
-        reg.volunteer?.userName || "tình nguyện viên"
-      } tham gia sự kiện?`,
+      message: `Chấp nhận ${reg.volunteer?.userName}?`,
       type: "success",
       confirmText: "Chấp nhận",
       onConfirm: async () => {
@@ -352,12 +442,11 @@ const AdminDashboard = ({ user }) => {
   };
 
   const handleRejectRegistration = (reg) => {
+    /* ... giữ nguyên ... */
     setPromptModal({
       isOpen: true,
       title: "Từ chối đăng ký",
-      message: `Lý do từ chối ${
-        reg.volunteer?.userName || "tình nguyện viên"
-      }:`,
+      message: `Lý do từ chối ${reg.volunteer?.userName}:`,
       confirmText: "Từ chối",
       onConfirm: async (reason) => {
         await dispatch(
@@ -369,27 +458,19 @@ const AdminDashboard = ({ user }) => {
     });
   };
 
-  // Manager request actions
   const handleApproveManager = (req) => {
+    /* ... giữ nguyên ... */
     setConfirmModal({
       isOpen: true,
       title: "Thăng cấp Manager",
-      message: `Xác nhận thăng cấp ${
-        req.requestedBy?.userName || "ứng viên"
-      } lên Manager?`,
+      message: `Xác nhận thăng cấp ${req.requestedBy?.userName}?`,
       type: "success",
       confirmText: "Thăng cấp",
       onConfirm: async () => {
-        // Dùng action xử lý Approval Request
         await dispatch(
-          processApprovalRequest({
-            requestId: req._id,
-            actionType: "approve",
-          })
+          processApprovalRequest({ requestId: req._id, actionType: "approve" })
         ).unwrap();
-
         setSelectedManagerRequest(null);
-        // Refresh lại dữ liệu
         dispatch(fetchPendingApprovals());
         dispatch(fetchAllUsers());
       },
@@ -397,12 +478,11 @@ const AdminDashboard = ({ user }) => {
   };
 
   const handleRejectManager = (req) => {
+    /* ... giữ nguyên ... */
     setPromptModal({
       isOpen: true,
       title: "Từ chối yêu cầu Manager",
-      message: `Lý do từ chối yêu cầu của ${
-        req.requestedBy?.userName || "ứng viên"
-      }:`,
+      message: `Lý do từ chối yêu cầu của ${req.requestedBy?.userName}:`,
       confirmText: "Từ chối",
       onConfirm: async (reason) => {
         await dispatch(
@@ -412,66 +492,54 @@ const AdminDashboard = ({ user }) => {
             adminNote: reason,
           })
         ).unwrap();
-
         setSelectedManagerRequest(null);
         dispatch(fetchPendingApprovals());
       },
     });
   };
 
-  // User management actions
   const handleToggleUserStatus = (user) => {
+    /* ... giữ nguyên ... */
     const newStatus = user.status === "active" ? "inactive" : "active";
     setConfirmModal({
       isOpen: true,
       title: newStatus === "inactive" ? "Khóa tài khoản" : "Mở khóa tài khoản",
-      message: `Xác nhận ${
-        newStatus === "inactive" ? "khóa" : "mở khóa"
-      } tài khoản "${user.userName}"?`,
+      message: `Xác nhận ${newStatus === "inactive" ? "khóa" : "mở khóa"} "${
+        user.userName
+      }"?`,
       type: newStatus === "inactive" ? "warning" : "success",
       confirmText: newStatus === "inactive" ? "Khóa" : "Mở khóa",
       onConfirm: async () => {
         await dispatch(
           updateUserStatus({ userId: user._id, status: newStatus })
         ).unwrap();
-        addToast(
-          newStatus === "inactive"
-            ? "Đã khóa tài khoản"
-            : "Đã mở khóa tài khoản",
-          "success"
-        );
+        addToast("Cập nhật trạng thái thành công", "success");
         dispatch(fetchAllUsers());
       },
     });
   };
 
   const handleDeleteUser = (user) => {
+    /* ... giữ nguyên ... */
     setConfirmModal({
       isOpen: true,
       title: "Xóa tài khoản",
-      message: (
-        <div>
-          <p>
-            Bạn chắc chắn muốn <strong>xóa vĩnh viễn</strong> tài khoản?
-          </p>
-          <p className='font-medium mt-2'>"{user.userName}"</p>
-          <p className='text-sm text-red-600 mt-2'>Không thể khôi phục.</p>
-        </div>
-      ),
+      message: `Xóa vĩnh viễn tài khoản "${user.userName}"?`,
       type: "danger",
       confirmText: "Xóa vĩnh viễn",
       onConfirm: async () => {
         await dispatch(deleteUser(user._id)).unwrap();
-        addToast(`Đã xóa người dùng "${user.userName}"`, "success");
+        addToast("Đã xóa người dùng", "success");
         dispatch(fetchAllUsers());
       },
     });
   };
 
   const totalPending =
-    pendingEvents.length +
+    pendingNewEvents.length +
     pendingRegistrations.length +
-    pendingManagerRequests.length;
+    pendingManagerRequests.length +
+    pendingCancelRequests.length;
 
   return (
     <div className='min-h-screen bg-gray-50 font-sans'>
@@ -563,7 +631,7 @@ const AdminDashboard = ({ user }) => {
               />
               <StatCard
                 title='Chờ duyệt sự kiện'
-                value={pendingEvents.length}
+                value={pendingNewEvents.length}
                 change={-5}
                 icon={Calendar}
                 color='bg-amber-500'
@@ -586,9 +654,11 @@ const AdminDashboard = ({ user }) => {
                 {[
                   { id: "overview", label: "Tổng quan" },
                   {
-                    id: "events",
-                    label: "Duyệt sự kiện",
-                    count: pendingEvents.length,
+                    id: "events_management", // Tab này giờ là chính cho cả Duyệt và Quản lý
+                    label: "Quản lý sự kiện",
+                    // Count bao gồm: Sự kiện chờ duyệt + Yêu cầu hủy
+                    count:
+                      pendingNewEvents.length + pendingCancelRequests.length,
                     color: "amber",
                   },
                   {
@@ -607,10 +677,9 @@ const AdminDashboard = ({ user }) => {
                     id: "suggestions",
                     label: "Gợi ý Manager",
                     count: suggestedManagers.length,
-                    color: "green", // Hoặc màu khác tùy ý
+                    color: "green",
                   },
                   { id: "users_management", label: "Quản lý người dùng" },
-                  { id: "events_management", label: "Quản lý sự kiện" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -696,19 +765,25 @@ const AdminDashboard = ({ user }) => {
                 </div>
               )}
 
-              {/* Duyệt sự kiện (chỉ pending) */}
-              {activeTab === "events" && (
+              {/* === TAB QUẢN LÝ SỰ KIỆN (ALL-IN-ONE) === */}
+              {activeTab === "events_management" && (
                 <EventManagementTable
-                  events={pendingEvents}
+                  events={allEvents} // Truyền toàn bộ sự kiện
                   registrations={pendingRegistrations}
-                  onApprove={handleApproveEvent}
-                  onReject={handleRejectEvent}
-                  onDeleteEvent={handleDeleteEvent}
-                  onViewEvent={handleViewEvent}
+                  // Props cho phần Cancel Request (Khối màu đỏ)
+                  cancelRequests={pendingCancelRequests}
+                  onApproveCancellation={handleApproveCancellation}
+                  onRejectCancellation={handleRejectCancellation}
+                  // Props cho phần Event List (Các nút hành động)
+                  onApprove={handleApproveEvent} // Duyệt sự kiện mới
+                  onReject={handleRejectEvent} // Từ chối sự kiện mới
+                  onCancelEvent={handleAdminForceCancel} // Hủy sự kiện đang chạy
+                  onDeleteEvent={handleDeleteEvent} // Xóa sự kiện
+                  onViewEvent={handleViewEvent} // Xem chi tiết
                 />
               )}
 
-              {/* Duyệt đăng ký tình nguyện viên */}
+              {/* Các Tabs khác (Giữ nguyên) */}
               {activeTab === "volunteers" && (
                 <RegistrationManagementTable
                   registrations={pendingRegistrations}
@@ -720,7 +795,6 @@ const AdminDashboard = ({ user }) => {
                 />
               )}
 
-              {/* Duyệt Manager */}
               {activeTab === "managers" && (
                 <div className='space-y-4'>
                   {pendingManagerRequests.length === 0 ? (
@@ -734,7 +808,6 @@ const AdminDashboard = ({ user }) => {
                         className='bg-white rounded-xl border p-5 flex items-center justify-between hover:shadow-md transition'>
                         <div className='flex items-center gap-4'>
                           <div className='w-12 h-12 rounded-full bg-purple-100 overflow-hidden'>
-                            {/* ✅ SỬA: req.candidate -> req.requestedBy */}
                             {req.requestedBy?.profilePicture ? (
                               <img
                                 src={req.requestedBy.profilePicture}
@@ -749,12 +822,10 @@ const AdminDashboard = ({ user }) => {
                           </div>
                           <div>
                             <p className='font-semibold'>
-                              {/* ✅ SỬA: req.candidate -> req.requestedBy */}
                               {req.requestedBy?.userName ||
                                 "Người dùng không xác định"}
                             </p>
                             <p className='text-sm text-gray-500'>
-                              {/* ✅ SỬA: Hiển thị promotionData thật */}
                               Hoàn thành:{" "}
                               {req.promotionData?.eventsCompleted || 0} sự kiện
                               • {req.promotionData?.totalAttendanceHours || 0}{" "}
@@ -773,7 +844,6 @@ const AdminDashboard = ({ user }) => {
                 </div>
               )}
 
-              {/* Quản lý người dùng */}
               {activeTab === "users_management" && (
                 <UserManagementTable
                   users={allUsers}
@@ -783,17 +853,6 @@ const AdminDashboard = ({ user }) => {
                 />
               )}
 
-              {/* Quản lý toàn bộ sự kiện */}
-              {activeTab === "events_management" && (
-                <EventManagementTable
-                  events={allEvents}
-                  registrations={pendingRegistrations}
-                  onApprove={handleApproveEvent}
-                  onReject={handleRejectEvent}
-                  onDeleteEvent={handleDeleteEvent}
-                  onViewEvent={handleViewEvent}
-                />
-              )}
               {activeTab === "suggestions" && (
                 <PotentialManagerList
                   suggestedUsers={suggestedManagers}
@@ -806,6 +865,7 @@ const AdminDashboard = ({ user }) => {
       </div>
 
       {/* Modals */}
+      {/* ... (Các modal giữ nguyên như cũ) ... */}
       {selectedRegistration && (
         <VolunteerApprovalModal
           registration={selectedRegistration}
@@ -839,7 +899,7 @@ const AdminDashboard = ({ user }) => {
         registrations={pendingRegistrations}
         users={allUsers}
         onClose={() => setViewingEventDetail(null)}
-        onUserClick={handleViewUser}
+        onUserClick={handleViewEvent}
       />
 
       <ConfirmModal

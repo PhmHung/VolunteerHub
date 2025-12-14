@@ -2,25 +2,48 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Calendar, Users, Plus, Edit2 } from "lucide-react";
-
 import {
-  fetchEvents,
+  Calendar,
+  Users,
+  Plus,
+  Clock,
+  CheckCircle,
+  XCircle,
+  BarChart3,
+  Briefcase,
+  UserCog,
+} from "lucide-react";
+
+// Redux Actions
+import {
+  fetchManagementEvents,
   fetchEventRegistrations,
+  requestCancelEvent,
+  deleteEvent,
 } from "../../features/eventSlice";
 import {
   fetchAllRegistrations,
   acceptRegistration,
   rejectRegistration,
 } from "../../features/registrationSlice";
-import { fetchUserById } from "../../features/userSlice";
+import {
+  //fetchUserById,
+  fetchAllUsers,
+  updateUserStatus,
+  deleteUser,
+} from "../../features/userSlice";
 
+// Components
 import EventsForm from "../../components/events/EventsForm";
+// Thêm vào phần imports của ManagerDashboard.jsx
+import VolunteerApprovalModal from "../../components/approvals/VolunteerApprovalModal";
 import EventDetailModal from "../../components/events/EventDetailModal";
-import UserDetailModal from "../../components/users/UserDetailModal"; // Sửa import đúng
-import EventTabs from "../../components/events/EventTabs";
-import EventChannel from "../../components/events/EventChannel";
+import UserDetailModal from "../../components/users/UserDetailModal";
+import EventManagementTable from "../../components/events/EventManagementTable";
+import UserManagementTable from "../../components/users/UserManagementTable";
+import PieStat from "../../components/users/PieStat";
 
+// Common
 import { ToastContainer } from "../../components/common/Toast";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import PromptModal from "../../components/common/PromptModal";
@@ -29,14 +52,15 @@ export default function ManagerDashboard({ user }) {
   const dispatch = useDispatch();
 
   // Redux state
-  const { list: reduxEvents = [], registrations: currentRegistrations = [] } =
+  const { list: allEvents = [], registrations: currentRegistrations = [] } =
     useSelector((state) => state.event);
-  const { user: authUser } = useSelector((state) => state.auth);
-  const { pendingRegistrations = [] } = useSelector(
+  const { user: authUser, users: allUsers = [] } = useSelector(
+    (state) => state.user
+  );
+  const { list: allRegistrations = [] } = useSelector(
     (state) => state.registration || {}
   );
 
-  // Current user
   const activeUser = user || authUser;
   const displayName =
     activeUser?.personalInformation?.name ||
@@ -44,18 +68,19 @@ export default function ManagerDashboard({ user }) {
     "Người quản lý";
 
   // Local state
+  const [activeTab, setActiveTab] = useState("overview");
   const [toasts, setToasts] = useState([]);
+
+  // Modal State
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [activeDetailTab, setActiveDetailTab] = useState("about");
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [viewingUserId, setViewingUserId] = useState(null);
-
-  // Confirm & Prompt modals
+  const [selectedRegistration, setSelectedRegistration] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false });
   const [promptModal, setPromptModal] = useState({ isOpen: false });
 
-  // Toast helpers
+  // Helpers
   const addToast = (message, type = "success") => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
@@ -63,318 +88,452 @@ export default function ManagerDashboard({ user }) {
   const removeToast = (id) =>
     setToasts((prev) => prev.filter((t) => t.id !== id));
 
-  // Fetch data
+  // Fetch Data
   useEffect(() => {
-    dispatch(fetchEvents());
+    dispatch(fetchManagementEvents());
     dispatch(fetchAllRegistrations());
+    dispatch(fetchAllUsers());
   }, [dispatch]);
 
-  // Lấy danh sách sự kiện mà manager phụ trách (approved)
-  const myManagedEvents = useMemo(() => {
-    if (!reduxEvents.length || !activeUser?._id) return [];
+  // --- 1. LỌC SỰ KIỆN CỦA MANAGER ---
+  const myEvents = useMemo(() => {
+    if (!allEvents.length || !activeUser?._id) return [];
+    return allEvents.filter((event) => {
+      const createdById = event.createdBy?._id || event.createdBy;
+      return createdById === activeUser._id;
+    });
+  }, [allEvents, activeUser]);
 
-    return reduxEvents
-      .filter((event) => {
-        const createdById = event.createdBy?._id || event.createdBy;
-        const managerIds = Array.isArray(event.managers)
-          ? event.managers.map((m) => m?._id || m)
-          : [];
-        return (
-          (createdById === activeUser._id ||
-            managerIds.includes(activeUser._id)) &&
-          event.status === "approved"
-        );
-      })
-      .map((event) => {
-        const pendingCount = pendingRegistrations.filter(
-          (r) =>
-            (r.eventId?._id || r.eventId) === event._id &&
-            ["pending", "waitlisted"].includes(r.status)
-        ).length;
+  // --- 2. LỌC USER (VOLUNTEERS) THUỘC SỰ KIỆN CỦA MANAGER ---
+  const myVolunteers = useMemo(() => {
+    if (!myEvents.length || !allRegistrations.length) return [];
 
-        return {
-          ...event,
-          pendingCount,
-          participantsCount: event.currentParticipants || 0,
-        };
-      });
-  }, [reduxEvents, activeUser, pendingRegistrations]);
+    // B1: Lấy danh sách ID các sự kiện của tôi
+    const myEventIds = myEvents.map((e) => e._id);
 
-  // Summary stats
-  const summary = useMemo(() => {
-    const totalEvents = myManagedEvents.length;
-    const totalPending = myManagedEvents.reduce(
-      (sum, e) => sum + e.pendingCount,
-      0
-    );
-    const totalParticipants = myManagedEvents.reduce(
-      (sum, e) => sum + e.participantsCount,
-      0
+    // B2: Lọc ra các đơn đăng ký thuộc sự kiện của tôi
+    const myRelevantRegistrations = allRegistrations.filter((reg) => {
+      const eventId = reg.eventId?._id || reg.eventId || reg.event;
+      return myEventIds.includes(eventId);
+    });
+
+    // B3: Lấy ra danh sách User ID từ các đơn đăng ký đó
+    const volunteerIds = myRelevantRegistrations.map(
+      (reg) => reg.userId?._id || reg.userId || reg.volunteer
     );
 
-    return [
-      { label: "Sự kiện đang quản lý", value: totalEvents, icon: Calendar },
-      { label: "Đăng ký chờ duyệt", value: totalPending, icon: Users },
-      {
-        label: "Tình nguyện viên tham gia",
-        value: totalParticipants,
-        icon: Users,
-      },
-    ];
-  }, [myManagedEvents]);
+    // B4: Lọc danh sách User gốc (allUsers) chỉ lấy những người có ID trong list trên
+    // Dùng Set để loại bỏ trùng lặp (1 người đăng ký nhiều sự kiện)
+    const uniqueVolunteerIds = [...new Set(volunteerIds)];
 
-  // Handlers
-  const handleViewEvent = (event) => {
-    setSelectedEvent(event);
-    setActiveDetailTab("about");
-    dispatch(fetchEventRegistrations(event._id));
-  };
+    return allUsers.filter((u) => uniqueVolunteerIds.includes(u._id));
+  }, [myEvents, allRegistrations, allUsers]);
 
-  const handleEditEvent = (event) => {
-    if (event.status === "approved") {
-      addToast("Không thể chỉnh sửa sự kiện đã được duyệt!", "warning");
-      return;
+  // --- THỐNG KÊ (STATS) ---
+  const stats = useMemo(() => {
+    const approved = myEvents.filter((e) => e.status === "approved").length;
+    const pending = myEvents.filter((e) => e.status === "pending").length;
+    const rejected = myEvents.filter((e) => e.status === "rejected").length;
+    const cancelled = myEvents.filter((e) => e.status === "cancelled").length;
+
+    const totalParticipants = myEvents.reduce(
+      (sum, e) => sum + (e.registeredCount || 0),
+      0
+    );
+
+    return { approved, pending, rejected, cancelled, totalParticipants };
+  }, [myEvents]);
+
+  const pieData = [
+    { name: "Đang chạy", value: stats.approved, color: "#10b981" },
+    { name: "Chờ duyệt", value: stats.pending, color: "#f59e0b" },
+    { name: "Từ chối", value: stats.rejected, color: "#ef4444" },
+    { name: "Đã hủy", value: stats.cancelled, color: "#6b7280" },
+  ].filter((d) => d.value > 0);
+
+  // Hàm này sẽ được gọi khi bấm vào tên User trong danh sách
+  // const handleReviewRegistration = (registration) => {
+  //   setSelectedRegistration(registration);
+  // };
+
+  // Hàm duyệt thật sự (được gọi từ bên trong Modal)
+  const handleApproveRegistration = async (regId) => {
+    // Nhận regId hoặc object
+    const id = regId._id || regId;
+    try {
+      await dispatch(acceptRegistration(id)).unwrap();
+      addToast("Đã duyệt đăng ký", "success");
+      setSelectedRegistration(null); // Đóng modal
+      dispatch(fetchAllRegistrations());
+      if (selectedEvent) dispatch(fetchEventRegistrations(selectedEvent._id));
+    } catch {
+      addToast("Lỗi khi chấp nhận", "error");
     }
-    setEditingEvent(event);
-    setShowEventForm(true);
   };
 
+  // Hàm từ chối thật sự
+  const handleRejectRegistration = async (regId) => {
+    const id = regId._id || regId;
+    // Có thể mở thêm PromptModal nhập lý do ở đây nếu muốn kỹ hơn
+    try {
+      await dispatch(
+        rejectRegistration({ registrationId: id, reason: "Manager rejected" })
+      ).unwrap();
+      addToast("Đã từ chối đăng ký", "info");
+      setSelectedRegistration(null); // Đóng modal
+      dispatch(fetchAllRegistrations());
+      if (selectedEvent) dispatch(fetchEventRegistrations(selectedEvent._id));
+    } catch {
+      addToast("Lỗi khi từ chối", "error");
+    }
+  };
+  // --- HANDLERS ---
   const handleCreateEvent = () => {
     setEditingEvent(null);
     setShowEventForm(true);
   };
 
-  const handleViewUser = (userId) => {
-    if (userId && userId !== "unknown") {
-      dispatch(fetchUserById(userId));
-      setViewingUserId(userId);
-    }
+  const handleViewEvent = (event) => {
+    setSelectedEvent(event);
+    dispatch(fetchEventRegistrations(event._id));
   };
 
-  const handleApproveRegistration = (regId) => {
+  const handleDeleteEvent = (event) => {
+    if (event.status === "approved") {
+      addToast("Không thể xóa sự kiện đang chạy. Hãy yêu cầu hủy.", "error");
+      return;
+    }
     setConfirmModal({
       isOpen: true,
-      title: "Chấp nhận đăng ký",
-      message: "Bạn có chắc muốn chấp nhận tình nguyện viên này?",
-      type: "success",
-      confirmText: "Chấp nhận",
+      title: "Xóa sự kiện",
+      message: `Bạn có chắc muốn xóa sự kiện "${event.title}"?`,
+      type: "danger",
+      confirmText: "Xóa ngay",
       onConfirm: async () => {
         try {
-          await dispatch(acceptRegistration(regId)).unwrap();
-          addToast("Đã chấp nhận đăng ký", "success");
-          dispatch(fetchAllRegistrations());
-          if (selectedEvent)
-            dispatch(fetchEventRegistrations(selectedEvent._id));
-        } catch {
-          addToast("Lỗi khi chấp nhận", "error");
+          await dispatch(deleteEvent(event._id)).unwrap();
+          addToast("Đã xóa sự kiện", "success");
+          dispatch(fetchManagementEvents());
+        } catch (error) {
+          addToast("Lỗi xóa: " + error, "error");
         }
       },
     });
   };
 
-  const handleRejectRegistration = (regId) => {
+  const handleRequestCancel = (event) => {
     setPromptModal({
       isOpen: true,
-      title: "Từ chối đăng ký",
-      message: "Nhập lý do từ chối:",
-      confirmText: "Từ chối",
+      title: "Yêu cầu hủy sự kiện",
+      message: (
+        <div>
+          <p>
+            Bạn đang gửi yêu cầu hủy sự kiện <strong>{event.title}</strong> lên
+            Admin.
+          </p>
+          <p className='text-sm text-gray-500 mt-2'>Vui lòng nhập lý do hủy:</p>
+        </div>
+      ),
+      confirmText: "Gửi yêu cầu",
       onConfirm: async (reason) => {
         try {
           await dispatch(
-            rejectRegistration({ registrationId: regId, reason })
+            requestCancelEvent({ eventId: event._id, reason })
           ).unwrap();
-          addToast("Đã từ chối đăng ký", "info");
-          dispatch(fetchAllRegistrations());
-          if (selectedEvent)
-            dispatch(fetchEventRegistrations(selectedEvent._id));
-        } catch {
-          addToast("Lỗi khi từ chối", "error");
+          addToast("Đã gửi yêu cầu hủy thành công.", "success");
+          dispatch(fetchManagementEvents());
+        } catch (error) {
+          addToast("Gửi yêu cầu thất bại: " + error, "error");
         }
       },
     });
   };
 
-  return (
-    <div className='min-h-screen bg-gray-50'>
-      <div className='max-w-7xl mx-auto p-4 sm:p-6 lg:p-8'>
-        {/* Header */}
-        <header className='mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900'>
-            Xin chào, {displayName}
-          </h1>
-          <p className='text-gray-600 mt-1'>
-            Quản lý sự kiện tình nguyện, xử lý đăng ký và tương tác với tình
-            nguyện viên.
+  // --- USER HANDLERS ---
+  const handleToggleUserStatus = (user) => {
+    // Logic: Chỉ cho phép khóa Volunteer, không được khóa Admin/Manager khác
+    if (user.role === "admin" || user.role === "manager") {
+      addToast("Bạn không có quyền khóa tài khoản quản trị khác.", "error");
+      return;
+    }
+
+    const newStatus = user.status === "active" ? "inactive" : "active";
+    setConfirmModal({
+      isOpen: true,
+      title: newStatus === "inactive" ? "Khóa tài khoản" : "Mở khóa tài khoản",
+      message: `Xác nhận ${
+        newStatus === "inactive" ? "khóa" : "mở khóa"
+      } tài khoản "${user.userName}"?`,
+      type: newStatus === "inactive" ? "warning" : "success",
+      confirmText: newStatus === "inactive" ? "Khóa" : "Mở khóa",
+      onConfirm: async () => {
+        try {
+          await dispatch(
+            updateUserStatus({ userId: user._id, status: newStatus })
+          ).unwrap();
+          addToast("Cập nhật trạng thái thành công", "success");
+          dispatch(fetchAllUsers());
+        } catch (err) {
+          addToast("Lỗi: " + err, "error");
+        }
+      },
+    });
+  };
+
+  const handleDeleteUser = (user) => {
+    if (user.role === "admin" || user.role === "manager") {
+      addToast("Bạn không có quyền xóa tài khoản quản trị khác.", "error");
+      return;
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Xóa tài khoản",
+      message: (
+        <div>
+          <p>
+            Bạn chắc chắn muốn <strong>xóa vĩnh viễn</strong> tài khoản tham gia
+            sự kiện của bạn?
           </p>
-        </header>
+          <p className='font-medium mt-2'>"{user.userName}"</p>
+          <p className='text-sm text-red-600 mt-2'>Không thể khôi phục.</p>
+        </div>
+      ),
+      type: "danger",
+      confirmText: "Xóa vĩnh viễn",
+      onConfirm: async () => {
+        try {
+          await dispatch(deleteUser(user._id)).unwrap();
+          addToast("Đã xóa người dùng", "success");
+          dispatch(fetchAllUsers());
+        } catch (err) {
+          addToast("Lỗi xóa: " + err, "error");
+        }
+      },
+    });
+  };
 
-        {/* Stats */}
-        <section className='grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8'>
-          {summary.map(({ label, value, icon: Icon }) => (
-            <div
-              key={label}
-              className='bg-white rounded-xl shadow-sm border border-gray-200 p-6'>
-              <div className='flex items-center justify-between'>
-                <div>
-                  <p className='text-sm text-gray-500'>{label}</p>
-                  <p className='text-3xl font-bold text-gray-900 mt-2'>
-                    {value}
-                  </p>
-                </div>
-                {Icon && <Icon className='w-8 h-8 text-primary-600' />}
-              </div>
-            </div>
-          ))}
-        </section>
+  const handleViewUser = (userOrId) => {
+    const userId = userOrId?._id || userOrId;
+    setViewingUserId(userId);
+  };
 
-        {/* Main Layout */}
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
-          {/* Sidebar - Danh sách sự kiện */}
-          <aside className='lg:col-span-1'>
-            <div className='bg-white rounded-2xl shadow-sm border border-gray-200 p-6'>
-              <div className='flex items-center justify-between mb-6'>
-                <h2 className='text-xl font-semibold'>Sự kiện được giao</h2>
-                <button
-                  onClick={handleCreateEvent}
-                  className='flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition'>
-                  <Plus className='w-4 h-4' /> Tạo mới
-                </button>
-              </div>
+  // const handleApproveRegistration = (regId) => {
+  //   setConfirmModal({
+  //     isOpen: true,
+  //     title: "Duyệt tình nguyện viên",
+  //     message: "Chấp nhận tình nguyện viên này tham gia?",
+  //     type: "success",
+  //     confirmText: "Chấp nhận",
+  //     onConfirm: async () => {
+  //       await dispatch(acceptRegistration(regId)).unwrap();
+  //       addToast("Đã duyệt đăng ký", "success");
+  //       dispatch(fetchAllRegistrations());
+  //       if (selectedEvent) dispatch(fetchEventRegistrations(selectedEvent._id));
+  //     },
+  //   });
+  // };
 
-              <div className='space-y-4 max-h-[70vh] overflow-y-auto'>
-                {myManagedEvents.length === 0 ? (
-                  <p className='text-center text-gray-500 py-8'>
-                    Bạn chưa được giao sự kiện nào.
-                  </p>
-                ) : (
-                  myManagedEvents.map((event) => (
-                    <div
-                      key={event._id}
-                      onClick={() => handleViewEvent(event)}
-                      className='cursor-pointer rounded-xl border border-gray-200 p-4 hover:shadow-md transition bg-white'>
-                      <div className='flex gap-4'>
-                        <div className='w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0'>
-                          {event.image ? (
-                            <img
-                              src={event.image}
-                              alt={event.title}
-                              className='w-full h-full object-cover'
-                            />
-                          ) : (
-                            <div className='w-full h-full flex items-center justify-center'>
-                              <Calendar className='w-8 h-8 text-gray-400' />
-                            </div>
-                          )}
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h3 className='font-semibold text-gray-900 truncate'>
-                            {event.title}
-                          </h3>
-                          <p className='text-sm text-gray-500 mt-1'>
-                            {new Date(event.startDate).toLocaleDateString(
-                              "vi-VN"
-                            )}
-                          </p>
-                          <p className='text-sm text-gray-500 truncate'>
-                            {event.location}
-                          </p>
-                        </div>
-                      </div>
+  // const handleRejectRegistration = (regId) => {
+  //   setPromptModal({
+  //     isOpen: true,
+  //     title: "Từ chối tình nguyện viên",
+  //     message: "Nhập lý do từ chối:",
+  //     confirmText: "Từ chối",
+  //     onConfirm: async (reason) => {
+  //       await dispatch(
+  //         rejectRegistration({ registrationId: regId, reason })
+  //       ).unwrap();
+  //       addToast("Đã từ chối đăng ký", "info");
+  //       dispatch(fetchAllRegistrations());
+  //       if (selectedEvent) dispatch(fetchEventRegistrations(selectedEvent._id));
+  //     },
+  //   });
+  // };
 
-                      <div className='flex items-center justify-between mt-4 pt-3 border-t'>
-                        <div className='flex items-center gap-2 text-sm'>
-                          <Users className='w-4 h-4 text-gray-500' />
-                          <span>
-                            {event.pendingCount > 0 ? (
-                              <span className='text-amber-600 font-bold'>
-                                {event.pendingCount} chờ duyệt
-                              </span>
-                            ) : (
-                              `${event.participantsCount} tham gia`
-                            )}
-                          </span>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditEvent(event);
-                          }}
-                          className='text-primary-600 hover:text-primary-700'>
-                          <Edit2 className='w-4 h-4' />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+  return (
+    <div className='min-h-screen bg-gray-50 font-sans'>
+      {/* HEADER */}
+      <div className='bg-white border-b border-gray-200 px-8 py-5 sticky top-0 z-30 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4'>
+        <div>
+          <h1 className='text-2xl font-bold text-gray-900'>
+            Manager Dashboard
+          </h1>
+          <p className='text-sm text-gray-500'>Xin chào, {displayName}</p>
+        </div>
+        <button
+          onClick={handleCreateEvent}
+          className='flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition shadow-sm font-medium'>
+          <Plus className='w-5 h-5' /> Tạo sự kiện mới
+        </button>
+      </div>
+
+      <div className='max-w-7xl mx-auto p-6 space-y-6'>
+        {/* TABS NAVIGATION */}
+        <div className='bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col min-h-[600px]'>
+          <div className='border-b border-gray-200 px-6 pt-4'>
+            <div className='flex gap-8 overflow-x-auto no-scrollbar'>
+              <button
+                onClick={() => setActiveTab("overview")}
+                className={`pb-4 text-sm font-medium relative flex items-center gap-2 whitespace-nowrap ${
+                  activeTab === "overview"
+                    ? "text-primary-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}>
+                <BarChart3 className='w-4 h-4' />
+                Tổng quan
+                {activeTab === "overview" && (
+                  <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600' />
                 )}
-              </div>
+              </button>
+              <button
+                onClick={() => setActiveTab("events")}
+                className={`pb-4 text-sm font-medium relative flex items-center gap-2 whitespace-nowrap ${
+                  activeTab === "events"
+                    ? "text-primary-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}>
+                <Briefcase className='w-4 h-4' />
+                Quản lý sự kiện
+                <span className='ml-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full'>
+                  {myEvents.length}
+                </span>
+                {activeTab === "events" && (
+                  <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600' />
+                )}
+              </button>
+
+              {/* TAB QUẢN LÝ NGƯỜI DÙNG */}
+              <button
+                onClick={() => setActiveTab("users_management")}
+                className={`pb-4 text-sm font-medium relative flex items-center gap-2 whitespace-nowrap ${
+                  activeTab === "users_management"
+                    ? "text-primary-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}>
+                <UserCog className='w-4 h-4' />
+                Quản lý người dùng
+                {/* Badge đếm số lượng người tham gia */}
+                <span className='ml-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full'>
+                  {myVolunteers.length}
+                </span>
+                {activeTab === "users_management" && (
+                  <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600' />
+                )}
+              </button>
             </div>
-          </aside>
+          </div>
 
-          {/* Main Content - Chi tiết sự kiện */}
-          <section className='lg:col-span-2'>
-            {selectedEvent ? (
-              <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden'>
-                <EventTabs
-                  activeTab={activeDetailTab}
-                  setActiveTab={setActiveDetailTab}
-                />
-
-                <div className='p-6'>
-                  {activeDetailTab === "about" && (
-                    <EventDetailModal
-                      event={selectedEvent}
-                      registrations={currentRegistrations}
-                      users={[]} // Không cần nếu backend đã populate
-                      onClose={() => setSelectedEvent(null)}
-                      onUserClick={handleViewUser}
-                      onApproveRegistration={handleApproveRegistration}
-                      onRejectRegistration={handleRejectRegistration}
-                      showApprovalActions={true}
-                      showRegistrationsList={true}
+          {/* TAB CONTENT */}
+          <div className='flex-1 p-6 bg-gray-50 overflow-hidden flex flex-col'>
+            {/* OVERVIEW */}
+            {activeTab === "overview" && (
+              <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300'>
+                {/* Stats cards giữ nguyên... */}
+                <div className='lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                  <div className='bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between'>
+                    <div>
+                      <p className='text-sm text-gray-500 font-medium'>
+                        Sự kiện đang chạy
+                      </p>
+                      <h3 className='text-2xl font-bold text-emerald-600 mt-1'>
+                        {stats.approved}
+                      </h3>
+                    </div>
+                    <div className='p-3 bg-emerald-50 text-emerald-600 rounded-lg'>
+                      <CheckCircle className='w-6 h-6' />
+                    </div>
+                  </div>
+                  <div className='bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between'>
+                    <div>
+                      <p className='text-sm text-gray-500 font-medium'>
+                        Chờ duyệt
+                      </p>
+                      <h3 className='text-2xl font-bold text-amber-500 mt-1'>
+                        {stats.pending}
+                      </h3>
+                    </div>
+                    <div className='p-3 bg-amber-50 text-amber-600 rounded-lg'>
+                      <Clock className='w-6 h-6' />
+                    </div>
+                  </div>
+                  <div className='bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between'>
+                    <div>
+                      <p className='text-sm text-gray-500 font-medium'>
+                        Tổng tình nguyện viên
+                      </p>
+                      <h3 className='text-2xl font-bold text-blue-600 mt-1'>
+                        {stats.totalParticipants}
+                      </h3>
+                    </div>
+                    <div className='p-3 bg-blue-50 text-blue-600 rounded-lg'>
+                      <Users className='w-6 h-6' />
+                    </div>
+                  </div>
+                  <div className='bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between'>
+                    <div>
+                      <p className='text-sm text-gray-500 font-medium'>
+                        Bị từ chối / Hủy
+                      </p>
+                      <h3 className='text-2xl font-bold text-red-500 mt-1'>
+                        {stats.rejected + stats.cancelled}
+                      </h3>
+                    </div>
+                    <div className='p-3 bg-red-50 text-red-600 rounded-lg'>
+                      <XCircle className='w-6 h-6' />
+                    </div>
+                  </div>
+                </div>
+                <div className='lg:col-span-1 h-full'>
+                  {myEvents.length > 0 ? (
+                    <PieStat
+                      title='Trạng thái sự kiện'
+                      data={pieData}
+                      height={250}
                     />
-                  )}
-
-                  {activeDetailTab === "members" && (
-                    <EventDetailModal
-                      event={selectedEvent}
-                      registrations={currentRegistrations}
-                      onClose={() => setSelectedEvent(null)}
-                      onUserClick={handleViewUser}
-                      activeTab='members'
-                      onApproveRegistration={handleApproveRegistration}
-                      onRejectRegistration={handleRejectRegistration}
-                    />
-                  )}
-
-                  {activeDetailTab === "discussion" && (
-                    <EventChannel
-                      eventId={selectedEvent._id}
-                      user={activeUser}
-                    />
+                  ) : (
+                    <div className='bg-white p-6 rounded-xl shadow-sm h-full flex items-center justify-center text-gray-400'>
+                      Chưa có dữ liệu
+                    </div>
                   )}
                 </div>
-              </div>
-            ) : (
-              <div className='bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center'>
-                <Calendar className='w-16 h-16 text-gray-300 mx-auto mb-4' />
-                <p className='text-gray-500 text-lg'>
-                  Chọn một sự kiện để xem chi tiết
-                </p>
               </div>
             )}
-          </section>
+
+            {/* EVENTS LIST */}
+            {activeTab === "events" && (
+              <EventManagementTable
+                events={myEvents}
+                registrations={allRegistrations}
+                cancelRequests={[]}
+                onViewEvent={handleViewEvent}
+                onDeleteEvent={handleDeleteEvent}
+                onCancelEvent={handleRequestCancel}
+              />
+            )}
+
+            {/* USER MANAGEMENT (DÙNG myVolunteers THAY VÌ allUsers) */}
+            {activeTab === "users_management" && (
+              <UserManagementTable
+                users={myVolunteers} // 👈 QUAN TRỌNG: Chỉ truyền user của Manager
+                onViewUser={handleViewUser}
+                onToggleUserStatus={handleToggleUserStatus}
+                onDeleteUser={handleDeleteUser}
+              />
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Modals */}
+      {/* --- MODALS --- */}
       {showEventForm && (
         <EventsForm
           eventToEdit={editingEvent}
           onSave={() => {
-            dispatch(fetchEvents());
+            dispatch(fetchManagementEvents());
             setShowEventForm(false);
             addToast(
-              editingEvent ? "Cập nhật thành công!" : "Tạo sự kiện thành công!",
+              editingEvent ? "Đã cập nhật sự kiện" : "Đã tạo sự kiện mới",
               "success"
             );
           }}
@@ -382,30 +541,45 @@ export default function ManagerDashboard({ user }) {
         />
       )}
 
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          registrations={currentRegistrations}
+          users={[]}
+          onClose={() => setSelectedEvent(null)}
+          onUserClick={handleViewUser}
+          onApproveRegistration={handleApproveRegistration}
+          onRejectRegistration={handleRejectRegistration}
+          showApprovalActions={false}
+          showRegistrationsList={true}
+        />
+      )}
+
       {viewingUserId && (
         <UserDetailModal
-          viewingUser={{ _id: viewingUserId }} // Component sẽ tự fetch nếu cần
+          viewingUser={{ _id: viewingUserId }}
           onClose={() => setViewingUserId(null)}
+          addToast={addToast}
+          setConfirmModal={setConfirmModal}
+        />
+      )}
+
+      {selectedRegistration && (
+        <VolunteerApprovalModal
+          registration={selectedRegistration}
+          onClose={() => setSelectedRegistration(null)}
+          onApprove={() => handleApproveRegistration(selectedRegistration._id)}
+          onReject={() => handleRejectRegistration(selectedRegistration._id)}
         />
       )}
 
       <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ isOpen: false })}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        type={confirmModal.type}
-        confirmText={confirmModal.confirmText}
+        {...confirmModal}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
       />
-
       <PromptModal
-        isOpen={promptModal.isOpen}
-        onClose={() => setPromptModal({ isOpen: false })}
-        onConfirm={promptModal.onConfirm}
-        title={promptModal.title}
-        message={promptModal.message}
-        confirmText={promptModal.confirmText}
+        {...promptModal}
+        onClose={() => setPromptModal({ ...promptModal, isOpen: false })}
       />
 
       <ToastContainer toasts={toasts} removeToast={removeToast} />
