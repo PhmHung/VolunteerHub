@@ -3,6 +3,7 @@
 import asyncHandler from "express-async-handler";
 import ApprovalRequest from "../models/approvalRequestModel.js";
 import Event from "../models/eventModel.js";
+import User from "../models/userModel.js";
 
 // @desc    Admin: Lấy danh sách yêu cầu đang chờ duyệt
 const getPendingRequests = asyncHandler(async (req, res) => {
