@@ -5,6 +5,7 @@ import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
 import Registration from "../models/registrationModel.js";
 import Attendance from "../models/attendanceModel.js";
+import ApprovalRequest from "../models/approvalRequestModel.js";
 import generateToken from "../utils/generateToken.js";
 
 // @desc   Update user profile
@@ -304,6 +305,116 @@ const requestManagerRole = asyncHandler(async (req, res) => {
     data: request,
   });
 });
+
+// backend/controllers/user.controller.js
+
+// @desc    Lấy danh sách gợi ý thăng cấp (Phiên bản Safe Mode)
+// @route   GET /api/users/suggested-managers
+const getSuggestedManagers = asyncHandler(async (req, res) => {
+  try {
+    // 1. Lấy danh sách ID đã gửi yêu cầu rồi để loại trừ
+    const existingRequests = await ApprovalRequest.find({
+      type: "manager_promotion",
+      status: { $in: ["pending", "approved"] },
+    }).select("requestedBy");
+
+    // Chuyển về mảng ID string để đảm bảo so sánh đúng
+    const existingRequestIds = existingRequests.map(
+      (r) => r.requestedBy?._id || r.requestedBy
+    );
+
+    // 2. Aggregation Pipeline
+    const suggestions = await Attendance.aggregate([
+      // A. Lọc dữ liệu sạch: Phải completed VÀ có đủ checkIn/checkOut
+      {
+        $match: {
+          status: "completed",
+          checkIn: { $exists: true, $ne: null },
+          checkOut: { $exists: true, $ne: null },
+        },
+      },
+
+      // B. Lookup Registration
+      {
+        $lookup: {
+          from: "registrations",
+          localField: "regId",
+          foreignField: "_id",
+          as: "registration",
+        },
+      },
+      { $unwind: "$registration" },
+
+      // C. Lookup User
+      {
+        $lookup: {
+          from: "users",
+          localField: "registration.userId",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+
+      // D. Lọc User: Volunteer, Active, Chưa request
+      {
+        $match: {
+          "user.role": "volunteer",
+          "user.status": "active",
+          "user._id": { $nin: existingRequestIds },
+        },
+      },
+
+      // E. Group & Tính toán
+      {
+        $group: {
+          _id: "$user._id",
+          userName: { $first: "$user.userName" },
+          userEmail: { $first: "$user.userEmail" },
+          profilePicture: { $first: "$user.profilePicture" },
+          eventsCompleted: { $sum: 1 },
+          // An toàn: Chuyển sang Date trước khi trừ để tránh lỗi
+          totalDurationMs: {
+            $sum: {
+              $subtract: [{ $toDate: "$checkOut" }, { $toDate: "$checkIn" }],
+            },
+          },
+          avgRating: { $avg: "$feedback.rating" },
+        },
+      },
+
+      // F. Format kết quả
+      {
+        $project: {
+          _id: 1,
+          userName: 1,
+          userEmail: 1,
+          profilePicture: 1,
+          promotionData: {
+            eventsCompleted: "$eventsCompleted",
+            totalAttendanceHours: {
+              $round: [{ $divide: ["$totalDurationMs", 1000 * 60 * 60] }, 1],
+            },
+            // Dùng ifNull để tránh lỗi nếu avgRating là null
+            averageRating: { $round: [{ $ifNull: ["$avgRating", 0] }, 1] },
+          },
+        },
+      },
+
+      { $sort: { "promotionData.totalAttendanceHours": -1 } },
+      { $limit: 20 },
+    ]);
+
+    res.json({
+      count: suggestions.length,
+      data: suggestions,
+    });
+  } catch (error) {
+    console.error("Error in getSuggestedManagers:", error);
+    res.status(500);
+    throw new Error("Lỗi Server khi tính toán gợi ý: " + error.message);
+  }
+});
 export {
   updateUserProfile,
   getAllUsers,
@@ -314,4 +425,5 @@ export {
   getUserProfile,
   updateUserStatus,
   requestManagerRole,
+  getSuggestedManagers,
 };

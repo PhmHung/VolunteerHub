@@ -1,33 +1,66 @@
 /** @format */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   X,
   Check,
-  User,
   Briefcase,
+  Calendar,
   TrendingUp,
   Clock,
   Star,
-  Calendar,
-} from "lucide-react"; // Thêm icons liên quan đến hiệu suất
+  MapPin,
+  Users,
+} from "lucide-react";
+const StatBox = ({ icon, value, label, color }) => {
+  const IconComponent = icon;
+
+  return (
+    <div
+      className={`bg-${color}-50 p-4 rounded-xl text-center border border-${color}-100`}>
+      <IconComponent className={`w-6 h-6 text-${color}-600 mx-auto mb-2`} />
+      <p className='text-2xl font-bold text-gray-900'>{value}</p>
+      <p className='text-xs text-gray-500 font-medium mt-1'>{label}</p>
+    </div>
+  );
+};
 
 const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
+  // FIX LỖI 2: Đảm bảo useState được gọi ở đầu hàm component
+  const [adminNote, setAdminNote] = useState("");
+
   if (!request) return null;
 
-  // FIX: Lấy dữ liệu từ trường promotionData đã được tính toán
-  const candidate = request.requestedBy || {};
-  const appliedAt = request.createdAt;
-  const promotionData = request.promotionData || {}; // Dữ liệu hiệu suất
+  // Lấy dữ liệu chung
+  const type = request.type;
+  const isEvent = type === "event_approval";
+  const isManagerPromotion = type === "manager_promotion";
+  const requester = request.requestedBy || {};
+  const event = request.event || {};
+  const promotionData = request.promotionData || {};
+
+  // Handlers để gọi action từ cha kèm theo note
+  const handleAction = (actionType) => {
+    if (actionType === "approve") {
+      // onApprove(request, actionType, adminNote);
+      onApprove(request, "approve", adminNote);
+    } else {
+      // onReject(request, actionType, adminNote);
+      onReject(request, "reject", adminNote);
+    }
+  };
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200'>
-      <div className='bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]'>
+      <div className='bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]'>
         {/* Header */}
         <div className='px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50'>
           <h3 className='text-lg font-bold text-gray-900 flex items-center gap-2'>
-            <Briefcase className='w-5 h-5 text-blue-600' />
-            Duyệt Yêu Cầu Thăng Cấp Quản Lý
+            {isEvent && <Calendar className='w-5 h-5 text-amber-600' />}
+            {isManagerPromotion && (
+              <Briefcase className='w-5 h-5 text-purple-600' />
+            )}
+            Duyệt Yêu Cầu: {isEvent ? "Sự kiện" : "Thăng cấp Manager"}
           </h3>
           <button
             onClick={onClose}
@@ -38,82 +71,105 @@ const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
 
         {/* Content */}
         <div className='p-6 overflow-y-auto max-h-[70vh]'>
-          {/* Candidate Info */}
-          <div className='flex items-start gap-4 mb-8 p-4 bg-blue-50 rounded-xl border border-blue-100'>
-            <div className='w-16 h-16 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0'>
-              {/* FIX: Kiểm tra profilePicture */}
-              {candidate.profilePicture ? (
-                <img
-                  src={candidate.profilePicture}
-                  alt=''
-                  className='w-full h-full rounded-full object-cover'
-                />
-              ) : (
-                <span className='text-xl font-bold text-blue-700'>
-                  {candidate.userName?.charAt(0) || "U"}
-                </span>
-              )}
+          {/* REQUESTER INFO SECTION */}
+          <div className='flex items-start gap-4 mb-8 p-4 bg-gray-50 rounded-xl border border-gray-100'>
+            <div className='w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 text-gray-600 font-bold'>
+              {requester.userName?.[0] || "U"}
             </div>
             <div>
+              <p className='text-sm text-gray-500'>Người gửi yêu cầu:</p>
               <h2 className='text-xl font-bold text-gray-900'>
-                {candidate.userName || "Người dùng không xác định"}
+                {requester.userName || "Người dùng không xác định"}
               </h2>
-              <p className='text-gray-500'>{candidate.userEmail}</p>
-              <span className='flex items-center gap-1 mt-2 text-sm text-gray-600'>
-                <Calendar className='w-4 h-4' />
-                Gửi yêu cầu: {new Date(appliedAt).toLocaleDateString("vi-VN")}
-              </span>
-            </div>
-          </div>
-
-          {/* Performance Metrics */}
-          <h3 className='text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider border-b pb-2'>
-            📊 Hiệu Suất Tình Nguyện Viên
-          </h3>
-          <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6'>
-            {/* Events Completed */}
-            <div className='bg-emerald-50 p-4 rounded-xl text-center border border-emerald-100'>
-              <TrendingUp className='w-6 h-6 text-emerald-600 mx-auto mb-2' />
-              <p className='text-2xl font-bold text-emerald-800'>
-                {promotionData.eventsCompleted}
-              </p>
-              <p className='text-xs text-gray-500 font-medium mt-1'>
-                Sự kiện Hoàn thành
-              </p>
-            </div>
-
-            {/* Total Hours */}
-            <div className='bg-yellow-50 p-4 rounded-xl text-center border border-yellow-100'>
-              <Clock className='w-6 h-6 text-yellow-600 mx-auto mb-2' />
-              <p className='text-2xl font-bold text-yellow-800'>
-                {promotionData.totalAttendanceHours || 0}
-              </p>
-              <p className='text-xs text-gray-500 font-medium mt-1'>
-                Tổng Giờ Tham gia
-              </p>
-            </div>
-
-            {/* Average Rating */}
-            <div className='bg-purple-50 p-4 rounded-xl text-center border border-purple-100'>
-              <Star className='w-6 h-6 text-purple-600 mx-auto mb-2' />
-              <p className='text-2xl font-bold text-purple-800'>
-                {promotionData.averageRating?.toFixed(1) || 0}
-              </p>
-              <p className='text-xs text-gray-500 font-medium mt-1'>
-                Rating TB Event
+              <p className='text-gray-500'>
+                {requester.userEmail} ({requester.role})
               </p>
             </div>
           </div>
 
-          {/* Admin Note Section (Optional - Nếu muốn Admin nhập lý do duyệt/từ chối) */}
-          <div className='mt-4'>
+          {/* Dynamic Content */}
+          {isEvent && (
+            // EVENT APPROVAL VIEW
+            <div className='space-y-4'>
+              <h3 className='text-2xl font-bold mb-4 text-amber-700'>
+                {event.title || "Sự kiện không xác định"}
+              </h3>
+              <p className='text-gray-600 leading-relaxed'>
+                {event.description || "Không có mô tả."}
+              </p>
+              <div className='grid grid-cols-2 gap-4 text-sm mt-4 p-4 border rounded-xl bg-amber-50'>
+                <div className='flex items-center gap-2'>
+                  <MapPin className='w-4 h-4 text-amber-600' />{" "}
+                  <p className='font-semibold text-gray-700'>Địa điểm:</p>{" "}
+                  {event.location}
+                </div>
+                <div className='flex items-center gap-2'>
+                  <Calendar className='w-4 h-4 text-amber-600' />{" "}
+                  <p className='font-semibold text-gray-700'>Thời gian:</p>{" "}
+                  {new Date(event.startDate).toLocaleString("vi-VN")}
+                </div>
+                <div className='flex items-center gap-2'>
+                  <Users className='w-4 h-4 text-amber-600' />{" "}
+                  <p className='font-semibold text-gray-700'>SL Tối đa:</p>{" "}
+                  {event.maxParticipants}
+                </div>
+                <div className='col-span-2'>
+                  <p className='font-semibold text-gray-700'>Tags:</p>
+                  {event.tags?.join(", ") || "Không có tags"}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isManagerPromotion && (
+            // MANAGER PROMOTION VIEW
+            <div className='space-y-6'>
+              <h3 className='text-lg font-bold text-purple-600 mb-4'>
+                Chỉ số Hiệu suất Tình nguyện viên:
+              </h3>
+              <div className='grid grid-cols-3 gap-4'>
+                <StatBox
+                  icon={TrendingUp}
+                  value={promotionData.eventsCompleted || 0}
+                  label='Sự kiện Hoàn thành'
+                  color='emerald'
+                />
+                <StatBox
+                  icon={Clock}
+                  value={promotionData.totalAttendanceHours?.toFixed(1) || 0}
+                  label='Tổng Giờ Tham gia'
+                  color='yellow'
+                />
+                <StatBox
+                  icon={Star}
+                  value={promotionData.averageRating?.toFixed(1) || 0}
+                  label='Rating TB Event'
+                  color='purple'
+                />
+              </div>
+
+              <div className='mt-6'>
+                <h4 className='text-sm font-semibold text-gray-900 mb-2'>
+                  Giới thiệu bản thân
+                </h4>
+                <div className='p-3 bg-purple-50 rounded-xl text-sm text-gray-700 border border-purple-100'>
+                  {requester.biography ||
+                    "Người dùng chưa cập nhật giới thiệu."}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Admin Note Section */}
+          <div className='mt-6 pt-4 border-t'>
             <h4 className='text-sm font-semibold text-gray-900 mb-2'>
-              Ghi chú của Admin (Tùy chọn)
+              Ghi chú của Admin
             </h4>
             <textarea
-              className='w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 text-sm'
-              placeholder='Nhập ghi chú cho yêu cầu này...'
-              // State quản lý adminNote cần được xử lý ở component cha hoặc local state
+              value={adminNote}
+              onChange={(e) => setAdminNote(e.target.value)}
+              className='w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 text-sm h-24'
+              placeholder='Nhập ghi chú (Tùy chọn, sẽ được lưu lại lịch sử duyệt)...'
             />
           </div>
         </div>
@@ -121,16 +177,16 @@ const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
         {/* Footer Actions */}
         <div className='p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3'>
           <button
-            onClick={() => onReject(request)}
+            onClick={() => handleAction("reject")}
             className='px-5 py-2.5 rounded-xl border border-red-300 text-red-700 font-medium hover:bg-red-100 transition-colors flex items-center gap-2'>
             <X className='w-4 h-4' />
             Từ chối
           </button>
           <button
-            onClick={() => onApprove(request)}
-            className='px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center gap-2'>
+            onClick={() => handleAction("approve")}
+            className='px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center gap-2'>
             <Check className='w-4 h-4' />
-            Duyệt thăng cấp
+            Duyệt yêu cầu
           </button>
         </div>
       </div>

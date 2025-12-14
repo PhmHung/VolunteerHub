@@ -5,13 +5,14 @@ import eventReducer from "../features/eventSlice";
 import userReducer from "../features/userSlice";
 import registrationReducer from "../features/registrationSlice";
 import authReducer from "../features/authSlice";
-
+import approvalReducer from "../features/approvalSlice";
 export const store = configureStore({
   reducer: {
     event: eventReducer,
     user: userReducer,
     registration: registrationReducer,
     auth: authReducer,
+    approval: approvalReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
