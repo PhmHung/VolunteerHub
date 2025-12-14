@@ -14,6 +14,11 @@ import {
   Star,
 } from "lucide-react";
 import VolunteersList from "../registrations/VolunteersList";
+const LocationPicker = ({ lat, lng }) => (
+  <div className='h-40 bg-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-500'>
+    Map Preview ({lat}, {lng})
+  </div>
+);
 const EventDetailModal = ({
   event,
   registrations = [],
@@ -21,6 +26,7 @@ const EventDetailModal = ({
   onClose,
   onApprove,
   onReject,
+  onUserClick,
   showApprovalActions = false,
   showRegistrationsList = true,
 }) => {
@@ -138,68 +144,11 @@ const EventDetailModal = ({
               {/* Danh sách đăng ký (nếu bật) */}
               {showRegistrationsList && (
                 <div className='bg-white rounded-xl p-6 shadow-sm border border-gray-200'>
-                  <h3 className='text-xl font-bold text-gray-900 mb-4'>
-                    Danh sách đăng ký ({eventRegistrations.length})
-                  </h3>
-                  <div className='space-y-4 max-h-96 overflow-y-auto'>
-                    {eventRegistrations.length > 0 ? (
-                      eventRegistrations.map((reg) => {
-                        // 👇 SỬA Ở ĐÂY: Ưu tiên lấy userId, sau đó mới đến volunteer
-                        const vol = reg.userId || reg.volunteer || {};
-
-                        return (
-                          <div
-                            key={reg._id}
-                            className='flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200'>
-                            <div className='flex items-center gap-4'>
-                              <div className='w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-300'>
-                                {vol.profilePicture ? (
-                                  <img
-                                    src={vol.profilePicture}
-                                    alt=''
-                                    className='w-full h-full object-cover'
-                                  />
-                                ) : (
-                                  <div className='w-full h-full flex items-center justify-center text-xs font-bold text-gray-500'>
-                                    {vol.userName?.[0] || "U"}
-                                  </div>
-                                )}
-                              </div>
-                              <div>
-                                <p className='font-semibold text-gray-900'>
-                                  {vol.userName || "Không rõ"}
-                                </p>
-                                <p className='text-sm text-gray-600 flex items-center gap-1'>
-                                  <Mail className='w-3.5 h-3.5' />
-                                  {vol.userEmail ||
-                                    vol.email ||
-                                    "Không có email"}
-                                </p>
-                              </div>
-                            </div>
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                reg.status === "registered" ||
-                                reg.status === "approved"
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : reg.status === "pending" ||
-                                    reg.status === "waitlisted"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-red-100 text-red-700"
-                              }`}>
-                              {reg.status === "registered"
-                                ? "Đã duyệt"
-                                : reg.status}
-                            </span>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className='text-center text-gray-500 py-8'>
-                        Chưa có tình nguyện viên đăng ký.
-                      </p>
-                    )}
-                  </div>
+                  <VolunteersList
+                    registrations={eventRegistrations}
+                    users={users}
+                    onUserClick={onUserClick}
+                  />
                 </div>
               )}
             </div>
