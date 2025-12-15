@@ -5,8 +5,9 @@ import { EVENT_STATUS } from "../../types";
 import { EVENT_CATEGORIES } from "../../utils/constants";
 import { eventValidationSchema } from "../../utils/validationSchemas";
 import LocationPicker from "./LocationPick";
+import { X } from "lucide-react"; // Import icon X từ thư viện (hoặc dùng SVG bên dưới)
 
-// Icon
+// Icon Check (Giữ nguyên)
 const CheckIcon = () => (
   <svg
     className='w-5 h-5'
@@ -51,6 +52,7 @@ export const EventsForm = ({ eventToEdit, onSave, onClose }) => {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
 
+  // --- LOGIC GIỮ NGUYÊN ---
   useEffect(() => {
     if (eventToEdit) {
       const lat = eventToEdit.coordinate?.lat ?? eventToEdit.latitude ?? "";
@@ -123,7 +125,6 @@ export const EventsForm = ({ eventToEdit, onSave, onClose }) => {
         ...dataToValidate,
         tags: formData.tags.slice(0, 5),
       };
-      // Xóa các field không cần thiết
       delete finalData.latitude;
       delete finalData.longitude;
       delete finalData._id;
@@ -142,20 +143,40 @@ export const EventsForm = ({ eventToEdit, onSave, onClose }) => {
       setErrors(validationErrors);
     }
   };
+  // ------------------------
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm'>
-      <div className='bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto'>
-        <form onSubmit={handleSubmit}>
-          <header className='p-6 border-b border-gray-200'>
+    <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200'>
+      {/* CONTAINER MODAL:
+          - relative: Để làm mốc tọa độ cho nút đóng.
+          - overflow-visible: Để nút đóng không bị ẩn khi nằm ngoài khung.
+      */}
+      <div className='bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] relative overflow-visible flex flex-col'>
+        {/* --- NÚT ĐÓNG (CLOSE BUTTON) MỚI --- */}
+        <button
+          type='button'
+          onClick={onClose}
+          className='absolute -top-4 -right-4 z-50 p-2 bg-red-500 text-white rounded-lg shadow-lg hover:bg-red-600 transition-transform hover:scale-105 flex items-center justify-center'
+          aria-label='Đóng form'>
+          <X className='w-5 h-5' />
+        </button>
+        {/* ----------------------------------- */}
+
+        <form
+          onSubmit={handleSubmit}
+          className='flex flex-col h-full overflow-hidden rounded-2xl'>
+          {/* Header */}
+          <header className='p-6 border-b border-gray-200 bg-white shrink-0'>
             <h2 className='text-2xl font-bold text-gray-900'>
               {eventToEdit
                 ? "Chỉnh sửa sự kiện"
                 : "Tạo sự kiện tình nguyện mới"}
             </h2>
+            {/* Đã xóa nút đóng cũ ở đây */}
           </header>
 
-          <main className='p-6 space-y-6'>
+          {/* Main Content (Cuộn độc lập) */}
+          <main className='p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 bg-white'>
             <InputField label='Tiêu đề sự kiện' error={errors.title}>
               <input
                 type='text'
@@ -200,12 +221,11 @@ export const EventsForm = ({ eventToEdit, onSave, onClose }) => {
               </InputField>
             </div>
 
-            {/* Truyền thêm handleChange để sửa tên địa điểm */}
             <LocationSection
               formData={formData}
               errors={errors}
               onLocationSelect={handleLocationSelect}
-              onLocationNameChange={handleChange} // <-- ĐÃ SỬA LỖI Ở ĐÂY
+              onLocationNameChange={handleChange}
             />
 
             <InputField label='URL hình ảnh sự kiện' error={errors.image}>
@@ -257,16 +277,18 @@ export const EventsForm = ({ eventToEdit, onSave, onClose }) => {
             />
           </main>
 
-          <footer className='p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-4'>
+          {/* Footer */}
+          <footer className='p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-4 shrink-0'>
             <button
               type='button'
               onClick={onClose}
-              className='px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100'>
+              className='px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors'>
               Hủy
             </button>
+
             <button
               type='submit'
-              className='px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-2 shadow-md'>
+              className='px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 shadow-md transition-colors'>
               <CheckIcon />
               {eventToEdit ? "Cập nhật" : "Tạo sự kiện"}
             </button>
@@ -277,7 +299,7 @@ export const EventsForm = ({ eventToEdit, onSave, onClose }) => {
   );
 };
 
-// Sub-components
+// --- SUB-COMPONENTS (GIỮ NGUYÊN) ---
 const InputField = ({ label, error, children }) => (
   <div>
     <label className='block text-sm font-semibold text-gray-700 mb-1'>
@@ -299,17 +321,15 @@ const LocationSection = ({
       Địa điểm sự kiện <span className='text-red-500'>*</span>
     </label>
 
-    {/* Ô nhập tên địa điểm */}
     <input
       type='text'
       name='location'
       value={formData.location || ""}
-      onChange={onLocationNameChange} // Dùng prop đã truyền vào
+      onChange={onLocationNameChange}
       className={inputClass(errors.location)}
       placeholder='VD: Bãi biển Mỹ Khê, Quận Ngũ Hành Sơn, Đà Nẵng'
     />
 
-    {/* Bản đồ chọn tọa độ */}
     <div className='mt-4 border-2 border-dashed border-gray-300 rounded-xl overflow-hidden'>
       <div className='h-96'>
         <LocationPicker
@@ -320,7 +340,6 @@ const LocationSection = ({
       </div>
     </div>
 
-    {/* Hiển thị tọa độ */}
     <div className='mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm'>
       <span className='font-medium text-blue-800'>📍 Tọa độ đã chọn:</span>
       <span className='ml-2 text-gray-700'>
@@ -332,7 +351,6 @@ const LocationSection = ({
       </span>
     </div>
 
-    {/* Lỗi validation bản đồ */}
     {(errors.coordinate ||
       errors["coordinate.lat"] ||
       errors["coordinate.lng"]) && (

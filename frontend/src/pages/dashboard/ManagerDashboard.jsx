@@ -50,7 +50,7 @@ import PromptModal from "../../components/common/PromptModal";
 
 export default function ManagerDashboard({ user }) {
   const dispatch = useDispatch();
-
+  //const navigate = useNavigate();
   // Redux state
   const { list: allEvents = [], registrations: currentRegistrations = [] } =
     useSelector((state) => state.event);
@@ -170,6 +170,7 @@ export default function ManagerDashboard({ user }) {
 
   const handleViewEvent = (event) => {
     setSelectedEvent(event);
+    //avigate(`/events/${event._id}`);
     dispatch(fetchEventRegistrations(event._id));
   };
 

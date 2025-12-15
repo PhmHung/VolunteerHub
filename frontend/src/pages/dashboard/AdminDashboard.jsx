@@ -67,7 +67,7 @@ import PotentialManagerList from "../../components/approvals/PotentialManagerLis
 import RegistrationManagementTable from "../../components/registrations/RegistrationManagementTable";
 import EventManagementTable from "../../components/events/EventManagementTable"; // Component mới cập nhật
 import UserManagementTable from "../../components/users/UserManagementTable";
-
+//import { useNavigate } from "react-router-dom";
 const StatCard = ({ title, value, change, icon, color }) => {
   const Icon = icon;
   return (
@@ -93,7 +93,7 @@ const StatCard = ({ title, value, change, icon, color }) => {
 
 const AdminDashboard = ({ user }) => {
   const dispatch = useDispatch();
-
+  //const navigate = useNavigate();
   // Redux State
   const {
     list: allEvents = [],
@@ -242,7 +242,10 @@ const AdminDashboard = ({ user }) => {
 
   // View handlers
   const handleViewUser = (user) => setViewingUser(user);
-  const handleViewEvent = (event) => setViewingEventDetail(event);
+  const handleViewEvent = (event) => {
+    setViewingEventDetail(event);
+    //navigate(`/events/${event._id}`);
+  };
 
   // --- EVENT ACTIONS (Duyệt/Từ chối Event Mới & Xóa/Hủy Event Cũ) ---
 

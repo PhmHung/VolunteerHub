@@ -11,21 +11,17 @@
     "seed:event": "node seeder/seederEvent.js",
     "seed:registration": "node seeder/seederRegistration.js",
     "seed:attendance": "node seeder/seederAttendance.js",
-    "seed:approval":"node seeder/seedApprovalRequest.js",
-
+    "seed:approval": "node seeder/seedApprovalRequest.js",
     "seed:channel": "node seeder/seederChannel.js",
     "seed:post": "node seeder/seederPost.js",
     "seed:comment": "node seeder/seederComment.js",
     "seed:reaction": "node seeder/seederReaction.js",
-
     "seed:user:destroy": "node seeder/destroyUser.js",
     "seed:event:destroy": "node seeder/destroyEvent.js",
     "seed:registration:destroy": "node seeder/destroyRegistration.js",
     "seed:attendance:destroy": "node seeder/destroyAttendance.js",
-
     "seed:all": "node seeder/seedAll.js",
     "seed:destroy:all": "npm run seed:user:destroy && npm run seed:event:destroy && npm run seed:registration:destroy && npm run seed:attendance:destroy",
-
     "seed:reset": "npm run seed:destroy:all && npm run seed:all"
   },
   "dependencies": {
@@ -45,7 +41,8 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^7.0.9"
+    "nodemailer": "^7.0.9",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

@@ -37,8 +37,7 @@ const EventDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // State cho tab quản lý (chỉ dành cho Admin/Manager)
-  const [activeTab, setActiveTab] = useState("pending"); // pending | approved | rejected
+  const [activeTab, setActiveTab] = useState("pending");
   const [searchTerm, setSearchTerm] = useState("");
 
   // --- FETCH DATA ---
