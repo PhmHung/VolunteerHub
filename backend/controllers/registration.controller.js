@@ -118,16 +118,20 @@ const getMyRegistrations = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Lấy danh sách các đơn đang chờ duyệt (Cho Manager)
-// @route   GET /api/registrations/pending
+// @desc    Lấy TOÀN BỘ danh sách đăng ký cho Admin (thay vì chỉ pending)
+// @route   GET /api/registrations/admin/all
 // @access  Private (Manager/Admin)
-const getPendingRegistrations = asyncHandler(async (req, res) => {
-  // Tìm tất cả các đơn có status là WAITLISTED
-  const registrations = await Registration.find({
-    status: REGISTRATION_STATUS.WAITLISTED,
-  })
-    .populate("userId", "userName email") // Lấy thông tin user
-    .populate("eventId", "title") // Lấy tên sự kiện
+const getAllRegistrationsForManagement = asyncHandler(async (req, res) => {
+  // 1. XÓA ĐIỀU KIỆN status: { ... } ĐỂ LẤY TẤT CẢ
+  const registrations = await Registration.find({})
+    .populate({
+      path: "userId",
+      select: "userName userEmail profilePicture phoneNumber",
+    })
+    .populate({
+      path: "eventId",
+      select: "title startDate endDate",
+    })
     .sort({ createdAt: -1 });
 
   res.status(200).json({
@@ -230,7 +234,7 @@ export {
   registerForEvent,
   cancelRegistration,
   getMyRegistrations,
-  getPendingRegistrations,
+  getAllRegistrationsForManagement,
   acceptRegistration,
   rejectRegistration,
 };

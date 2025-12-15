@@ -1,7 +1,8 @@
 import express from "express";
 import {
   getChannels,
-  getChannelById
+  getChannelById,
+  getChannelByEventId
 } from "../controllers/channel.controller.js";
 import { protect, allowAdminOnly } from "../middlewares/auth.middleware.js";
 
@@ -12,5 +13,8 @@ router.route("/")
 
 router.route("/:id")
   .get(protect, getChannelById)
+
+router.route("/event/:eventId")
+  .get(protect, getChannelByEventId)
 
 export default router;

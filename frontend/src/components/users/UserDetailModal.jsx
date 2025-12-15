@@ -154,58 +154,97 @@ const UserDetailModal = ({
 
   // --- RENDER HISTORY ---
   const renderHistory = () => {
-    // Logic tìm mảng history tương tự file Manager bạn cung cấp
-    // Backend có thể trả về: history, registrations, hoặc events
-    const historyList =
-      selectedUser?.history || selectedUser?.registrations || [];
+    // Backend trả về history trong selectedUser.history
+    const historyList = selectedUser?.history || [];
 
     if (!historyList || historyList.length === 0) {
       return (
         <div className='text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200'>
           <History className='w-12 h-12 text-gray-300 mx-auto mb-3' />
-          <p className='text-gray-500 font-medium'>Chưa có lịch sử hoạt động</p>
+          <p className='text-gray-500 font-medium'>
+            Chưa có lịch sử tham gia hoàn thành hoặc vắng mặt.
+          </p>
         </div>
       );
     }
 
     return historyList.map((item, idx) => {
-      // Xử lý dữ liệu populate: item.eventId (object) hoặc item.event (object)
-      const eventData = item.eventId || item.event || {};
-      const eventTitle = eventData.title || "Sự kiện không xác định";
-      const eventDate = eventData.startDate || eventData.date;
-      const status = item.status || "unknown";
+      // Cấu trúc dữ liệu đã được Backend chuẩn hóa: item.event là object, item.status là completed/absent
+      const eventData = item.event || {};
+      const status = item.status; // "completed" hoặc "absent"
+
+      const badgeClasses =
+        status === "completed"
+          ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+          : "bg-red-100 text-red-700 border-red-200";
+
+      const badgeText = status === "completed" ? "Hoàn thành" : "Vắng mặt";
 
       return (
         <div
           key={idx}
-          className='flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:bg-emerald-50 transition-colors'>
-          <div>
-            <p className='font-semibold text-gray-900'>{eventTitle}</p>
-            <div className='flex flex-col gap-1 mt-1 text-xs text-gray-500'>
-              <span className='flex items-center gap-1'>
-                <Clock className='w-3 h-3' />
-                {eventDate
-                  ? new Date(eventDate).toLocaleDateString("vi-VN")
-                  : "N/A"}
-              </span>
+          className='flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors'>
+          {/* Thông tin sự kiện */}
+          <div className='flex items-center gap-3'>
+            <div className='w-12 h-12 rounded-lg bg-gray-200 overflow-hidden shrink-0'>
+              {eventData.image ? (
+                <img
+                  src={eventData.image}
+                  alt={eventData.title}
+                  className='w-full h-full object-cover'
+                />
+              ) : (
+                <div className='w-full h-full flex items-center justify-center text-xs text-gray-500 font-bold'>
+                  EVT
+                </div>
+              )}
+            </div>
+            <div>
+              <p className='font-semibold text-gray-900'>
+                {eventData.title || "Sự kiện không xác định"}
+              </p>
+              <div className='flex flex-col gap-1 mt-1 text-xs text-gray-500'>
+                <span className='flex items-center gap-1'>
+                  <Calendar className='w-3 h-3' />
+                  {eventData.startDate
+                    ? new Date(eventData.startDate).toLocaleDateString("vi-VN")
+                    : "N/A"}
+                </span>
+
+                {/* Giờ Check-in/out (Chỉ hiển thị nếu có checkIn - thường là Completed) */}
+                {item.checkIn && (
+                  <span className='flex items-center gap-1 text-emerald-600'>
+                    <Clock className='w-3 h-3' />
+                    {new Date(item.checkIn).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    {item.checkOut &&
+                      ` - ${new Date(item.checkOut).toLocaleTimeString(
+                        "vi-VN",
+                        { hour: "2-digit", minute: "2-digit" }
+                      )}`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium border ${
-              status === "accepted" ||
-              status === "approved" ||
-              status === "Đã tham gia"
-                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                : status === "pending"
-                ? "bg-amber-100 text-amber-700 border-amber-200"
-                : "bg-red-100 text-red-700 border-red-200"
-            }`}>
-            {status === "accepted" || status === "approved"
-              ? "Đã tham gia"
-              : status === "pending"
-              ? "Chờ duyệt"
-              : status}
-          </span>
+
+          {/* Trạng thái và Rating */}
+          <div className='flex flex-col items-end gap-1 shrink-0'>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-medium border ${badgeClasses}`}>
+              {badgeText}
+            </span>
+            {status === "completed" && item.rating > 0 && (
+              <span className='text-xs text-yellow-500 font-bold flex items-center gap-1'>
+                {item.rating}{" "}
+                <svg className='w-3 h-3 fill-yellow-500' viewBox='0 0 24 24'>
+                  <path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z' />
+                </svg>
+              </span>
+            )}
+          </div>
         </div>
       );
     });

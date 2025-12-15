@@ -3,13 +3,12 @@
 import React from "react";
 import { MessageSquare, Info, Users, ImageIcon, Bell } from "lucide-react";
 
-// Định nghĩa cấu hình tab ở đây để dễ quản lý và mở rộng
 const TABS_CONFIG = [
   {
     id: "discussion",
     label: "Thảo luận",
     icon: MessageSquare,
-    badge: null, // Có thể truyền số: 5 (ví dụ: bình luận mới)
+    badge: null,
   },
   {
     id: "about",
@@ -21,7 +20,7 @@ const TABS_CONFIG = [
     id: "members",
     label: "Thành viên",
     icon: Users,
-    badge: null, // Ví dụ: 12 thành viên mới → badge: 12
+    badge: null,
   },
   {
     id: "media",
@@ -32,8 +31,6 @@ const TABS_CONFIG = [
 ];
 
 const EventTabs = ({ activeTab, setActiveTab, badgeCounts = {} }) => {
-  // badgeCounts là object: { discussion: 8, members: 3, ... }
-
   return (
     <div className='bg-gray-50 border-b border-gray-200 sticky top-0 z-20'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -57,7 +54,6 @@ const EventTabs = ({ activeTab, setActiveTab, badgeCounts = {} }) => {
                 <Icon className='w-4.5 h-4.5' />
                 <span>{tab.label}</span>
 
-                {/* Badge thông báo nếu có */}
                 {count > 0 && (
                   <span className='absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full'>
                     {count > 99 ? "99+" : count}

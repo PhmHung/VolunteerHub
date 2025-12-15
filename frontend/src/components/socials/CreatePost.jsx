@@ -24,17 +24,28 @@ const CreatePost = ({ user, onSubmit }) => {
     e.target.value = null;
   };
 
-  const handleSubmit = () => {
-    if (!newPostText.trim() && !attachment) return;
-    
-    onSubmit({
-      text: newPostText,
-      attachment
-    });
+const handleSubmit = () => {
+  console.log("🟢 Click Đăng");
 
-    setNewPostText("");
-    setAttachment(null);
-  };
+  if (!newPostText.trim() && !attachment) {
+    console.log("❌ Không có nội dung");
+    return;
+  }
+
+  console.log("📤 Submit data:", {
+    text: newPostText,
+    attachment,
+  });
+
+  onSubmit({
+    text: newPostText,
+    attachment,
+  });
+
+  setNewPostText("");
+  setAttachment(null);
+};
+
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">

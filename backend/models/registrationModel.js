@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 
 const registrationSchema = new mongoose.Schema(
   {
-    regId: { type: mongoose.Schema.Types.ObjectId },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

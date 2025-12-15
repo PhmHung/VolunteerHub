@@ -11,6 +11,8 @@
     "seed:event": "node seeder/seederEvent.js",
     "seed:registration": "node seeder/seederRegistration.js",
     "seed:attendance": "node seeder/seederAttendance.js",
+    "seed:approval":"node seeder/seedApprovalRequest.js",
+
     "seed:channel": "node seeder/seederChannel.js",
     "seed:post": "node seeder/seederPost.js",
     "seed:comment": "node seeder/seederComment.js",

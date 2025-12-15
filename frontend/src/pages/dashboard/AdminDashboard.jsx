@@ -39,14 +39,19 @@ import {
   clearMessages,
   deleteUser,
   updateUserStatus,
+  fetchSuggestedManagers,
 } from "../../features/userSlice";
 import {
   clearRegistrationMessages,
-  fetchPendingRegistrations,
+  fetchAllRegistrations,
   acceptRegistration,
   rejectRegistration,
 } from "../../features/registrationSlice";
-
+import {
+  fetchPendingApprovals,
+  processApprovalRequest,
+  clearApprovalMessages,
+} from "../../features/approvalSlice";
 // Utils & Components
 import { exportToCSV, exportToJSON } from "../../utils/exportUtils";
 import VolunteerApprovalModal from "../../components/approvals/VolunteerApprovalModal";
@@ -56,8 +61,9 @@ import EventDetailModal from "../../components/events/EventDetailModal";
 import { ToastContainer } from "../../components/common/Toast";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import PromptModal from "../../components/common/PromptModal";
-
+import PotentialManagerList from "../../components/approvals/PotentialManagerList";
 // NEW COMPONENTS
+import RegistrationManagementTable from "../../components/registrations/RegistrationManagementTable";
 import EventManagementTable from "../../components/events/EventManagementTable";
 import UserManagementTable from "../../components/users/UserManagementTable";
 
@@ -98,6 +104,7 @@ const AdminDashboard = ({ user }) => {
     users: allUsers = [],
     message: userMessage,
     error: userError,
+    suggestedManagers = [],
   } = useSelector((state) => state.user);
 
   const {
@@ -108,10 +115,8 @@ const AdminDashboard = ({ user }) => {
 
   // Local State
   const [activeTab, setActiveTab] = useState("overview");
-  const [pendingEvents, setPendingEvents] = useState([]);
-  const [pendingManagerRequests, setPendingManagerRequests] = useState([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
-
+  const pendingEvents = allEvents.filter((e) => e.status === "pending");
   // Modal states
   const [selectedRegistration, setSelectedRegistration] = useState(null);
   const [selectedManagerRequest, setSelectedManagerRequest] = useState(null);
@@ -120,6 +125,15 @@ const AdminDashboard = ({ user }) => {
 
   const [toasts, setToasts] = useState([]);
 
+  const {
+    pendingList: pendingRequests = [],
+    successMessage: approvalSuccessMessage,
+    error: approvalError,
+  } = useSelector((state) => state.approval);
+
+  const pendingManagerRequests = pendingRequests.filter(
+    (req) => req.type === "manager_promotion"
+  );
   // Confirm / Prompt modals
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -150,15 +164,10 @@ const AdminDashboard = ({ user }) => {
   useEffect(() => {
     dispatch(fetchManagementEvents({ status: "", limit: 1000 }));
     dispatch(fetchAllUsers());
-    dispatch(fetchPendingRegistrations());
+    dispatch(fetchAllRegistrations());
+    dispatch(fetchSuggestedManagers());
+    dispatch(fetchPendingApprovals());
   }, [dispatch]);
-
-  useEffect(() => {
-    setPendingEvents(allEvents.filter((e) => e.status === "pending"));
-    setPendingManagerRequests(
-      allUsers.filter((u) => u.pendingManagerRequest === true)
-    );
-  }, [allEvents, allUsers]);
 
   // Toast handling
   useEffect(() => {
@@ -186,6 +195,14 @@ const AdminDashboard = ({ user }) => {
       addToast(regError, "error");
       dispatch(clearRegistrationMessages());
     }
+    if (approvalSuccessMessage) {
+      addToast(approvalSuccessMessage, "success");
+      dispatch(clearApprovalMessages());
+    }
+    if (approvalError) {
+      addToast(approvalError, "error");
+      dispatch(clearApprovalMessages());
+    }
   }, [
     eventSuccessMessage,
     eventError,
@@ -193,6 +210,8 @@ const AdminDashboard = ({ user }) => {
     userError,
     regSuccessMessage,
     regError,
+    approvalSuccessMessage,
+    approvalError,
     dispatch,
   ]);
 
@@ -278,7 +297,42 @@ const AdminDashboard = ({ user }) => {
       },
     });
   };
+  const handleRecommendManager = (user) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Đề cử thăng cấp Manager",
+      message: (
+        <div>
+          <p>Bạn có chắc muốn thăng cấp trực tiếp cho thành viên này?</p>
+          <p className='font-bold mt-2 text-green-700'>{user.userName}</p>
+          <p className='text-sm text-gray-500 mt-1'>Email: {user.userEmail}</p>
+          <p className='text-xs text-red-500 mt-3'>
+            *Lưu ý: Hành động này sẽ chuyển vai trò người dùng sang Manager ngay
+            lập tức mà không cần qua bước duyệt.
+          </p>
+        </div>
+      ),
+      type: "success", // Hoặc "info"
+      confirmText: "Thăng cấp ngay",
+      onConfirm: async () => {
+        try {
+          // Gọi action update role có sẵn trong userSlice
+          await dispatch(
+            updateUserRole({ userId: user._id, role: "manager" })
+          ).unwrap();
 
+          addToast(`Đã thăng cấp thành công cho ${user.userName}`, "success");
+
+          // Refresh lại danh sách user để cập nhật UI
+          dispatch(fetchAllUsers());
+        } catch (error) {
+          addToast("Lỗi khi thăng cấp: " + error, "error");
+        }
+      },
+    });
+  };
+
+  // Registration actions
   // Registration actions
   const handleApproveRegistration = (reg) => {
     setConfirmModal({
@@ -292,7 +346,7 @@ const AdminDashboard = ({ user }) => {
       onConfirm: async () => {
         await dispatch(acceptRegistration(reg._id)).unwrap();
         setSelectedRegistration(null);
-        dispatch(fetchPendingRegistrations());
+        dispatch(fetchAllRegistrations());
       },
     });
   };
@@ -310,7 +364,7 @@ const AdminDashboard = ({ user }) => {
           rejectRegistration({ registrationId: reg._id, reason })
         ).unwrap();
         setSelectedRegistration(null);
-        dispatch(fetchPendingRegistrations());
+        dispatch(fetchAllRegistrations());
       },
     });
   };
@@ -321,18 +375,22 @@ const AdminDashboard = ({ user }) => {
       isOpen: true,
       title: "Thăng cấp Manager",
       message: `Xác nhận thăng cấp ${
-        req.candidate?.userName || req.userName
+        req.requestedBy?.userName || "ứng viên"
       } lên Manager?`,
       type: "success",
       confirmText: "Thăng cấp",
       onConfirm: async () => {
+        // Dùng action xử lý Approval Request
         await dispatch(
-          updateUserRole({
-            userId: req._id || req.candidate?._id,
-            role: "manager",
+          processApprovalRequest({
+            requestId: req._id,
+            actionType: "approve",
           })
         ).unwrap();
+
         setSelectedManagerRequest(null);
+        // Refresh lại dữ liệu
+        dispatch(fetchPendingApprovals());
         dispatch(fetchAllUsers());
       },
     });
@@ -343,13 +401,20 @@ const AdminDashboard = ({ user }) => {
       isOpen: true,
       title: "Từ chối yêu cầu Manager",
       message: `Lý do từ chối yêu cầu của ${
-        req.candidate?.userName || req.userName
+        req.requestedBy?.userName || "ứng viên"
       }:`,
       confirmText: "Từ chối",
-      onConfirm: () => {
-        addToast("Đã từ chối yêu cầu Manager", "info");
+      onConfirm: async (reason) => {
+        await dispatch(
+          processApprovalRequest({
+            requestId: req._id,
+            actionType: "reject",
+            adminNote: reason,
+          })
+        ).unwrap();
+
         setSelectedManagerRequest(null);
-        dispatch(fetchAllUsers());
+        dispatch(fetchPendingApprovals());
       },
     });
   };
@@ -538,6 +603,12 @@ const AdminDashboard = ({ user }) => {
                     count: pendingManagerRequests.length,
                     color: "purple",
                   },
+                  {
+                    id: "suggestions",
+                    label: "Gợi ý Manager",
+                    count: suggestedManagers.length,
+                    color: "green", // Hoặc màu khác tùy ý
+                  },
                   { id: "users_management", label: "Quản lý người dùng" },
                   { id: "events_management", label: "Quản lý sự kiện" },
                 ].map((tab) => (
@@ -639,57 +710,14 @@ const AdminDashboard = ({ user }) => {
 
               {/* Duyệt đăng ký tình nguyện viên */}
               {activeTab === "volunteers" && (
-                <div className='space-y-4'>
-                  {pendingRegistrations.length === 0 ? (
-                    <div className='text-center py-12 text-gray-500'>
-                      Không có đăng ký nào đang chờ duyệt.
-                    </div>
-                  ) : (
-                    pendingRegistrations.map((reg) => {
-                      const vol = reg.volunteer || {};
-                      const evt = reg.event || {};
-                      return (
-                        <div
-                          key={reg._id}
-                          className='bg-white rounded-xl border p-5 flex items-center justify-between hover:shadow-md transition'>
-                          <div className='flex items-center gap-4'>
-                            <div className='w-12 h-12 rounded-full bg-gray-100 overflow-hidden'>
-                              {vol.profilePicture ? (
-                                <img
-                                  src={vol.profilePicture}
-                                  alt=''
-                                  className='w-full h-full object-cover'
-                                />
-                              ) : (
-                                <div className='w-full h-full flex items-center justify-center text-gray-500 font-bold'>
-                                  {vol.userName?.[0] || "U"}
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <p className='font-semibold'>
-                                {vol.userName || "Không rõ"}
-                              </p>
-                              <p className='text-sm text-gray-500'>
-                                Đăng ký:{" "}
-                                <span className='font-medium'>
-                                  {evt.title || "Sự kiện không xác định"}
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-                          <div className='flex items-center gap-3'>
-                            <button
-                              onClick={() => setSelectedRegistration(reg)}
-                              className='px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium'>
-                              Xem & Duyệt
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                <RegistrationManagementTable
+                  registrations={pendingRegistrations}
+                  users={allUsers}
+                  events={allEvents}
+                  onApprove={handleApproveRegistration}
+                  onReject={handleRejectRegistration}
+                  loading={false}
+                />
               )}
 
               {/* Duyệt Manager */}
@@ -706,25 +734,31 @@ const AdminDashboard = ({ user }) => {
                         className='bg-white rounded-xl border p-5 flex items-center justify-between hover:shadow-md transition'>
                         <div className='flex items-center gap-4'>
                           <div className='w-12 h-12 rounded-full bg-purple-100 overflow-hidden'>
-                            {req.candidate?.profilePicture ? (
+                            {/* ✅ SỬA: req.candidate -> req.requestedBy */}
+                            {req.requestedBy?.profilePicture ? (
                               <img
-                                src={req.candidate.profilePicture}
+                                src={req.requestedBy.profilePicture}
                                 alt=''
                                 className='w-full h-full object-cover'
                               />
                             ) : (
                               <div className='w-full h-full flex items-center justify-center text-purple-700 font-bold'>
-                                {req.candidate?.userName?.[0] || "U"}
+                                {req.requestedBy?.userName?.[0] || "U"}
                               </div>
                             )}
                           </div>
                           <div>
                             <p className='font-semibold'>
-                              {req.candidate?.userName || req.userName}
+                              {/* ✅ SỬA: req.candidate -> req.requestedBy */}
+                              {req.requestedBy?.userName ||
+                                "Người dùng không xác định"}
                             </p>
                             <p className='text-sm text-gray-500'>
-                              {req.currentRole || "Volunteer"} •{" "}
-                              {req.experience || 0} năm kinh nghiệm
+                              {/* ✅ SỬA: Hiển thị promotionData thật */}
+                              Hoàn thành:{" "}
+                              {req.promotionData?.eventsCompleted || 0} sự kiện
+                              • {req.promotionData?.totalAttendanceHours || 0}{" "}
+                              giờ
                             </p>
                           </div>
                         </div>
@@ -758,6 +792,12 @@ const AdminDashboard = ({ user }) => {
                   onReject={handleRejectEvent}
                   onDeleteEvent={handleDeleteEvent}
                   onViewEvent={handleViewEvent}
+                />
+              )}
+              {activeTab === "suggestions" && (
+                <PotentialManagerList
+                  suggestedUsers={suggestedManagers}
+                  onRecommend={handleRecommendManager}
                 />
               )}
             </div>

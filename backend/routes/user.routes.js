@@ -18,11 +18,28 @@ import {
   changeUserPassword,
   getUserProfile,
   updateUserStatus,
+  requestManagerRole,
+  getSuggestedManagers,
 } from "../controllers/user.controller.js";
 const router = express.Router();
 
-// @route  GET /api/users/profile (Lấy hồ sơ CỦA TÔI)
-// @route  PUT /api/users/profile (Cập nhật hồ sơ CỦA TÔI)
+// =================================================================
+// 1. CÁC ROUTE CỤ THỂ (STATIC ROUTES) - PHẢI ĐẶT TRÊN CÙNG
+// =================================================================
+
+// @route  GET /api/users/suggested-managers
+// 🔥 QUAN TRỌNG: Phải đặt trên route /:id để không bị nhận nhầm là ID
+router.get(
+  "/suggested-managers",
+  protect,
+  allowAdminOnly,
+  getSuggestedManagers
+);
+
+// @route  POST /api/users/request-manager
+router.route("/request-manager").post(protect, requestManagerRole);
+
+// @route  GET/PUT /api/users/profile
 router
   .route("/profile")
   .get(protect, getUserProfile)
@@ -31,8 +48,16 @@ router
 // @route  PUT /api/users/profile/change-password
 router.put("/profile/change-password", protect, changeUserPassword);
 
+// =================================================================
+// 2. ROUTE GỐC (ROOT)
+// =================================================================
+
 // @route  GET /api/users/
 router.get("/", protect, allowAdminOrManager, getAllUsers);
+
+// =================================================================
+// 3. CÁC ROUTE ĐỘNG VỚI PARAM :ID (DYNAMIC ROUTES) - ĐẶT CUỐI CÙNG
+// =================================================================
 
 // @route  GET /api/users/:id
 // @route  DELETE /api/users/:id
@@ -45,7 +70,6 @@ router
 router.put("/:id/role", protect, allowAdminOnly, updateUserRole);
 
 // @route   PUT /api/users/:id/status
-// @desc    Admin hoặc Manager khóa/mở khóa tài khoản
-// @access  Private (Admin hoặc Manager)
 router.put("/:id/status", protect, allowAdminOrManager, updateUserStatus);
+
 export default router;

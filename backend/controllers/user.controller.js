@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
 import Registration from "../models/registrationModel.js";
+import Attendance from "../models/attendanceModel.js";
+import ApprovalRequest from "../models/approvalRequestModel.js";
 import generateToken from "../utils/generateToken.js";
 
 // @desc   Update user profile
@@ -16,8 +18,8 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     user.userName = req.body.userName || user.userName;
     //Update Phone number
     user.phoneNumber = req.body.phoneNumber || user.phoneNumber;
-    //Update Biology
-    user.biology = req.body.biology || user.biology;
+    //Update Biography
+    user.biography = req.body.biography || user.biography;
     //Update Profile Picture
     if (req.file && req.file.path) {
       user.profilePicture = req.file.path;
@@ -30,7 +32,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       userEmail: updatedUser.userEmail,
       role: updatedUser.role,
       phoneNumber: updatedUser.phoneNumber,
-      biology: updatedUser.biology,
+      biography: updatedUser.biography,
       profilePicture: updatedUser.profilePicture,
       token: generateToken(updatedUser._id),
     });
@@ -67,26 +69,56 @@ const deleteUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "User removed" });
 });
 
-// @desc   GET user by ID
-// @route  GET/api/users/:id
+// @desc   GET user by ID (with real participation history from Attendance)
+// @route  GET /api/users/:id
 // @access Private/Admin,Manager
 const getUserById = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select("-password");
-  if (user) {
-    // 2. Lấy danh sách đăng ký sự kiện của User này
-    const history = await Registration.find({ userId: req.params.id })
-      .populate("eventId", "title startDate endDate location status image")
-      .sort({ createdAt: -1 });
+  const userId = req.params.id;
 
-    // 3. Trả về object kết hợp (User info + History array)
-    res.json({
-      ...user.toObject(),
-      history: history,
-    });
-  } else {
+  const user = await User.findById(userId).select("-password");
+
+  if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
+
+  const registrationIds = await Registration.find({ userId: userId }).distinct(
+    "_id"
+  );
+
+  const attendanceHistory = await Attendance.find({
+    regId: { $in: registrationIds },
+    status: { $in: ["completed", "absent"] },
+  })
+    .populate({
+      path: "regId",
+      select: "eventId createdAt status",
+      populate: {
+        path: "eventId",
+        select: "title startDate endDate location status image",
+      },
+    })
+    .sort({ checkOut: -1, checkIn: -1 })
+    .exec();
+  const history = attendanceHistory
+
+    .filter((att) => att.regId && att.regId.eventId && att.regId.eventId.title)
+    .map((att) => ({
+      attendanceId: att._id,
+      checkIn: att.checkIn,
+      checkOut: att.checkOut,
+      status: att.status,
+      feedback: att.feedback,
+
+      event: att.regId?.eventId,
+      registeredAt: att.regId?.createdAt,
+      registrationStatus: att.regId?.status,
+    }));
+
+  res.json({
+    ...user.toObject(),
+    history,
+  });
 });
 
 // @desc   Update user role, Admin only
@@ -166,7 +198,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
       userEmail: user.userEmail,
       role: user.role,
       phoneNumber: user.phoneNumber,
-      biology: user.biology,
+      biography: user.biography,
       profilePicture: user.profilePicture,
     });
   } else {
@@ -228,6 +260,161 @@ const updateUserStatus = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Gửi yêu cầu thăng cấp lên Manager (dành cho Volunteer đã có tài khoản)
+// @route   POST /api/users/request-manager
+// @access  Private (Chỉ cần bảo vệ route, logic kiểm tra vai trò sẽ xử lý ở đây)
+const requestManagerRole = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  // 1. KIỂM TRA TRẠNG THÁI HIỆN TẠI VÀ QUYỀN GỬI
+  const user = await User.findById(userId);
+
+  if (user.role === "manager" || user.role === "admin") {
+    res.status(400);
+    throw new Error("Bạn đã là Manager hoặc Admin.");
+  }
+
+  // 2. KIỂM TRA YÊU CẦU ĐANG CHỜ DUYỆT
+  const existingRequest = await ApprovalRequest.findOne({
+    requestedBy: userId,
+    type: "manager_promotion",
+    status: "pending",
+  });
+
+  if (existingRequest) {
+    res.status(400);
+    throw new Error("Bạn đã có một yêu cầu thăng cấp Manager đang chờ duyệt.");
+  }
+
+  // 3. TÍNH TOÁN KINH NGHIỆM THỰC TẾ
+  // Lưu ý: Hàm calculateVolunteerExperience phải được import/định nghĩa đúng
+  const experienceStats = await calculateVolunteerExperience(userId);
+
+  // 4. TẠO APPROVAL REQUEST
+  const request = await ApprovalRequest.create({
+    type: "manager_promotion",
+    requestedBy: userId,
+    status: "pending",
+    // Chèn dữ liệu đã tính toán
+    promotionData: experienceStats,
+  });
+
+  res.status(201).json({
+    message:
+      "Đã gửi yêu cầu thăng cấp Manager thành công. Vui lòng chờ Admin duyệt.",
+    data: request,
+  });
+});
+
+// backend/controllers/user.controller.js
+
+// @desc    Lấy danh sách gợi ý thăng cấp (Phiên bản Safe Mode)
+// @route   GET /api/users/suggested-managers
+const getSuggestedManagers = asyncHandler(async (req, res) => {
+  try {
+    // 1. Lấy danh sách ID đã gửi yêu cầu rồi để loại trừ
+    const existingRequests = await ApprovalRequest.find({
+      type: "manager_promotion",
+      status: { $in: ["pending", "approved"] },
+    }).select("requestedBy");
+
+    // Chuyển về mảng ID string để đảm bảo so sánh đúng
+    const existingRequestIds = existingRequests.map(
+      (r) => r.requestedBy?._id || r.requestedBy
+    );
+
+    // 2. Aggregation Pipeline
+    const suggestions = await Attendance.aggregate([
+      // A. Lọc dữ liệu sạch: Phải completed VÀ có đủ checkIn/checkOut
+      {
+        $match: {
+          status: "completed",
+          checkIn: { $exists: true, $ne: null },
+          checkOut: { $exists: true, $ne: null },
+        },
+      },
+
+      // B. Lookup Registration
+      {
+        $lookup: {
+          from: "registrations",
+          localField: "regId",
+          foreignField: "_id",
+          as: "registration",
+        },
+      },
+      { $unwind: "$registration" },
+
+      // C. Lookup User
+      {
+        $lookup: {
+          from: "users",
+          localField: "registration.userId",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+
+      // D. Lọc User: Volunteer, Active, Chưa request
+      {
+        $match: {
+          "user.role": "volunteer",
+          "user.status": "active",
+          "user._id": { $nin: existingRequestIds },
+        },
+      },
+
+      // E. Group & Tính toán
+      {
+        $group: {
+          _id: "$user._id",
+          userName: { $first: "$user.userName" },
+          userEmail: { $first: "$user.userEmail" },
+          profilePicture: { $first: "$user.profilePicture" },
+          eventsCompleted: { $sum: 1 },
+          // An toàn: Chuyển sang Date trước khi trừ để tránh lỗi
+          totalDurationMs: {
+            $sum: {
+              $subtract: [{ $toDate: "$checkOut" }, { $toDate: "$checkIn" }],
+            },
+          },
+          avgRating: { $avg: "$feedback.rating" },
+        },
+      },
+
+      // F. Format kết quả
+      {
+        $project: {
+          _id: 1,
+          userName: 1,
+          userEmail: 1,
+          profilePicture: 1,
+          promotionData: {
+            eventsCompleted: "$eventsCompleted",
+            totalAttendanceHours: {
+              $round: [{ $divide: ["$totalDurationMs", 1000 * 60 * 60] }, 1],
+            },
+            // Dùng ifNull để tránh lỗi nếu avgRating là null
+            averageRating: { $round: [{ $ifNull: ["$avgRating", 0] }, 1] },
+          },
+        },
+      },
+
+      { $sort: { "promotionData.totalAttendanceHours": -1 } },
+      { $limit: 20 },
+    ]);
+
+    res.json({
+      count: suggestions.length,
+      data: suggestions,
+    });
+  } catch (error) {
+    console.error("Error in getSuggestedManagers:", error);
+    res.status(500);
+    throw new Error("Lỗi Server khi tính toán gợi ý: " + error.message);
+  }
+});
 export {
   updateUserProfile,
   getAllUsers,
@@ -237,4 +424,6 @@ export {
   changeUserPassword,
   getUserProfile,
   updateUserStatus,
+  requestManagerRole,
+  getSuggestedManagers,
 };
