@@ -29,6 +29,7 @@ import Media from "./pages/Media.jsx";
 import Information from "./pages/Information.jsx";
 import VolunteerHistory from "./pages/dashboard/VolunteerHistory.jsx";
 import AuthModal from "./components/auth/AuthModal.jsx";
+import EventDetail from "./pages/public/EventDetailPage.jsx";
 
 /**
  * Main App Component
@@ -130,6 +131,7 @@ export default function App() {
               path='/events'
               element={<Events user={user} openAuth={setAuthModal} />}
             />
+            <Route path='/events/:id' element={<EventDetail />} />
 
             {/* Admin routes */}
             <Route
