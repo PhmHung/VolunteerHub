@@ -18,8 +18,9 @@ import { fetchChannelByEventId, clearChannel } from "../features/channelSlice";
 
 // components
 import EventFeed from "../components/socials/EventFeed";
-import VolunteersList from "../components/registrations/VolunteersList";
 import EventTabs from "../components/events/EventTabs";
+import EventReviews from "../components/events/EventReviews"; // Import Component Đánh giá
+import VolunteersList from "../components/registrations/VolunteersList";
 import MyRegistrationStatus from "../components/registrations/MyRegistrationStatus";
 
 /* ======================================================
@@ -47,7 +48,6 @@ const EventDetailView = ({ event, user, onBack }) => {
             Quay lại
           </button>
         </div>
-
         {/* Header */}
         <div className="relative h-72 overflow-hidden">
           <img
@@ -72,7 +72,9 @@ const EventDetailView = ({ event, user, onBack }) => {
           {activeTab === "discussion" && (
             <EventFeed event={event} user={user} />
           )}
-
+          {activeTab === "reviews" && (
+             <EventReviews user={user} eventId={event._id} />
+          )}
           {activeTab === "members" && (
             <VolunteersList eventId={event._id} user={user} />
           )}
