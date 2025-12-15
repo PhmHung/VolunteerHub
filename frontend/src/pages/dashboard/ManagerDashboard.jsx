@@ -104,31 +104,6 @@ export default function ManagerDashboard({ user }) {
     });
   }, [allEvents, activeUser]);
 
-  // --- 2. LỌC USER (VOLUNTEERS) THUỘC SỰ KIỆN CỦA MANAGER ---
-  const myVolunteers = useMemo(() => {
-    if (!myEvents.length || !allRegistrations.length) return [];
-
-    // B1: Lấy danh sách ID các sự kiện của tôi
-    const myEventIds = myEvents.map((e) => e._id);
-
-    // B2: Lọc ra các đơn đăng ký thuộc sự kiện của tôi
-    const myRelevantRegistrations = allRegistrations.filter((reg) => {
-      const eventId = reg.eventId?._id || reg.eventId || reg.event;
-      return myEventIds.includes(eventId);
-    });
-
-    // B3: Lấy ra danh sách User ID từ các đơn đăng ký đó
-    const volunteerIds = myRelevantRegistrations.map(
-      (reg) => reg.userId?._id || reg.userId || reg.volunteer
-    );
-
-    // B4: Lọc danh sách User gốc (allUsers) chỉ lấy những người có ID trong list trên
-    // Dùng Set để loại bỏ trùng lặp (1 người đăng ký nhiều sự kiện)
-    const uniqueVolunteerIds = [...new Set(volunteerIds)];
-
-    return allUsers.filter((u) => uniqueVolunteerIds.includes(u._id));
-  }, [myEvents, allRegistrations, allUsers]);
-
   // --- THỐNG KÊ (STATS) ---
   const stats = useMemo(() => {
     const approved = myEvents.filter((e) => e.status === "approved").length;
@@ -415,7 +390,9 @@ export default function ManagerDashboard({ user }) {
                 Quản lý người dùng
                 {/* Badge đếm số lượng người tham gia */}
                 <span className='ml-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full'>
-                  {myVolunteers.length}
+                  {/* SỬA DÒNG NÀY: */}
+                  {/* {myVolunteers.length} */}
+                  {allUsers.length}
                 </span>
                 {activeTab === "users_management" && (
                   <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600' />
@@ -512,10 +489,11 @@ export default function ManagerDashboard({ user }) {
               />
             )}
 
-            {/* USER MANAGEMENT (DÙNG myVolunteers THAY VÌ allUsers) */}
             {activeTab === "users_management" && (
               <UserManagementTable
-                users={myVolunteers} // 👈 QUAN TRỌNG: Chỉ truyền user của Manager
+                // SỬA DÒNG NÀY:
+                // users={myVolunteers}
+                users={allUsers}
                 onViewUser={handleViewUser}
                 onToggleUserStatus={handleToggleUserStatus}
                 onDeleteUser={handleDeleteUser}
@@ -577,9 +555,14 @@ export default function ManagerDashboard({ user }) {
         {...confirmModal}
         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
       />
+
       <PromptModal
-        {...promptModal}
-        onClose={() => setPromptModal({ ...promptModal, isOpen: false })}
+        isOpen={promptModal.isOpen}
+        onClose={() => setPromptModal({ isOpen: false })}
+        onConfirm={promptModal.onConfirm}
+        title={promptModal.title}
+        message={promptModal.message}
+        confirmText={promptModal.confirmText}
       />
 
       <ToastContainer toasts={toasts} removeToast={removeToast} />

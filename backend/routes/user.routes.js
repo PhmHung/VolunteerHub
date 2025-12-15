@@ -64,7 +64,7 @@ router.get("/", protect, allowAdminOrManager, getAllUsers);
 router
   .route("/:id")
   .get(protect, allowAdminOrManager, getUserById)
-  .delete(protect, allowAdminOnly, deleteUser);
+  .delete(protect, allowAdminOrManager, deleteUser);
 
 // @route  PUT /api/users/:id/role
 router.put("/:id/role", protect, allowAdminOnly, updateUserRole);
