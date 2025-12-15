@@ -31,12 +31,12 @@ const TIME_FILTERS = [
   { label: "Sắp diễn ra", value: "upcoming" },
   { label: "Đã diễn ra", value: "past" },
 ];
-
+import { extractAllTags } from "../../utils/tagHelpers";
+import TagBubbleModal from "./TagBubbleModal";
 export default function EventsPage({ user, openAuth }) {
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // 2. Khai báo hook navigate
+  const navigate = useNavigate();
 
-  // Redux state
   const { list: eventsData } = useSelector((state) => state.event);
   const {
     myRegistrations,
@@ -45,13 +45,15 @@ export default function EventsPage({ user, openAuth }) {
   } = useSelector((state) => state.registration);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("Tất cả");
+  //onst [selectedCategory, setSelectedCategory] = useState("Tất cả");
+  const [selectedTag, setSelectedTag] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [toast, setToast] = useState(null);
-
+  const allTags = useMemo(() => extractAllTags(eventsData), [eventsData]);
   // Convert myRegistrations array to map
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const userRegistrations = useMemo(() => {
     const regMap = {};
     const registrations = Array.isArray(myRegistrations) ? myRegistrations : [];
@@ -96,12 +98,21 @@ export default function EventsPage({ user, openAuth }) {
       const matchesSearch =
         event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.description?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        selectedCategory === "Tất cả" || event.category === selectedCategory;
+
+      // --- LOGIC LỌC TAG MỚI ---
+      const eventCat = event.category?.toLowerCase().trim() || "";
+      const eventTags = (event.tags || []).map((t) => t.toLowerCase().trim());
+
+      // Nếu chọn 'all' thì luôn đúng.
+      // Nếu chọn tag cụ thể: Kiểm tra xem tag đó có nằm trong mảng tags của event HOẶC trùng với category không
+      const matchesTag =
+        selectedTag === "all" ||
+        eventCat === selectedTag ||
+        eventTags.includes(selectedTag);
+      // -------------------------
+
       const matchesStatusFilter =
         statusFilter === "all" || event.status === statusFilter;
-
-      // Trang công khai chỉ hiển thị sự kiện ĐÃ DUYỆT trừ khi user là Admin/Manager
       const isPubliclyVisible =
         isAdmin || isManager || event.status === "approved";
 
@@ -126,7 +137,7 @@ export default function EventsPage({ user, openAuth }) {
 
       return (
         matchesSearch &&
-        matchesCategory &&
+        matchesTag && // Sử dụng biến mới
         matchesStatusFilter &&
         matchesTime &&
         matchesDate &&
@@ -135,25 +146,18 @@ export default function EventsPage({ user, openAuth }) {
     });
   }, [
     searchQuery,
-    selectedCategory,
+    selectedTag, // Dependency mới
     statusFilter,
     timeFilter,
     selectedDate,
     eventsData,
-    isAdmin, // Thêm dependency
-    isManager, // Thêm dependency
+    isAdmin,
+    isManager,
   ]);
 
   // --- HÀM XỬ LÝ CHUYỂN TRANG CHI TIẾT (Phân quyền) ---
   const handleViewDetail = (eventId) => {
-    if (user?.role === "admin") {
-      navigate(`/admin/events/${eventId}`);
-    } else if (user?.role === "manager") {
-      navigate(`/manager/events/${eventId}`);
-    } else {
-      // Điều hướng công khai đến EventDetail
-      navigate(`/events/${eventId}`);
-    }
+    navigate(`/events/${eventId}`);
   };
 
   const handleRegister = async (eventId) => {
@@ -261,70 +265,100 @@ export default function EventsPage({ user, openAuth }) {
 
         {/* Filters */}
         <section className='card p-5'>
-          <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-            <div className='relative flex-1 max-w-md'>
-              <Search className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted' />
-              <input
-                type='text'
-                placeholder='Tìm kiếm sự kiện...'
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className='input-field pl-10'
-              />
-            </div>
-            <div className='flex items-center gap-2 flex-wrap'>
-              <Filter className='h-5 w-5 text-text-muted' />
-              {EVENT_CATEGORIES.map((cat) => (
+          {/* Chia thành 2 cột lớn: Cột Trái (Search & Tag) - Cột Phải (Time & Date) */}
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+            {/* --- CỘT 1: TÌM KIẾM & CHỌN TAG --- */}
+            <div className='flex flex-col gap-3'>
+              {/* 1. Ô tìm kiếm */}
+              <div className='relative w-full'>
+                <Search className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted' />
+                <input
+                  type='text'
+                  placeholder='Tìm kiếm sự kiện...'
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className='input-field pl-10 w-full'
+                />
+              </div>
+
+              {/* 2. Nút chọn Tag & Modal */}
+              <div>
                 <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                    selectedCategory === cat
-                      ? "bg-primary-100 text-primary-700"
-                      : "bg-surface-muted text-text-secondary hover:bg-gray-200"
+                  onClick={() => setIsTagModalOpen(true)}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg font-medium transition-all border ${
+                    selectedTag !== "all"
+                      ? "bg-primary-50 border-primary-200 text-primary-700"
+                      : "bg-white border-gray-200 text-text-secondary hover:bg-gray-50"
                   }`}>
-                  {cat}
+                  <div className='flex items-center gap-2'>
+                    <Filter className='w-4 h-4' />
+                    <span>
+                      {selectedTag === "all"
+                        ? "Lọc theo chủ đề"
+                        : `Chủ đề: ${
+                            allTags.find((t) => t.id === selectedTag)?.text ||
+                            selectedTag
+                          }`}
+                    </span>
+                  </div>
+                  {/* Hiển thị mũi tên nhỏ hoặc số lượng tag nếu cần */}
                 </button>
-              ))}
+
+                {/* Modal ẩn (chỉ hiện khi bấm nút trên) */}
+                <TagBubbleModal
+                  isOpen={isTagModalOpen}
+                  onClose={() => setIsTagModalOpen(false)}
+                  tags={allTags}
+                  selectedTag={selectedTag}
+                  onSelectTag={(tag) => setSelectedTag(tag)}
+                />
+              </div>
+            </div>
+
+            {/* --- CỘT 2: THỜI GIAN & NGÀY --- */}
+            <div className='flex flex-col gap-3 justify-center'>
+              {/* 1. Các nút lọc thời gian */}
+              <div className='flex flex-wrap items-center gap-2'>
+                <Clock className='h-5 w-5 text-text-muted mr-1' />
+                {TIME_FILTERS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setTimeFilter(value)}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                      timeFilter === value
+                        ? "bg-primary-100 text-primary-700"
+                        : "bg-surface-muted text-text-secondary hover:bg-gray-200"
+                    }`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* 2. Chọn ngày cụ thể */}
+              <div className='flex items-center gap-2 pt-2 border-t border-gray-100'>
+                <Calendar className='h-5 w-5 text-text-muted mr-1' />
+                <input
+                  type='date'
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className='input-field py-1.5 text-text-secondary w-full'
+                />
+                {selectedDate && (
+                  <button
+                    onClick={() => setSelectedDate("")}
+                    className='text-sm text-red-500 hover:text-red-700 whitespace-nowrap px-2'>
+                    Xóa
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-          <div className='mt-4 flex flex-wrap items-center gap-4'>
-            <div className='flex items-center gap-2'>
-              <Clock className='h-5 w-5 text-text-muted' />
-              {TIME_FILTERS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setTimeFilter(value)}
-                  className={`rounded-lg px-3 py-1 text-sm font-medium ${
-                    timeFilter === value
-                      ? "bg-primary-100 text-primary-700"
-                      : "bg-surface-muted text-text-secondary hover:bg-gray-200"
-                  }`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className='flex items-center gap-2 pl-4 border-l border-gray-200'>
-              <Calendar className='h-5 w-5 text-text-muted' />
-              <input
-                type='date'
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className='input-field py-1 text-text-secondary w-auto'
-              />
-              {selectedDate && (
-                <button
-                  onClick={() => setSelectedDate("")}
-                  className='text-xs text-text-muted hover:text-text-secondary'>
-                  Xóa
-                </button>
-              )}
-            </div>
-          </div>
+
+          {/* Phần lọc trạng thái (Admin/Manager) - Nằm riêng bên dưới */}
           {(isAdmin || isManager) && (
             <div className='mt-4 flex items-center gap-2 pt-4 border-t border-gray-200'>
               <span className='text-sm font-medium text-text-secondary'>
-                Trạng thái:
+                Trạng thái duyệt:
               </span>
               {["all", "approved", "pending"].map((status) => (
                 <button
