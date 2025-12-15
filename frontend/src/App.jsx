@@ -23,7 +23,7 @@ import HomePage from "./pages/public/Home.jsx";
 import Dashboard from "./pages/dashboard/Dashboard.jsx";
 import AdminDashboard from "./pages/dashboard/AdminDashboard.jsx";
 import ManagerDashboard from "./pages/dashboard/ManagerDashboard.jsx";
-import Events from "./pages/public/Events.jsx";
+import Events from "./pages/public/EventPublic.jsx";
 import About from "./pages/public/AboutUs.jsx";
 import Media from "./pages/Media.jsx";
 import Information from "./pages/Information.jsx";

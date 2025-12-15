@@ -13,7 +13,7 @@ import {
   Plus,
   CheckCircle,
   XCircle,
-  Eye,
+  Eye, // Icon Xem chi tiết
 } from "lucide-react";
 import { EVENT_CATEGORIES, EVENT_STATUS } from "../../utils/constants";
 import { motion } from "framer-motion";
@@ -86,6 +86,11 @@ export default function EventsPage({ user, openAuth }) {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  //const isVolunteer = user?.role === "volunteer";
+  const isManager = user?.role === "manager";
+  const isAdmin = user?.role === "admin";
+
+  // Lọc sự kiện: Thêm điều kiện isPubliclyVisible ở đây
   const filteredEvents = useMemo(() => {
     return eventsData.filter((event) => {
       const matchesSearch =
@@ -93,8 +98,12 @@ export default function EventsPage({ user, openAuth }) {
         event.description?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory =
         selectedCategory === "Tất cả" || event.category === selectedCategory;
-      const matchesStatus =
+      const matchesStatusFilter =
         statusFilter === "all" || event.status === statusFilter;
+
+      // Trang công khai chỉ hiển thị sự kiện ĐÃ DUYỆT trừ khi user là Admin/Manager
+      const isPubliclyVisible =
+        isAdmin || isManager || event.status === "approved";
 
       const now = new Date();
       const eventStart = new Date(
@@ -118,9 +127,10 @@ export default function EventsPage({ user, openAuth }) {
       return (
         matchesSearch &&
         matchesCategory &&
-        matchesStatus &&
+        matchesStatusFilter &&
         matchesTime &&
-        matchesDate
+        matchesDate &&
+        isPubliclyVisible
       );
     });
   }, [
@@ -130,15 +140,18 @@ export default function EventsPage({ user, openAuth }) {
     timeFilter,
     selectedDate,
     eventsData,
+    isAdmin, // Thêm dependency
+    isManager, // Thêm dependency
   ]);
 
-  // --- HÀM XỬ LÝ CHUYỂN TRANG CHI TIẾT ---
+  // --- HÀM XỬ LÝ CHUYỂN TRANG CHI TIẾT (Phân quyền) ---
   const handleViewDetail = (eventId) => {
     if (user?.role === "admin") {
       navigate(`/admin/events/${eventId}`);
     } else if (user?.role === "manager") {
       navigate(`/manager/events/${eventId}`);
     } else {
+      // Điều hướng công khai đến EventDetail
       navigate(`/events/${eventId}`);
     }
   };
@@ -205,10 +218,6 @@ export default function EventsPage({ user, openAuth }) {
       setToast({ type: "error", message: error || "Lỗi khi hủy đăng ký" });
     }
   };
-
-  const isVolunteer = user?.role === "volunteer";
-  const isManager = user?.role === "manager";
-  const isAdmin = user?.role === "admin";
 
   return (
     <div className='w-full min-h-screen bg-surface-muted px-6 py-10'>
@@ -323,7 +332,7 @@ export default function EventsPage({ user, openAuth }) {
                   onClick={() => setStatusFilter(status)}
                   className={`rounded-lg px-3 py-1 text-sm font-medium transition ${
                     statusFilter === status
-                      ? "bg-surface-dark text-white"
+                      ? "bg-primary-100 text-primary-700"
                       : "bg-surface-muted text-text-secondary hover:bg-gray-200"
                   }`}>
                   {status === "all" ? "Tất cả" : EVENT_STATUS[status]?.label}
@@ -433,8 +442,8 @@ export default function EventsPage({ user, openAuth }) {
 
                     {/* Actions */}
                     <div className='flex flex-wrap gap-2 pt-3 border-t border-gray-200'>
-                      {/* Volunteer actions */}
-                      {(!user || isVolunteer) && isApproved && (
+                      {/* Logic hiển thị nút Đăng ký/Hủy/Đã tham gia (Chỉ hiển thị nếu KHÔNG phải Admin và sự kiện đã được duyệt) */}
+                      {!isAdmin && !isManager && isApproved && (
                         <>
                           {buttonState === "pending" ? (
                             <div className='flex-1 flex gap-2'>
@@ -484,17 +493,10 @@ export default function EventsPage({ user, openAuth }) {
                               {isFull ? "Đã hết chỗ" : "Đăng ký"}
                             </button>
                           )}
-
-                          {/* Nút Xem Chi Tiết - ĐÃ SỬA */}
-                          <button
-                            onClick={() => handleViewDetail(eventId)}
-                            className='rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-text-secondary hover:bg-surface-muted'>
-                            <Eye className='h-4 w-4' />
-                          </button>
                         </>
                       )}
 
-                      {/* Admin actions */}
+                      {/* Admin actions (Chỉ hiển thị thông báo nếu event pending) */}
                       {isAdmin && (
                         <>
                           {event.status === "pending" && (
@@ -504,14 +506,17 @@ export default function EventsPage({ user, openAuth }) {
                               </span>
                             </div>
                           )}
-                          {/* Nút Chi Tiết cho Admin - ĐÃ SỬA */}
-                          <button
-                            onClick={() => handleViewDetail(eventId)}
-                            className='w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-text-secondary hover:bg-surface-muted mt-2'>
-                            Xem chi tiết
-                          </button>
                         </>
                       )}
+
+                      {/* --- NÚT XEM CHI TIẾT CHUNG (UNIVERSAL) --- */}
+                      <button
+                        onClick={() => handleViewDetail(eventId)}
+                        // Đảm bảo nút này có flex-shrink-0 để không bị ép quá nhỏ khi có nút khác
+                        className='rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-text-secondary hover:bg-surface-muted flex items-center gap-1 shrink-0'>
+                        <Eye className='h-4 w-4' />
+                        Xem chi tiết
+                      </button>
                     </div>
                   </div>
                 </motion.article>

@@ -27,9 +27,11 @@ import { canModifyEvent } from "../middlewares/event.middleware.js";
 
 const router = express.Router();
 
-// --- CÁC ROUTE CỤ THỂ (STATIC ROUTES) PHẢI ĐẶT LÊN TRƯỚC ---
+// ============================================================
+// 1. STATIC ROUTES (Phải đặt lên đầu để tránh trùng với :eventId)
+// ============================================================
 
-// Public - General List
+// Public: Lấy danh sách sự kiện (Home page)
 router.get("/", getEvents);
 
 router.get("/me", protect, getMyEvents);
@@ -39,15 +41,20 @@ router.get("/me", protect, getMyEvents);
 // Lưu ý: Tôi đã đổi authorize("admin", "manager") thành allowAdminOrManager cho đồng bộ
 router.get("/management", protect, allowAdminOrManager, getAllEvents);
 
-// --- CÁC ROUTE CÓ THAM SỐ (DYNAMIC ROUTES) ĐẶT SAU ---
+// Manager: Tạo sự kiện mới
+router.post("/", protect, allowAdminOrManager, createEvent);
 
-// Public - Detail & Rating
+// ============================================================
+// 2. DYNAMIC ROUTES (Có tham số :eventId)
+// ============================================================
+
+// --- PUBLIC ---
 router.get("/:eventId", getEventById);
 router.get("/:eventId/rating", getEventPublicRating);
 
-// Manager - Create/Update/Delete/Feedback
-router.post("/", protect, allowAdminOrManager, createEvent);
+// --- MANAGER / ADMIN ACTIONS ---
 
+// Cập nhật thông tin (Chỉ Manager sở hữu hoặc Admin)
 router.put(
   "/:eventId",
   protect,
@@ -56,9 +63,10 @@ router.put(
   updateEvent
 );
 
-// Sửa :id thành :eventId cho đồng bộ
+// Xóa sự kiện
 router.delete("/:eventId", protect, allowAdminOrManager, deleteEvent);
 
+// Lấy feedback (riêng tư)
 router.get(
   "/:eventId/feedbacks",
   protect,
@@ -66,6 +74,7 @@ router.get(
   getEventPrivateFeedbacks
 );
 
+// Lấy danh sách đăng ký
 router.get(
   "/:eventId/registrations",
   protect,
@@ -73,7 +82,12 @@ router.get(
   getEventRegistrations
 );
 
-// Admin - Approve
+// --- SPECIFIC ACTIONS (DUYỆT & HỦY) ---
+
+// Admin: Duyệt hoặc Từ chối sự kiện
 router.patch("/:eventId/approve", protect, allowAdminOnly, approveEvent);
-router.route("/:id/cancel").put(protect, allowAdminOrManager, cancelEvent); // Manager/Admin: Hủy sự kiện
+
+// Manager/Admin: Hủy sự kiện (Đã sửa :id thành :eventId cho đồng bộ)
+router.put("/:eventId/cancel", protect, allowAdminOrManager, cancelEvent);
+
 export default router;

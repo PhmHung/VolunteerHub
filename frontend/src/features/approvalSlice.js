@@ -31,7 +31,7 @@ export const fetchMyRequests = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       // Route: /api/approval-requests/my-request (Theo file approvalRequest.routes.js mới)
-      const { data } = await api.get("/api/approval-requests/my-request");
+      const { data } = await api.get("/api/approval-requests/my-requests");
       // Backend trả về { message, count, data: [] }
       return data.data;
     } catch (err) {

@@ -1,45 +1,34 @@
-/**
- * @file StatCard.jsx
- * @description Reusable statistics card component for dashboard
- * @pattern Presentational Component Pattern
- */
+/** @format */
 
-import React from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import React from "react";
+import { motion } from "framer-motion";
 
-/**
- * StatCard Component
- * Displays a statistic with icon, value, and change percentage
- * 
- * @param {Object} props - Component props
- * @param {string} props.title - Card title
- * @param {number|string} props.value - Main value to display
- * @param {number} props.change - Percentage change (positive or negative)
- * @param {Component} props.icon - Lucide icon component
- * @param {string} props.color - Tailwind color class for icon background
- * @returns {JSX.Element} Stat card component
- */
-const StatCard = ({ title, value, change, icon, color }) => {
-  const Icon = icon;
-  
+const StatCard = ({ icon, label, value, color, delay }) => {
+  const colors = {
+    blue: "bg-blue-50 text-blue-600 border-blue-100",
+    purple: "bg-purple-50 text-purple-600 border-purple-100",
+    green: "bg-green-50 text-green-600 border-green-100",
+    orange: "bg-orange-50 text-orange-600 border-orange-100",
+  };
+  const iconColors = {
+    blue: "bg-blue-100 text-blue-600",
+    purple: "bg-purple-100 text-purple-600",
+    green: "bg-green-100 text-green-600",
+    orange: "bg-orange-100 text-orange-600",
+  };
+
   return (
-    <div className="card p-6 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-3 rounded-xl ${color}`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <span 
-          className={`flex items-center text-sm font-medium ${
-            change >= 0 ? 'text-success-600' : 'text-error-600'
-          }`}
-        >
-          {change > 0 && '+'}{change}%
-          <ArrowUpRight className="w-4 h-4 ml-1" />
-        </span>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className={`${colors[color]} bg-white rounded-2xl shadow-sm border p-4 flex items-center gap-4`}>
+      <div className={`${iconColors[color]} p-3 rounded-xl`}>{icon}</div>
+      <div>
+        <p className='text-2xl font-bold text-gray-900'>{value}</p>
+        <p className='text-sm text-gray-500'>{label}</p>
       </div>
-      <h3 className="text-text-muted text-sm font-medium mb-1">{title}</h3>
-      <p className="text-3xl font-bold text-text-main">{value}</p>
-    </div>
+    </motion.div>
   );
 };
 
