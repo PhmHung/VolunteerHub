@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema(
       maxlength: 11,
       default: null,
     },
-    biology: {
+    biography: {
       type: String,
       maxlength: 500,
       default: null,

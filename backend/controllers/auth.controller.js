@@ -248,13 +248,9 @@ const firebaseLogin = asyncHandler(async (req, res) => {
     token: generateToken(user._id),
   };
 
-<<<<<<< Updated upstream
-  res.status(200).json(payload);
-=======
   console.log("Login information:", payload);  
 
   res.status(201).json(payload);  
->>>>>>> Stashed changes
 });
 
 export {

@@ -46,6 +46,9 @@ export const createPost = asyncHandler(async (req, res) => {
     channel: channelId,
   });
 
+  channel.posts.push(post._id);
+  await channel.save();
+
   res.status(201).json(post);
 });
 

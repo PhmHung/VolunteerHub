@@ -112,6 +112,20 @@ export const updateUserRole = createAsyncThunk(
   }
 );
 
+//Suggested Managers
+export const fetchSuggestedManagers = createAsyncThunk(
+  "user/fetchSuggestedManagers",
+  async (_, { rejectWithValue }) => {
+    try {
+      // Gọi đúng route bạn đã khai báo trong user.routes.js
+      const { data } = await api.get("/api/user/suggested-managers");
+      return data.data; // Backend trả về { count, data: [...] }
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 // 2. Slice
 const userSlice = createSlice({
   name: "user",
@@ -127,6 +141,10 @@ const userSlice = createSlice({
     selectedUser: null,
     selectedUserLoading: false,
     selectedUserError: null,
+
+    suggestedManagers: [],
+    suggestedLoading: false,
+    suggestedError: null,
 
     message: null,
     error: null,

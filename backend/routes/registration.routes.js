@@ -8,7 +8,7 @@ import {
   registerForEvent,
   cancelRegistration,
   getMyRegistrations,
-  getPendingRegistrations,
+  getAllRegistrationsForManagement,
   acceptRegistration,
   rejectRegistration,
 } from "../controllers/registration.controller.js";
@@ -19,7 +19,7 @@ router.use(protect);
 router.post("/", protect, registerForEvent);
 router.get("/my-registrations", protect, getMyRegistrations);
 router.delete("/:id", protect, cancelRegistration);
-router.get("/pending", allowAdminOrManager, getPendingRegistrations);
+router.get("/pending", allowAdminOrManager, getAllRegistrationsForManagement);
 router.put("/:id/accept", allowAdminOrManager, acceptRegistration);
 router.put("/:id/reject", allowAdminOrManager, rejectRegistration);
 

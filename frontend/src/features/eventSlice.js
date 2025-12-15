@@ -5,18 +5,34 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api"; // axios instance đã gắn token
 
 // =============================================
-// 1. PUBLIC: Lấy danh sách sự kiện đã duyệt (có filter, phân trang, search, tag)
+// 1. PUBLIC: Lấy danh sách sự kiện (Đã thêm sort và minRating)
 export const fetchEvents = createAsyncThunk(
   "event/fetchAll",
   async (
-    { page = 1, limit = 12, search = "", tag = "", status = "approved" } = {},
+    {
+      page = 1,
+      limit = 12,
+      search = "",
+      tag = "",
+      status = "approved",
+      sort = "upcoming",
+      minRating = 0,
+    } = {},
     { rejectWithValue }
   ) => {
     try {
       const { data } = await api.get("/api/events", {
-        params: { page, limit, search, tag, status },
+        params: {
+          page,
+          limit,
+          search,
+          tag,
+          status,
+          sort,
+          minRating,
+        },
       });
-      return data; // { data: [...], pagination: {...}, message }
+      return data;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Lỗi tải danh sách sự kiện"
@@ -44,6 +60,28 @@ export const fetchManagementEvents = createAsyncThunk(
     }
   }
 );
+
+// 1c. VOLUNTEER / MANAGER: Lấy danh sách event mình tham gia (approved)
+export const fetchMyEvents = createAsyncThunk(
+  "event/fetchMyEvents",
+  async (
+    { page = 1, limit = 10 } = {},
+    { rejectWithValue }
+  ) => {
+    try {
+      const { data } = await api.get("/api/events/me", {
+        params: { page, limit },
+      });
+      return data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Lỗi tải sự kiện của tôi"
+      );
+    }
+  }
+);
+
+
 // 2. Lấy chi tiết 1 sự kiện (public nếu approved, private nếu pending + có quyền)
 export const fetchEventById = createAsyncThunk(
   "event/fetchById",
@@ -131,6 +169,23 @@ export const deleteEvent = createAsyncThunk(
     }
   }
 );
+
+export const cancelEvent = createAsyncThunk(
+  "event/cancel",
+  async ({ eventId, reason }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put(`/api/events/${eventId}/cancel`, {
+        reason,
+      });
+      return data.data; // Trả về sự kiện đã được cập nhật
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Hủy sự kiện thất bại"
+      );
+    }
+  }
+);
+
 // =============================================
 // Slice
 const eventSlice = createSlice({
@@ -144,6 +199,17 @@ const eventSlice = createSlice({
       total: 0,
       pages: 0,
     },
+
+    // 👇 [MỚI] State quản lý bộ lọc & sắp xếp
+    filters: {
+      search: "",
+      tag: "",
+      status: "approved",
+      sort: "upcoming", // Mặc định: Sắp diễn ra
+      minRating: 0, // Mặc định: Lấy tất cả
+      page: 1,
+    },
+
     loading: false,
     error: null,
 
@@ -151,7 +217,7 @@ const eventSlice = createSlice({
     current: null,
     currentLoading: false,
 
-    //Danh sách đăng ký cho sự kiện hiện tại
+    // Danh sách đăng ký cho sự kiện hiện tại
     registrations: [],
     registrationsLoading: false,
 
@@ -174,6 +240,23 @@ const eventSlice = createSlice({
       state.registrations = [];
       state.registrationsLoading = false;
     },
+
+    // 👇 [MỚI] Action cập nhật bộ lọc
+    setFilters: (state, action) => {
+      // Gộp filter cũ với filter mới (VD: chỉ đổi page, giữ nguyên search)
+      state.filters = { ...state.filters, ...action.payload };
+    },
+    // 👇 [MỚI] Reset bộ lọc về mặc định
+    resetFilters: (state) => {
+      state.filters = {
+        search: "",
+        tag: "",
+        status: "approved",
+        sort: "upcoming",
+        minRating: 0,
+        page: 1,
+      };
+    },
   },
 
   extraReducers: (builder) => {
@@ -192,7 +275,8 @@ const eventSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       });
-    // === FETCH MANAGEMENT EVENTS
+
+    // === FETCH MANAGEMENT EVENTS ===
     builder
       .addCase(fetchManagementEvents.pending, (state) => {
         state.loading = true;
@@ -200,7 +284,6 @@ const eventSlice = createSlice({
       })
       .addCase(fetchManagementEvents.fulfilled, (state, action) => {
         state.loading = false;
-        // API getAllEvents trả về cấu trúc { data: events, pagination: ... }
         state.list = action.payload.data;
         state.pagination = action.payload.pagination;
       })
@@ -228,7 +311,6 @@ const eventSlice = createSlice({
     builder
       .addCase(createEvent.fulfilled, (state) => {
         state.successMessage = "Tạo sự kiện thành công! Đang chờ duyệt.";
-        // Có thể push vào danh sách nếu muốn hiển thị luôn (pending)
       })
       .addCase(createEvent.rejected, (state, action) => {
         state.error = action.payload;
@@ -238,9 +320,14 @@ const eventSlice = createSlice({
     builder
       .addCase(updateEvent.fulfilled, (state, action) => {
         state.successMessage = "Cập nhật sự kiện thành công!";
+        // Cập nhật vào current nếu đang xem
         if (state.current?._id === action.payload._id) {
           state.current = action.payload;
         }
+        // 👇 [FIX] Cập nhật luôn vào list để danh sách hiển thị đúng mà không cần reload
+        state.list = state.list.map((e) =>
+          e._id === action.payload._id ? action.payload : e
+        );
       })
       .addCase(updateEvent.rejected, (state, action) => {
         state.error = action.payload;
@@ -255,7 +342,7 @@ const eventSlice = createSlice({
             ? "Sự kiện đã được duyệt!"
             : "Đã từ chối sự kiện.";
 
-        // Cập nhật trong danh sách nếu có
+        // Cập nhật trong danh sách
         state.list = state.list.map((e) =>
           e._id === updatedEvent._id ? updatedEvent : e
         );
@@ -273,7 +360,6 @@ const eventSlice = createSlice({
     builder
       .addCase(fetchEventRegistrations.pending, (state) => {
         state.registrationsLoading = true;
-        // Không xóa error chung để tránh nháy lỗi UI
       })
       .addCase(fetchEventRegistrations.fulfilled, (state, action) => {
         state.registrationsLoading = false;
@@ -281,21 +367,53 @@ const eventSlice = createSlice({
       })
       .addCase(fetchEventRegistrations.rejected, (state, action) => {
         state.registrationsLoading = false;
-        // Nếu lỗi là do "Không tìm thấy danh sách đăng ký" (trống) -> set mảng rỗng
-        // Nếu lỗi server -> set error
         state.error = action.payload;
         state.registrations = [];
       });
+
+    // === DELETE ===
     builder
       .addCase(deleteEvent.pending, (state) => {
         state.loading = true;
       })
       .addCase(deleteEvent.fulfilled, (state, action) => {
         state.loading = false;
+        // Xóa khỏi danh sách
         state.list = state.list.filter((event) => event._id !== action.payload);
+
+        // 👇 [FIX] Nếu đang xem chi tiết sự kiện vừa xóa -> Clear luôn để tránh lỗi UI
+        if (state.current?._id === action.payload) {
+          state.current = null;
+        }
+
         state.successMessage = "Đã xóa sự kiện thành công!";
       })
       .addCase(deleteEvent.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+
+    // CANCELED
+    builder
+      .addCase(cancelEvent.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(cancelEvent.fulfilled, (state, action) => {
+        state.loading = false;
+        const cancelledEvent = action.payload;
+        state.successMessage = "Đã hủy sự kiện thành công!";
+
+        // Cập nhật trong danh sách
+        state.list = state.list.map((e) =>
+          e._id === cancelledEvent._id ? cancelledEvent : e
+        );
+
+        // Cập nhật current nếu đang xem
+        if (state.current?._id === cancelledEvent._id) {
+          state.current = cancelledEvent;
+        }
+      })
+      .addCase(cancelEvent.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
@@ -307,6 +425,8 @@ export const {
   clearCurrentEvent,
   clearEventError,
   clearRegistrations,
+  setFilters, // <--- Nhớ export action này
+  resetFilters, // <--- Nhớ export action này
 } = eventSlice.actions;
 
 export default eventSlice.reducer;

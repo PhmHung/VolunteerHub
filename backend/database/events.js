@@ -1,3 +1,4 @@
+/** @format */
 
 const events = [
   {
@@ -179,6 +180,136 @@ const events = [
     tags: ["cộng đồng", "vệ sinh", "công cộng"],
     image: "https://images.unsplash.com/photo-1559531215-cd4628902d4a?w=800",
     status: "approved",
+  },
+  {
+    title: "Tổ chức Lễ hội Văn hóa Chăm tại Ninh Thuận",
+    description:
+      "Hỗ trợ cộng đồng địa phương tổ chức các hoạt động văn hóa, nghệ thuật truyền thống nhằm bảo tồn và quảng bá văn hóa Chăm.",
+    location: "Làng gốm Bàu Trúc, Ninh Thuận",
+    coordinates: { lat: 11.5168, lng: 108.9743 }, // Gần Làng Bàu Trúc
+    startDate: "2026-03-20T09:00:00+07:00",
+    endDate: "2026-03-22T17:00:00+07:00",
+    maxParticipants: 25,
+    tags: ["văn hóa", "dân tộc", "lễ hội", "Ninh Thuận"],
+    image: "https://images.unsplash.com/photo-1549722700-1d89e2e60473?w=800",
+    status: "pending",
+  },
+  {
+    title: "Chương trình hỗ trợ khởi nghiệp cho phụ nữ",
+    description:
+      "Tổ chức workshop và tư vấn 1-1 về xây dựng kế hoạch kinh doanh, tiếp thị số (digital marketing) và quản lý tài chính cho phụ nữ khó khăn.",
+    location: "Trung tâm Phụ nữ và Phát triển, Q3, TP.HCM",
+    coordinates: { lat: 10.778, lng: 106.6885 },
+    startDate: "2026-04-05T08:30:00+07:00",
+    endDate: "2026-04-05T12:30:00+07:00",
+    maxParticipants: 35,
+    tags: ["kỹ năng", "kinh doanh", "phụ nữ"],
+    image: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800",
+    status: "pending",
+  },
+  {
+    title: "Trại hè Khoa học Tự nhiên cho trẻ em nông thôn",
+    description:
+      "Dạy các kiến thức cơ bản về vật lý, hóa học thông qua các thí nghiệm vui và trò chơi sáng tạo nhằm khơi gợi niềm đam mê khoa học.",
+    location: "Trường THCS Liên Hà, Đông Anh, Hà Nội",
+    coordinates: { lat: 21.145, lng: 105.892 },
+    startDate: "2026-06-10T07:30:00+07:00",
+    endDate: "2026-06-12T16:00:00+07:00",
+    maxParticipants: 30,
+    tags: ["giáo dục", "khoa học", "trẻ em", "nông thôn"],
+    image: "https://images.unsplash.com/photo-1532187863566-7a13d2a715f5?w=800",
+    status: "pending",
+  },
+  {
+    title: "Khảo sát và bảo tồn Rạn san hô Nha Trang",
+    description:
+      "Tham gia lặn biển (yêu cầu chứng chỉ) để khảo sát tình trạng san hô, thu gom rác dưới biển và làm sạch khu vực Hòn Mun.",
+    location: "Khu bảo tồn biển Hòn Mun, Nha Trang, Khánh Hòa",
+    coordinates: { lat: 12.18, lng: 109.28 },
+    startDate: "2026-07-20T06:00:00+07:00",
+    endDate: "2026-07-20T14:00:00+07:00",
+    maxParticipants: 10,
+    tags: ["môi trường", "biển", "bảo tồn", "lặn"],
+    image: "https://images.unsplash.com/photo-1533611391515-d9158c3f4e38?w=800",
+    status: "pending",
+  },
+  {
+    title: "Chương trình đọc sách cho người khiếm thị",
+    description:
+      "Ghi âm lại sách nói, truyện ngắn và tài liệu học tập để tạo thư viện âm thanh cho người khiếm thị. Cần giọng đọc rõ ràng, truyền cảm.",
+    location: "Thư viện Khoa học Tổng hợp TP.HCM, Q1",
+    coordinates: { lat: 10.7728, lng: 106.6961 },
+    startDate: "2026-05-15T14:00:00+07:00",
+    endDate: "2026-05-15T17:00:00+07:00",
+    maxParticipants: 15,
+    tags: ["cộng đồng", "giáo dục", "trong nhà", "khiếm thị"],
+    image: "https://images.unsplash.com/photo-1533479632831-294c63750892?w=800",
+    status: "pending",
+  },
+  {
+    title: "Trang trí đường phố đón Tết Nguyên Đán",
+    description:
+      "Tham gia sơn sửa, trang trí và lắp đặt đèn lồng trên các tuyến phố chính nhằm tạo không khí lễ hội rực rỡ chào đón năm mới. Yêu cầu làm việc trên cao.",
+    location: "Khu vực Chợ Bến Thành, Q1, TP.HCM",
+    coordinates: { lat: 10.7725, lng: 106.6983 },
+    startDate: "2026-01-28T18:00:00+07:00",
+    endDate: "2026-01-28T22:00:00+07:00",
+    maxParticipants: 45,
+    tags: ["cộng đồng", "lễ hội", "ngoài trời", "văn hóa"],
+    image: "https://images.unsplash.com/photo-1544474322-25925e01b7a6?w=800",
+    status: "pending",
+  },
+  {
+    title: "Hỗ trợ phục hồi sách cổ và tài liệu quý",
+    description:
+      "Làm sạch, khử trùng và phục hồi các tài liệu, sách cổ bị hư hỏng do thời gian tại bảo tàng. Yêu cầu sự tỉ mỉ, cẩn thận.",
+    location: "Bảo tàng Lịch sử Quốc gia, Hoàn Kiếm, Hà Nội",
+    coordinates: { lat: 21.0264, lng: 105.8573 },
+    startDate: "2026-03-05T09:00:00+07:00",
+    endDate: "2026-03-05T16:00:00+07:00",
+    maxParticipants: 12,
+    tags: ["văn hóa", "lịch sử", "trong nhà", "bảo tồn"],
+    image: "https://images.unsplash.com/photo-1510531704581-5b7285764fae?w=800",
+    status: "pending",
+  },
+  {
+    title: "Chương trình cứu trợ lũ lụt tại miền Trung",
+    description:
+      "Phân loại hàng cứu trợ, đóng gói nhu yếu phẩm và vận chuyển đến các khu vực bị ảnh hưởng nặng nề bởi lũ lụt ở Quảng Bình.",
+    location: "Huyện Lệ Thủy, Quảng Bình",
+    coordinates: { lat: 17.15, lng: 106.75 },
+    startDate: "2026-10-15T06:00:00+07:00",
+    endDate: "2026-10-17T18:00:00+07:00",
+    maxParticipants: 100,
+    tags: ["cứu trợ", "thiên tai", "miền Trung", "cộng đồng"],
+    image: "https://images.unsplash.com/photo-1533479632831-294c63750892?w=800",
+    status: "pending",
+  },
+  {
+    title: "Dạy kỹ năng tài chính cá nhân cho sinh viên",
+    description:
+      "Tổ chức chuỗi hội thảo về quản lý chi tiêu, đầu tư cơ bản và tiết kiệm cho sinh viên các trường đại học.",
+    location: "Đại học Bách Khoa Đà Nẵng, Q.Liên Chiểu",
+    coordinates: { lat: 16.071, lng: 108.151 },
+    startDate: "2026-04-20T14:00:00+07:00",
+    endDate: "2026-04-20T17:00:00+07:00",
+    maxParticipants: 50,
+    tags: ["giáo dục", "tài chính", "kỹ năng", "sinh viên"],
+    image: "https://images.unsplash.com/photo-1549722700-1d89e2e60473?w=800",
+    status: "pending",
+  },
+  {
+    title: "Lắp đặt hệ thống lọc nước sạch cho bản làng",
+    description:
+      "Vận chuyển vật tư, lắp đặt và hướng dẫn sử dụng hệ thống lọc nước uống cho người dân tộc thiểu số tại khu vực Tây Nguyên.",
+    location: "Xã Ia Le, Chư Pưh, Gia Lai",
+    coordinates: { lat: 13.56, lng: 108.08 },
+    startDate: "2026-09-01T07:00:00+07:00",
+    endDate: "2026-09-03T17:00:00+07:00",
+    maxParticipants: 20,
+    tags: ["cộng đồng", "nước sạch", "kỹ thuật", "Tây Nguyên"],
+    image: "https://images.unsplash.com/photo-1502472251888-c64a7c132038?w=800",
+    status: "pending",
   },
 ];
 

@@ -11,17 +11,18 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  Star,
 } from "lucide-react";
 
 const EventDetailModal = ({
   event,
-  registrations = [], // Danh sách đăng ký (nếu có)
-  users = [], // Danh sách users nếu cần tìm organizer
+  registrations = [],
+  users = [],
   onClose,
-  onApprove, // Optional: cho admin duyệt sự kiện
-  onReject, // Optional: cho admin từ chối
-  showApprovalActions = false, // Bật/tắt nút duyệt/từ chối
-  showRegistrationsList = true, // Bật/tắt danh sách người đăng ký
+  onApprove,
+  onReject,
+  showApprovalActions = false,
+  showRegistrationsList = true,
 }) => {
   if (!event) return null;
 
@@ -41,10 +42,14 @@ const EventDetailModal = ({
   };
   const organizer = getOrganizer();
 
-  // Lọc registrations cho sự kiện này
-  const eventRegistrations = registrations.filter(
-    (reg) => (reg.event?._id || reg.eventId) === (event._id || event.id)
-  );
+  const eventRegistrations = registrations.filter((reg) => {
+    const regEventId =
+      reg.eventId?._id || reg.eventId || reg.event?._id || reg.event;
+
+    const currentEventId = event._id || event.id;
+
+    return regEventId?.toString() === currentEventId?.toString();
+  });
 
   const openGoogleMaps = () => {
     if (event.location) {
@@ -109,7 +114,9 @@ const EventDetailModal = ({
                 </span>
               ))}
             </div>
-            <h2 className='text-3xl font-bold leading-tight'>{event.title}</h2>
+            <h2 className='text-3xl font-bold leading-tight drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]'>
+              {event.title}
+            </h2>
           </div>
         </div>
 
@@ -137,7 +144,9 @@ const EventDetailModal = ({
                   <div className='space-y-4 max-h-96 overflow-y-auto'>
                     {eventRegistrations.length > 0 ? (
                       eventRegistrations.map((reg) => {
-                        const vol = reg.volunteer || reg.userId || {};
+                        // 👇 SỬA Ở ĐÂY: Ưu tiên lấy userId, sau đó mới đến volunteer
+                        const vol = reg.userId || reg.volunteer || {};
+
                         return (
                           <div
                             key={reg._id}
@@ -162,7 +171,9 @@ const EventDetailModal = ({
                                 </p>
                                 <p className='text-sm text-gray-600 flex items-center gap-1'>
                                   <Mail className='w-3.5 h-3.5' />
-                                  {vol.userEmail}
+                                  {vol.userEmail ||
+                                    vol.email ||
+                                    "Không có email"}
                                 </p>
                               </div>
                             </div>
@@ -285,6 +296,24 @@ const EventDetailModal = ({
                     <p className='text-gray-900'>
                       {event.maxParticipants} tình nguyện viên
                     </p>
+                  </div>
+                </div>
+                <div className='flex items-start gap-3'>
+                  <Star className='w-5 h-5 text-yellow-500 mt-0.5 fill-yellow-500' />{" "}
+                  {/* fill-yellow-500 để tô màu vàng */}
+                  <div>
+                    <p className='font-semibold text-gray-700'>Đánh giá</p>
+                    <div className='flex items-baseline gap-2'>
+                      <p className='text-xl font-bold text-gray-900'>
+                        {event.averageRating || 0}
+                        <span className='text-sm font-normal text-gray-500 ml-1'>
+                          / 5
+                        </span>
+                      </p>
+                      <span className='text-sm text-gray-500'>
+                        ({event.ratingCount || 0} lượt)
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -1,114 +1,192 @@
-import React from 'react';
-import { X, Check, User, Briefcase, Linkedin, FileText, Building, Calendar } from 'lucide-react';
+/** @format */
 
-const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
-  if (!request) return null;
-
-  const { candidate, appliedAt, experience, currentRole, organization, linkedIn, motivation, cvUrl } = request;
+import React, { useState } from "react";
+import {
+  X,
+  Check,
+  Briefcase,
+  Calendar,
+  TrendingUp,
+  Clock,
+  Star,
+  MapPin,
+  Users,
+} from "lucide-react";
+const StatBox = ({ icon, value, label, color }) => {
+  const IconComponent = icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        
+    <div
+      className={`bg-${color}-50 p-4 rounded-xl text-center border border-${color}-100`}>
+      <IconComponent className={`w-6 h-6 text-${color}-600 mx-auto mb-2`} />
+      <p className='text-2xl font-bold text-gray-900'>{value}</p>
+      <p className='text-xs text-gray-500 font-medium mt-1'>{label}</p>
+    </div>
+  );
+};
+
+const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
+  // FIX LỖI 2: Đảm bảo useState được gọi ở đầu hàm component
+  const [adminNote, setAdminNote] = useState("");
+
+  if (!request) return null;
+
+  // Lấy dữ liệu chung
+  const type = request.type;
+  const isEvent = type === "event_approval";
+  const isManagerPromotion = type === "manager_promotion";
+  const requester = request.requestedBy || {};
+  const event = request.event || {};
+  const promotionData = request.promotionData || {};
+
+  // Handlers để gọi action từ cha kèm theo note
+  const handleAction = (actionType) => {
+    if (actionType === "approve") {
+      // onApprove(request, actionType, adminNote);
+      onApprove(request, "approve", adminNote);
+    } else {
+      // onReject(request, actionType, adminNote);
+      onReject(request, "reject", adminNote);
+    }
+  };
+
+  return (
+    <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200'>
+      <div className='bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]'>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-blue-600" />
-            Duyệt Hồ Sơ Quản Lý
+        <div className='px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50'>
+          <h3 className='text-lg font-bold text-gray-900 flex items-center gap-2'>
+            {isEvent && <Calendar className='w-5 h-5 text-amber-600' />}
+            {isManagerPromotion && (
+              <Briefcase className='w-5 h-5 text-purple-600' />
+            )}
+            Duyệt Yêu Cầu: {isEvent ? "Sự kiện" : "Thăng cấp Manager"}
           </h3>
-          <button 
+          <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
+            className='p-2 hover:bg-gray-200 rounded-full transition-colors'>
+            <X className='w-5 h-5 text-gray-500' />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto custom-scrollbar">
-          {/* Candidate Info */}
-          <div className="flex items-start gap-4 mb-8">
-            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 border-4 border-white shadow-sm">
-              {candidate.profilePicture ? (
-                <img src={candidate.profilePicture} alt="" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <span className="text-2xl font-bold text-blue-600">{candidate.userName?.charAt(0)}</span>
-              )}
+        <div className='p-6 overflow-y-auto max-h-[70vh]'>
+          {/* REQUESTER INFO SECTION */}
+          <div className='flex items-start gap-4 mb-8 p-4 bg-gray-50 rounded-xl border border-gray-100'>
+            <div className='w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 text-gray-600 font-bold'>
+              {requester.userName?.[0] || "U"}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{candidate.userName}</h2>
-              <p className="text-gray-500">{candidate.userEmail}</p>
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                <span className="flex items-center gap-1">
-                  <User className="w-4 h-4" /> {candidate.age || 'N/A'} tuổi
-                </span>
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" /> 
-                  Apply: {new Date(appliedAt).toLocaleDateString('vi-VN')}
-                </span>
-              </div>
+              <p className='text-sm text-gray-500'>Người gửi yêu cầu:</p>
+              <h2 className='text-xl font-bold text-gray-900'>
+                {requester.userName || "Người dùng không xác định"}
+              </h2>
+              <p className='text-gray-500'>
+                {requester.userEmail} ({requester.role})
+              </p>
             </div>
           </div>
 
-          {/* Professional Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-              <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Building className="w-4 h-4 text-gray-500" />
-                Công việc hiện tại
-              </h4>
-              <div className="space-y-2">
-                <p className="text-sm"><span className="text-gray-500">Vị trí:</span> <span className="font-medium">{currentRole}</span></p>
-                <p className="text-sm"><span className="text-gray-500">Tổ chức:</span> <span className="font-medium">{organization}</span></p>
-                <p className="text-sm"><span className="text-gray-500">Kinh nghiệm:</span> <span className="font-medium">{experience} năm</span></p>
+          {/* Dynamic Content */}
+          {isEvent && (
+            // EVENT APPROVAL VIEW
+            <div className='space-y-4'>
+              <h3 className='text-2xl font-bold mb-4 text-amber-700'>
+                {event.title || "Sự kiện không xác định"}
+              </h3>
+              <p className='text-gray-600 leading-relaxed'>
+                {event.description || "Không có mô tả."}
+              </p>
+              <div className='grid grid-cols-2 gap-4 text-sm mt-4 p-4 border rounded-xl bg-amber-50'>
+                <div className='flex items-center gap-2'>
+                  <MapPin className='w-4 h-4 text-amber-600' />{" "}
+                  <p className='font-semibold text-gray-700'>Địa điểm:</p>{" "}
+                  {event.location}
+                </div>
+                <div className='flex items-center gap-2'>
+                  <Calendar className='w-4 h-4 text-amber-600' />{" "}
+                  <p className='font-semibold text-gray-700'>Thời gian:</p>{" "}
+                  {new Date(event.startDate).toLocaleString("vi-VN")}
+                </div>
+                <div className='flex items-center gap-2'>
+                  <Users className='w-4 h-4 text-amber-600' />{" "}
+                  <p className='font-semibold text-gray-700'>SL Tối đa:</p>{" "}
+                  {event.maxParticipants}
+                </div>
+                <div className='col-span-2'>
+                  <p className='font-semibold text-gray-700'>Tags:</p>
+                  {event.tags?.join(", ") || "Không có tags"}
+                </div>
               </div>
             </div>
+          )}
 
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-              <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-gray-500" />
-                Hồ sơ đính kèm
-              </h4>
-              <div className="space-y-3">
-                {linkedIn && (
-                  <a href={linkedIn} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
-                    <Linkedin className="w-4 h-4" /> LinkedIn Profile
-                  </a>
-                )}
-                {cvUrl && (
-                  <a href={cvUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
-                    <FileText className="w-4 h-4" /> Xem CV (PDF)
-                  </a>
-                )}
+          {isManagerPromotion && (
+            // MANAGER PROMOTION VIEW
+            <div className='space-y-6'>
+              <h3 className='text-lg font-bold text-purple-600 mb-4'>
+                Chỉ số Hiệu suất Tình nguyện viên:
+              </h3>
+              <div className='grid grid-cols-3 gap-4'>
+                <StatBox
+                  icon={TrendingUp}
+                  value={promotionData.eventsCompleted || 0}
+                  label='Sự kiện Hoàn thành'
+                  color='emerald'
+                />
+                <StatBox
+                  icon={Clock}
+                  value={promotionData.totalAttendanceHours?.toFixed(1) || 0}
+                  label='Tổng Giờ Tham gia'
+                  color='yellow'
+                />
+                <StatBox
+                  icon={Star}
+                  value={promotionData.averageRating?.toFixed(1) || 0}
+                  label='Rating TB Event'
+                  color='purple'
+                />
+              </div>
+
+              <div className='mt-6'>
+                <h4 className='text-sm font-semibold text-gray-900 mb-2'>
+                  Giới thiệu bản thân
+                </h4>
+                <div className='p-3 bg-purple-50 rounded-xl text-sm text-gray-700 border border-purple-100'>
+                  {requester.biography ||
+                    "Người dùng chưa cập nhật giới thiệu."}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Motivation */}
-          <div className="mb-6">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">Lý do ứng tuyển</h4>
-            <div className="bg-blue-50 p-4 rounded-xl text-gray-700 text-sm leading-relaxed border border-blue-100">
-              "{motivation}"
-            </div>
+          {/* Admin Note Section */}
+          <div className='mt-6 pt-4 border-t'>
+            <h4 className='text-sm font-semibold text-gray-900 mb-2'>
+              Ghi chú của Admin
+            </h4>
+            <textarea
+              value={adminNote}
+              onChange={(e) => setAdminNote(e.target.value)}
+              className='w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 text-sm h-24'
+              placeholder='Nhập ghi chú (Tùy chọn, sẽ được lưu lại lịch sử duyệt)...'
+            />
           </div>
-
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-          <button 
-            onClick={() => onReject(request)}
-            className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors flex items-center gap-2"
-          >
-            <X className="w-4 h-4" />
+        <div className='p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3'>
+          <button
+            onClick={() => handleAction("reject")}
+            className='px-5 py-2.5 rounded-xl border border-red-300 text-red-700 font-medium hover:bg-red-100 transition-colors flex items-center gap-2'>
+            <X className='w-4 h-4' />
             Từ chối
           </button>
-          <button 
-            onClick={() => onApprove(request)}
-            className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
-          >
-            <Check className="w-4 h-4" />
-            Duyệt làm Manager
+          <button
+            onClick={() => handleAction("approve")}
+            className='px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center gap-2'>
+            <Check className='w-4 h-4' />
+            Duyệt yêu cầu
           </button>
         </div>
       </div>

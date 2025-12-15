@@ -3,6 +3,7 @@
 import asyncHandler from "express-async-handler";
 import ApprovalRequest from "../models/approvalRequestModel.js";
 import Event from "../models/eventModel.js";
+import User from "../models/userModel.js";
 
 // @desc    Admin: Lấy danh sách yêu cầu đang chờ duyệt
 const getPendingRequests = asyncHandler(async (req, res) => {
@@ -28,22 +29,42 @@ const approveRequest = asyncHandler(async (req, res) => {
     throw new Error("Yêu cầu không tồn tại hoặc đã xử lý");
   }
 
+  // --- LOGIC XỬ LÝ ĐA HÌNH ---
+
+  if (request.type === "event_approval") {
+    // Nếu là Duyệt Sự kiện
+    if (!request.event) {
+      res.status(400);
+      throw new Error("Không tìm thấy Event ID trong yêu cầu.");
+    }
+    await Event.findByIdAndUpdate(request.event, { status: "approved" });
+  } else if (request.type === "manager_promotion") {
+    // Nếu là Duyệt Thăng cấp Manager
+    await User.findByIdAndUpdate(request.requestedBy, { role: "manager" });
+  } else {
+    // Xử lý loại request không xác định
+    res.status(400);
+    throw new Error("Loại yêu cầu không hợp lệ.");
+  }
+
+  // ---------------------------
+
+  // Cập nhật trạng thái ApprovalRequest
   request.status = "approved";
   request.reviewedBy = req.user._id;
   request.reviewedAt = new Date();
   request.adminNote = adminNote || "Đã duyệt";
   await request.save();
 
-  // Cập nhật Event
-  await Event.findByIdAndUpdate(request.event, { status: "approved" });
-
   res.json({
-    message: "Đã duyệt yêu cầu thành công",
+    message: `Đã duyệt yêu cầu (${
+      request.type === "event_approval" ? "Sự kiện" : "Thăng cấp"
+    }) thành công`,
     data: request,
   });
 });
 
-// @desc    Admin: Từ chối yêu cầu
+// @desc  Admin: Từ chối yêu cầu
 const rejectRequest = asyncHandler(async (req, res) => {
   const { adminNote } = req.body;
   const request = await ApprovalRequest.findById(req.params.id);
@@ -65,7 +86,7 @@ const rejectRequest = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Manager/Admin: Xem chi tiết 1 yêu cầu
+// @desc Manager/Admin: Xem chi tiết 1 yêu cầu
 const getRequestById = asyncHandler(async (req, res) => {
   const request = await ApprovalRequest.findById(req.params.id)
     .populate("event")
@@ -93,7 +114,7 @@ const getRequestById = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Manager: Xem tất cả yêu cầu của mình
+// @desc Manager: Xem tất cả yêu cầu của mình
 const getMyRequests = asyncHandler(async (req, res) => {
   const requests = await ApprovalRequest.find({ requestedBy: req.user._id })
     .populate("event", "title status")

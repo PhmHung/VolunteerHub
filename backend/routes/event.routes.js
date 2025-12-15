@@ -3,6 +3,7 @@
 import express from "express";
 import {
   getEvents,
+  getMyEvents,
   getAllEvents,
   getEventById,
   createEvent,
@@ -10,6 +11,7 @@ import {
   deleteEvent,
   approveEvent,
   getEventRegistrations,
+  cancelEvent,
 } from "../controllers/event.controller.js";
 import {
   protect,
@@ -29,6 +31,9 @@ const router = express.Router();
 
 // Public - General List
 router.get("/", getEvents);
+
+router.get("/me", protect, getMyEvents);
+
 
 // Manager - Management List (Đưa lên trên để tránh bị ăn vào :eventId)
 // Lưu ý: Tôi đã đổi authorize("admin", "manager") thành allowAdminOrManager cho đồng bộ
@@ -70,5 +75,5 @@ router.get(
 
 // Admin - Approve
 router.patch("/:eventId/approve", protect, allowAdminOnly, approveEvent);
-
+router.route("/:id/cancel").put(protect, allowAdminOrManager, cancelEvent); // Manager/Admin: Hủy sự kiện
 export default router;

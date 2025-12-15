@@ -21,7 +21,7 @@ const feedbackSchema = new mongoose.Schema(
       default: Date.now,
     },
   },
-  { _id: false } // Không cần ID riêng
+  { _id: false }
 );
 
 const attendanceSchema = new mongoose.Schema(
@@ -44,10 +44,22 @@ const attendanceSchema = new mongoose.Schema(
       select: false,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
 attendanceSchema.index({ regId: 1 }, { unique: true });
 attendanceSchema.index({ "feedback.rating": 1 });
 attendanceSchema.index({ status: 1, checkOut: -1 });
+attendanceSchema.virtual("totalHours").get(function () {
+  if (this.checkIn && this.checkOut) {
+    const diff = this.checkOut - this.checkIn;
+    const hours = diff / (1000 * 60 * 60);
+    return parseFloat(hours.toFixed(1));
+  }
+  return 0;
+});
 export default mongoose.model("Attendance", attendanceSchema);

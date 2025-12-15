@@ -14,7 +14,8 @@ import { Filter, TrendingUp, Clock } from "lucide-react";
 
 const EventFeed = ({ user, event }) => {
   const dispatch = useDispatch();
-  const { currentChannel } = useSelector((state) => state.channel || {});
+  const currentChannel = useSelector((state) => state.channel.current);
+
   const [sortBy, setSortBy] = useState("newest"); // 'newest' | 'popular'
 
   // Load channel data
@@ -23,6 +24,10 @@ const EventFeed = ({ user, event }) => {
     const eventId = event._id || event.id;
     dispatch(fetchChannelByEventId(eventId));
   }, [event, dispatch]);
+
+    useEffect(() => {
+  console.log("📦 Redux currentChannel:", currentChannel);
+}, [currentChannel]);
 
   const posts = useMemo(() => {
     if (!currentChannel?.posts) return [];
@@ -62,17 +67,24 @@ const EventFeed = ({ user, event }) => {
     return sorted;
   }, [posts, sortBy, user]);
 
-  const handleCreatePost = async (postData) => {
-    if (!currentChannel?._id) return;
-    await dispatch(
-      createPost({
-        channelId: currentChannel._id,
-        content: postData.text,
-        image: postData.attachment,
-      })
-    );
-    dispatch(fetchChannelByEventId(event._id || event.id));
-  };
+const handleCreatePost = async (postData) => {
+  if (!currentChannel?._id) {
+    console.log("❌ No channelId");
+    return;
+  }
+
+  console.log("🟢 handleCreatePost:", postData);
+
+  await dispatch(
+    createPost({
+      channelId: currentChannel._id,
+      content: postData.text,
+      attachment: postData.attachment, // ✅ ĐÚNG TÊN
+    })
+  );
+
+  dispatch(fetchChannelByEventId(event._id || event.id));
+};
 
   const handleApprove = (postId) => {
     console.log("Approve post:", postId);

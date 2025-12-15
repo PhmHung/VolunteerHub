@@ -14,6 +14,7 @@ import {
   Filter,
   Maximize2,
   Minimize2,
+  Star,
 } from "lucide-react";
 
 const EventManagementTable = ({
@@ -184,6 +185,15 @@ const EventManagementTable = ({
                             <span>
                               Tối đa {event.maxParticipants || "?"} tình nguyện
                               viên
+                            </span>
+                          </div>
+                          <div className='flex items-center gap-2'>
+                            <Star className='w-4 h-4 text-yellow-500 flex-shrink-0 fill-yellow-500' />
+                            <span className='font-medium text-gray-700'>
+                              {event.averageRating || 0}{" "}
+                              <span className='text-gray-400 font-normal'>
+                                ({event.ratingCount || 0})
+                              </span>
                             </span>
                           </div>
                         </div>
