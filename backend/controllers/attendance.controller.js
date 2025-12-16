@@ -9,10 +9,8 @@ import Event from "../models/eventModel.js";
 // --- HÀM PHỤ: TÍNH TOÁN VÀ CẬP NHẬT RATING CHO EVENT ---
 const calcAverageRatings = async (eventId) => {
   try {
-    // 1. Tìm tất cả các Registration của Event này
     const regIds = await Registration.find({ eventId }).distinct("_id");
 
-    // 2. Tính trung bình rating từ bảng Attendance
     const stats = await Attendance.aggregate([
       {
         $match: {
@@ -29,14 +27,12 @@ const calcAverageRatings = async (eventId) => {
       },
     ]);
 
-    // 3. Cập nhật vào bảng Event
     if (stats.length > 0) {
       await Event.findByIdAndUpdate(eventId, {
         averageRating: stats[0].avgRating,
         ratingCount: stats[0].numRatings,
       });
     } else {
-      // Trường hợp không có/xóa hết feedback
       await Event.findByIdAndUpdate(eventId, {
         averageRating: 0,
         ratingCount: 0,
@@ -47,10 +43,10 @@ const calcAverageRatings = async (eventId) => {
   }
 };
 
-// ... (Giữ nguyên recordCheckIn, recordCheckOut) ...
-// (Copy lại 2 hàm recordCheckIn và recordCheckOut từ code cũ của bạn vào đây)
+// @desc    Ghi nhận Check-in (Người tham gia đến sự kiện)
+// @route   POST /api/attendances/checkin
+// @access  Private (Volunteer/Admin/Manager - Người phụ trách điểm danh)
 const recordCheckIn = asyncHandler(async (req, res) => {
-  // ... code checkin cũ ...
   const { regId } = req.body;
   const registration = await Registration.findById(regId).populate("eventId");
   if (!registration) {
@@ -95,8 +91,10 @@ const recordCheckIn = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Ghi nhận Check-out (Người tham gia rời sự kiện)
+// @route   POST /api/attendances/checkout
+// @access  Private (Volunteer/Admin/Manager - Người phụ trách điểm danh)
 const recordCheckOut = asyncHandler(async (req, res) => {
-  // ... code checkout cũ ...
   const { regId } = req.body;
   const attendance = await Attendance.findOne({ regId }).populate({
     path: "regId",
@@ -138,9 +136,9 @@ const recordCheckOut = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Add feedback and rating -> CẬP NHẬT LOGIC TÍNH RATING
+// @desc    Gửi phản hồi và đánh giá sau sự kiện
 // @route   PUT /api/attendances/:id/feedback
-// @access  Private
+// @access  Private (User đã tham gia và đã check-out)
 const addFeedback = asyncHandler(async (req, res) => {
   const { rating, comment } = req.body;
 
@@ -151,7 +149,7 @@ const addFeedback = asyncHandler(async (req, res) => {
     throw new Error("Không tìm thấy bản ghi điểm danh.");
   }
 
-  // 2. Validate
+  // 2. Validate: Phải là người tham gia (đã check-out)
   if (attendance.status !== "completed" || !attendance.checkOut) {
     res.status(400);
     throw new Error(
@@ -171,8 +169,7 @@ const addFeedback = asyncHandler(async (req, res) => {
   attendance.feedback.submittedAt = Date.now();
   await attendance.save();
 
-  // 4. 🔥 KÍCH HOẠT TÍNH TOÁN RATING CHO EVENT
-  // Cần lấy eventId thông qua registration
+  // 4. Update Event Rating
   const registration = await Registration.findById(attendance.regId);
   if (registration) {
     await calcAverageRatings(registration.eventId);
@@ -184,22 +181,64 @@ const addFeedback = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Lấy rating công khai (Lấy trực tiếp từ Event Model cho nhanh)
-// @route   GET /api/events/:eventId/rating
-// @access  Public
-const getEventPublicRating = asyncHandler(async (req, res) => {
+// @desc    Xem danh sách tất cả phản hồi của một sự kiện
+// @route   GET /api/attendances/event/:eventId/feedbacks
+// @access  Protected (Người dùng đã đăng nhập)
+const getEventFeedbacks = asyncHandler(async (req, res) => {
   const { eventId } = req.params;
 
-  // Lấy trực tiếp từ Event Model thay vì tính toán aggregate
+  const event = await Event.findById(eventId);
+  if (!event) {
+    res.status(404);
+    throw new Error("Không tìm thấy sự kiện.");
+  }
+
+  // --- ĐÃ XÓA ĐOẠN CHECK QUYỀN MANAGER/ADMIN ---
+  // Mặc định route này sẽ đi qua middleware 'protect' (verifyToken) ở Router
+  // nên req.user tồn tại là đủ điều kiện để xem.
+
+  const registrationIds = await Registration.find({ eventId }).distinct("_id");
+
+  // Tìm tất cả feedback của sự kiện đó
+  const feedbacks = await Attendance.find({
+    regId: { $in: registrationIds },
+    "feedback.rating": { $exists: true }, // Chỉ lấy những người đã rate
+  })
+    .select("+feedback") // Force select feedback nếu field này bị ẩn trong model
+    .populate({
+      path: "regId",
+      populate: { path: "userId", select: "userName userEmail profilePicture" },
+    })
+    .sort({ "feedback.submittedAt": -1 }); // Sắp xếp mới nhất lên đầu
+
+  res.json({
+    message: "Danh sách phản hồi của sự kiện",
+    data: feedbacks.map((f) => ({
+      _id: f._id,
+      user: {
+        name: f.regId.userId ? f.regId.userId.userName : "Người dùng ẩn",
+        email: f.regId.userId ? f.regId.userId.userEmail : "",
+        avatar: f.regId.userId ? f.regId.userId.profilePicture : null,
+      },
+      rating: f.feedback.rating,
+      comment: f.feedback.comment,
+      submittedAt: f.feedback.submittedAt,
+    })),
+  });
+});
+
+// @desc    Lấy điểm đánh giá trung bình công khai (số liệu)
+// @route   GET /api/attendances/event/:eventId/rating
+// @access  Public (Ai cũng xem được)
+const getEventPublicRating = asyncHandler(async (req, res) => {
+  const { eventId } = req.params;
   const event = await Event.findById(eventId).select(
     "averageRating ratingCount"
   );
-
   if (!event) {
     res.status(404);
     throw new Error("Sự kiện không tồn tại");
   }
-
   res.json({
     message: "Public event rating",
     data: {
@@ -209,6 +248,9 @@ const getEventPublicRating = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Lấy thông tin điểm danh cá nhân (Check trạng thái Check-in)
+// @route   GET /api/attendances/registration/:regId
+// @access  Private (User sở hữu vé hoặc Admin)
 const getAttendanceByRegId = asyncHandler(async (req, res) => {
   const { regId } = req.params;
   const attendance = await Attendance.findOne({ regId }).populate({
@@ -225,47 +267,9 @@ const getAttendanceByRegId = asyncHandler(async (req, res) => {
   });
 });
 
-const getEventPrivateFeedbacks = asyncHandler(async (req, res) => {
-  const { eventId } = req.params;
-  const event = await Event.findById(eventId);
-  if (!event) {
-    res.status(404);
-    throw new Error("Không tìm thấy sự kiện.");
-  }
-  const isManager = event.createdBy.toString() === req.user._id.toString();
-  const isAdmin = req.user.role === "admin";
-  if (!isManager && !isAdmin) {
-    res.status(403);
-    throw new Error("Bạn không có quyền xem chi tiết phản hồi.");
-  }
-
-  const registrationIds = await Registration.find({ eventId }).distinct("_id");
-  const feedbacks = await Attendance.find({
-    regId: { $in: registrationIds },
-    "feedback.rating": { $exists: true },
-  })
-    .select("+feedback")
-    .populate({
-      path: "regId",
-      populate: { path: "userId", select: "userName userEmail profilePicture" },
-    });
-
-  res.json({
-    message: "Private feedbacks",
-    data: feedbacks.map((f) => ({
-      _id: f._id,
-      user: {
-        name: f.regId.userId ? f.regId.userId.userName : "Người dùng ẩn",
-        email: f.regId.userId ? f.regId.userId.userEmail : "",
-        avatar: f.regId.userId ? f.regId.userId.profilePicture : null,
-      },
-      rating: f.feedback.rating,
-      comment: f.feedback.comment,
-      submittedAt: f.feedback.submittedAt,
-    })),
-  });
-});
-
+// @desc    Lấy danh sách điểm danh chi tiết của sự kiện (Quản lý danh sách)
+// @route   GET /api/attendances/event/:eventId
+// @access  Private (Manager/Admin - Chỉ người quản lý sự kiện)
 const getAttendancesByEvent = asyncHandler(async (req, res) => {
   const { eventId } = req.params;
   const regIds = await Registration.find({ eventId }).distinct("_id");
@@ -289,6 +293,6 @@ export {
   addFeedback,
   getAttendanceByRegId,
   getEventPublicRating,
-  getEventPrivateFeedbacks,
+  getEventFeedbacks,
   getAttendancesByEvent,
 };

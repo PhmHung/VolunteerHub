@@ -21,7 +21,7 @@ import {
 
 import {
   getEventPublicRating,
-  getEventPrivateFeedbacks,
+  getEventFeedbacks,
 } from "../controllers/attendance.controller.js";
 import { canModifyEvent } from "../middlewares/event.middleware.js";
 
@@ -35,7 +35,6 @@ const router = express.Router();
 router.get("/", getEvents);
 
 router.get("/me", protect, getMyEvents);
-
 
 // Manager - Management List (Đưa lên trên để tránh bị ăn vào :eventId)
 // Lưu ý: Tôi đã đổi authorize("admin", "manager") thành allowAdminOrManager cho đồng bộ
@@ -71,7 +70,7 @@ router.get(
   "/:eventId/feedbacks",
   protect,
   allowAdminOrManager,
-  getEventPrivateFeedbacks
+  getEventFeedbacks
 );
 
 // Lấy danh sách đăng ký
