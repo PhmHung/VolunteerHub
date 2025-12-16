@@ -11,8 +11,7 @@
     "seed:event": "node seeder/seederEvent.js",
     "seed:registration": "node seeder/seederRegistration.js",
     "seed:attendance": "node seeder/seederAttendance.js",
-    "seed:approval":"node seeder/seedApprovalRequest.js",
-
+    "seed:approval": "node seeder/seedApprovalRequest.js",
     "seed:channel": "node seeder/seederChannel.js",
     "seed:post": "node seeder/seederPost.js",
     "seed:comment": "node seeder/seederComment.js",
@@ -43,6 +42,7 @@
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^7.0.9",
+    "socket.io": "^4.8.1",
     "web-push": "^3.6.7"
   },
   "devDependencies": {

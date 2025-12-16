@@ -13,10 +13,10 @@ import {
   Unlock,
   Trash2,
   History,
-  Info,
-  MapPin,
   UserCheck,
 } from "lucide-react";
+
+// Import actions
 import {
   fetchUserById,
   clearSelectedUser,
@@ -24,9 +24,8 @@ import {
   updateUserStatus,
   deleteUser,
 } from "../../features/userSlice";
-
 const UserDetailModal = ({
-  viewingUser, // User object từ danh sách (chỉ dùng để lấy ID ban đầu)
+  viewingUser, // User object từ danh sách
   onClose,
   addToast,
   setConfirmModal,
@@ -34,41 +33,37 @@ const UserDetailModal = ({
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("info");
 
-  // 1. Lấy dữ liệu từ Redux Store (Nơi chứa dữ liệu chi tiết mới nhất)
+  // Lấy dữ liệu chi tiết từ Redux
   const { selectedUser, selectedUserLoading } = useSelector(
     (state) => state.user
   );
   const { profile } = useSelector((state) => state.user);
   const isAdmin = profile?.role === "admin";
 
-  // 2. Fetch API lấy chi tiết User ngay khi mở Modal
+  // 👇 FIX QUAN TRỌNG: Tách ID ra biến nguyên thủy để tránh vòng lặp useEffect
+  const userId = viewingUser?._id;
+
+  // 1. Fetch dữ liệu chi tiết khi mở modal
   useEffect(() => {
-    if (viewingUser?._id) {
-      // Gọi API fetchUserById để lấy history và data mới nhất
-      dispatch(fetchUserById(viewingUser._id));
+    if (userId) {
+      dispatch(fetchUserById(userId));
     }
 
-    // Cleanup: Xóa dữ liệu cũ khi đóng modal
+    // Cleanup khi đóng modal
     return () => {
       dispatch(clearSelectedUser());
       setActiveTab("info");
     };
-  }, [dispatch, viewingUser]);
-
-  // Debug: Kiểm tra dữ liệu history trong console
-  useEffect(() => {
-    if (selectedUser) {
-      console.log("Details fetched:", selectedUser);
-    }
-  }, [selectedUser]);
+  }, [dispatch, userId]); // Chỉ chạy lại khi ID thay đổi
 
   if (!viewingUser) return null;
 
-  // Ưu tiên hiển thị dữ liệu từ API (selectedUser), nếu chưa tải xong thì dùng tạm data từ danh sách (viewingUser)
+  // Ưu tiên hiển thị dữ liệu mới nhất từ API, nếu chưa có thì dùng tạm dữ liệu từ props
   const displayUser = selectedUser || viewingUser;
   const isLoading = selectedUserLoading;
 
   // --- HANDLERS ---
+
   const handleToggleLock = () => {
     if (!displayUser) return;
     const isActive = displayUser.status === "active";
@@ -91,7 +86,7 @@ const UserDetailModal = ({
             isActive ? "Đã khóa tài khoản!" : "Đã mở khóa tài khoản!",
             "success"
           );
-          // Dispatch lại để cập nhật UI ngay lập tức
+          // Refresh lại data
           dispatch(fetchUserById(displayUser._id));
         } catch (error) {
           addToast(error || "Thao tác thất bại", "error");
@@ -122,7 +117,7 @@ const UserDetailModal = ({
         try {
           await dispatch(deleteUser(displayUser._id)).unwrap();
           addToast("Đã xóa người dùng thành công!", "success");
-          onClose();
+          onClose(); // Đóng modal sau khi xóa
         } catch (error) {
           addToast(error || "Không thể xóa người dùng", "error");
         }
@@ -144,7 +139,7 @@ const UserDetailModal = ({
             updateUserRole({ userId: displayUser._id, role: "manager" })
           ).unwrap();
           addToast("Đã thăng cấp thành công!", "success");
-          dispatch(fetchUserById(displayUser._id)); // Refresh data
+          dispatch(fetchUserById(displayUser._id));
         } catch (error) {
           addToast(error || "Lỗi khi thăng cấp", "error");
         }
@@ -154,7 +149,6 @@ const UserDetailModal = ({
 
   // --- RENDER HISTORY ---
   const renderHistory = () => {
-    // Backend trả về history trong selectedUser.history
     const historyList = selectedUser?.history || [];
 
     if (!historyList || historyList.length === 0) {
@@ -162,16 +156,15 @@ const UserDetailModal = ({
         <div className='text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200'>
           <History className='w-12 h-12 text-gray-300 mx-auto mb-3' />
           <p className='text-gray-500 font-medium'>
-            Chưa có lịch sử tham gia hoàn thành hoặc vắng mặt.
+            Chưa có lịch sử tham gia sự kiện.
           </p>
         </div>
       );
     }
 
     return historyList.map((item, idx) => {
-      // Cấu trúc dữ liệu đã được Backend chuẩn hóa: item.event là object, item.status là completed/absent
       const eventData = item.event || {};
-      const status = item.status; // "completed" hoặc "absent"
+      const status = item.status;
 
       const badgeClasses =
         status === "completed"
@@ -200,7 +193,7 @@ const UserDetailModal = ({
               )}
             </div>
             <div>
-              <p className='font-semibold text-gray-900'>
+              <p className='font-semibold text-gray-900 line-clamp-1'>
                 {eventData.title || "Sự kiện không xác định"}
               </p>
               <div className='flex flex-col gap-1 mt-1 text-xs text-gray-500'>
@@ -210,8 +203,6 @@ const UserDetailModal = ({
                     ? new Date(eventData.startDate).toLocaleDateString("vi-VN")
                     : "N/A"}
                 </span>
-
-                {/* Giờ Check-in/out (Chỉ hiển thị nếu có checkIn - thường là Completed) */}
                 {item.checkIn && (
                   <span className='flex items-center gap-1 text-emerald-600'>
                     <Clock className='w-3 h-3' />
@@ -219,29 +210,21 @@ const UserDetailModal = ({
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                    {item.checkOut &&
-                      ` - ${new Date(item.checkOut).toLocaleTimeString(
-                        "vi-VN",
-                        { hour: "2-digit", minute: "2-digit" }
-                      )}`}
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Trạng thái và Rating */}
+          {/* Trạng thái */}
           <div className='flex flex-col items-end gap-1 shrink-0'>
             <span
               className={`px-3 py-1 rounded-full text-xs font-medium border ${badgeClasses}`}>
               {badgeText}
             </span>
             {status === "completed" && item.rating > 0 && (
-              <span className='text-xs text-yellow-500 font-bold flex items-center gap-1'>
-                {item.rating}{" "}
-                <svg className='w-3 h-3 fill-yellow-500' viewBox='0 0 24 24'>
-                  <path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z' />
-                </svg>
+              <span className='text-xs text-yellow-500 font-bold'>
+                ★ {item.rating}
               </span>
             )}
           </div>
@@ -250,10 +233,11 @@ const UserDetailModal = ({
     });
   };
 
+  // --- RENDER MAIN UI ---
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200'>
       <div className='bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col'>
-        {/* --- HEADER --- */}
+        {/* HEADER */}
         <div className='p-6 border-b border-gray-100 flex justify-between items-start bg-gray-50/80'>
           <div className='flex items-center gap-5'>
             <div className='relative'>
@@ -304,7 +288,7 @@ const UserDetailModal = ({
           </button>
         </div>
 
-        {/* --- TABS --- */}
+        {/* TABS */}
         <div className='flex border-b border-gray-100 px-6'>
           <button
             onClick={() => setActiveTab("info")}
@@ -313,7 +297,7 @@ const UserDetailModal = ({
                 ? "border-emerald-600 text-emerald-700"
                 : "border-transparent text-gray-500 hover:text-gray-700"
             }`}>
-            <UserCheck className='w-4 h-4' /> Thông tin
+            <UserCheck className='w-4 h-4' /> Thông tin cá nhân
           </button>
           <button
             onClick={() => setActiveTab("history")}
@@ -326,9 +310,8 @@ const UserDetailModal = ({
           </button>
         </div>
 
-        {/* --- BODY --- */}
+        {/* CONTENT */}
         <div className='p-6 overflow-y-auto bg-white custom-scrollbar flex-1'>
-          {/* Loading State */}
           {isLoading && !selectedUser ? (
             <div className='flex flex-col justify-center items-center py-12 gap-3'>
               <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600'></div>
@@ -338,7 +321,7 @@ const UserDetailModal = ({
             </div>
           ) : (
             <>
-              {/* TAB 1: INFO & ACTIONS */}
+              {/* TAB: INFO */}
               {activeTab === "info" && (
                 <div className='space-y-8 animate-in slide-in-from-left-4 duration-300'>
                   <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
@@ -373,7 +356,7 @@ const UserDetailModal = ({
                         Hành động quản trị
                       </h4>
                       <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                        {/* Promote Button */}
+                        {/* Promote (Admin Only) */}
                         {isAdmin && displayUser.role === "volunteer" && (
                           <button
                             onClick={handlePromoteToManager}
@@ -382,7 +365,7 @@ const UserDetailModal = ({
                           </button>
                         )}
 
-                        {/* Lock/Unlock Button */}
+                        {/* Lock/Unlock */}
                         <button
                           onClick={handleToggleLock}
                           className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-medium transition border ${
@@ -401,7 +384,7 @@ const UserDetailModal = ({
                           )}
                         </button>
 
-                        {/* Delete Button - Admin only */}
+                        {/* Delete (Admin Only) */}
                         {isAdmin && (
                           <button
                             onClick={handleDeleteUser}
@@ -411,16 +394,12 @@ const UserDetailModal = ({
                           </button>
                         )}
                       </div>
-                      <p className='text-center text-xs text-gray-400 mt-4'>
-                        * Các hành động trên sẽ ảnh hưởng trực tiếp đến người
-                        dùng.
-                      </p>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* TAB 2: HISTORY */}
+              {/* TAB: HISTORY */}
               {activeTab === "history" && (
                 <div className='space-y-4 animate-in slide-in-from-right-4 duration-300'>
                   {renderHistory()}

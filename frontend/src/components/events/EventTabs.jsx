@@ -1,13 +1,20 @@
 /** @format */
 
 import React from "react";
-import { MessageSquare, Info, Users, ImageIcon, Bell } from "lucide-react";
+import { MessageSquare, Info, Users, ImageIcon, Star } from "lucide-react";
 
 const TABS_CONFIG = [
   {
     id: "discussion",
     label: "Thảo luận",
     icon: MessageSquare,
+    badge: null,
+  },
+  // Tab Mới
+  {
+    id: "reviews",
+    label: "Đánh giá",
+    icon: Star,
     badge: null,
   },
   {
@@ -50,14 +57,13 @@ const EventTabs = ({ activeTab, setActiveTab, badgeCounts = {} }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-2.5 px-5 py-3 text-sm font-medium rounded-lg transition-all whitespace-nowrap relative
                   ${
                     isActive
                       ? "bg-white text-primary-600 shadow-sm border border-gray-200"
                       : "text-gray-600 hover:bg-white/80 hover:text-gray-900"
                   }`}>
-                <Icon className='w-4.5 h-4.5' />
+                <Icon className={`w-4.5 h-4.5 ${isActive ? "text-primary-600" : "text-gray-500"}`} />
                 <span>{tab.label}</span>
 
                 {count > 0 && (

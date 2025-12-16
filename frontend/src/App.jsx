@@ -23,12 +23,13 @@ import HomePage from "./pages/public/Home.jsx";
 import Dashboard from "./pages/dashboard/Dashboard.jsx";
 import AdminDashboard from "./pages/dashboard/AdminDashboard.jsx";
 import ManagerDashboard from "./pages/dashboard/ManagerDashboard.jsx";
-import Events from "./pages/public/Events.jsx";
+import Events from "./pages/public/EventPublic.jsx";
 import About from "./pages/public/AboutUs.jsx";
 import Media from "./pages/Media.jsx";
 import Information from "./pages/Information.jsx";
 import VolunteerHistory from "./pages/dashboard/VolunteerHistory.jsx";
 import AuthModal from "./components/auth/AuthModal.jsx";
+import EventDetail from "./pages/public/EventDetailPage.jsx";
 
 /**
  * Main App Component
@@ -130,6 +131,7 @@ export default function App() {
               path='/events'
               element={<Events user={user} openAuth={setAuthModal} />}
             />
+            <Route path='/events/:id' element={<EventDetail />} />
 
             {/* Admin routes */}
             <Route
