@@ -250,5 +250,22 @@ const registrationSlice = createSlice({
   },
 });
 
+export const checkInByQr = createAsyncThunk(
+  "registration/checkInByQr",
+  async ({ qrToken }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post(
+        `/api/registrations/check-in`,
+        { qrToken }
+      );
+      return data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Check-in thất bại"
+      );
+    }
+  }
+);
+
 export const { clearRegistrationMessages, clearMyQr } = registrationSlice.actions;
 export default registrationSlice.reducer;

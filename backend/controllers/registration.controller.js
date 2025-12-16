@@ -120,7 +120,7 @@ const getMyRegistrations = asyncHandler(async (req, res) => {
 
 const getMyQRCode = asyncHandler(async (req, res) => {
   const { eventId } = req.params;
-  
+
   const registration = await Registration.findOne({
     eventId,
     userId: req.user._id,
@@ -135,6 +135,74 @@ const getMyQRCode = asyncHandler(async (req, res) => {
     qrToken: registration.qrToken,
   });
 });
+
+export const checkInByQr = async (req, res) => {
+  try {
+    const { qrToken } = req.body;
+    const userId = req.user._id;
+
+    if (!qrToken) {
+      return res.status(400).json({
+        message: "Thiếu qrToken",
+      });
+    }
+
+    // 1️⃣ Tìm registration theo qrToken
+    const registration = await Registration.findOne({ qrToken });
+
+    if (!registration) {
+      return res.status(404).json({
+        message: "QR không hợp lệ hoặc không tồn tại",
+      });
+    }
+
+    // 2️⃣ Tìm event
+    const event = await Event.findById(registration.eventId);
+
+    if (!event) {
+      return res.status(404).json({
+        message: "Không tìm thấy sự kiện",
+      });
+    }
+
+    // 3️⃣ Kiểm tra user có phải manager của event không
+    const isManager = event.managers.some(
+      (managerId) => managerId.toString() === userId.toString()
+    );
+
+    if (!isManager) {
+      return res.status(403).json({
+        message: "Bạn không có quyền check-in cho sự kiện này",
+      });
+    }
+
+
+    // 4️⃣ Kiểm tra đã check-in chưa
+
+    // 5️⃣ Check-in
+    
+await registration.populate([
+  { path: "userId", select: "email name" },
+  { path: "eventId", select: "title" },
+]);
+
+console.log("Check-in thành công");
+
+return res.json({
+  message: "Check-in thành công",
+  data: {
+    user: registration.userId,
+    event: registration.eventId,
+  },
+});
+
+  } catch (error) {
+    console.error("CHECK-IN ERROR:", error);
+    return res.status(500).json({
+      message: "Lỗi server khi check-in",
+    });
+  }
+};
 
 // @desc    Lấy TOÀN BỘ danh sách đăng ký cho Admin (thay vì chỉ pending)
 // @route   GET /api/registrations/admin/all

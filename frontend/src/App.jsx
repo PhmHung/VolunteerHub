@@ -41,6 +41,10 @@ export default function App() {
     (state) => state.user
   );
 
+  useEffect(() => {
+  console.log("🟢 USER PROFILE:", user);
+}, [user]);
+
   // Local state
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
 
