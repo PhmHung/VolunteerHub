@@ -11,10 +11,13 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import QRCode from "../components/socials/QRCode.jsx";
 
 // redux
 import { fetchMyEvents } from "../features/eventSlice";
 import { fetchChannelByEventId, clearChannel } from "../features/channelSlice";
+import { fetchMyQRCode } from "../features/registrationSlice";
+
 
 // components
 import EventFeed from "../components/socials/EventFeed";
@@ -28,6 +31,17 @@ import MyRegistrationStatus from "../components/registrations/MyRegistrationStat
 const EventDetailView = ({ event, user, onBack }) => {
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("discussion");
+
+  const { myQrToken, qrLoading } = useSelector(
+  (state) => state.registration
+);
+
+useEffect(() => {
+  if (activeTab === "qr") {
+    dispatch(fetchMyQRCode(event._id));
+  }
+}, [activeTab, dispatch, event._id]);
+
 
   useEffect(() => {
     dispatch(fetchChannelByEventId(event._id));
@@ -92,6 +106,18 @@ const EventDetailView = ({ event, user, onBack }) => {
               <p className="text-text-muted">Chưa có hình ảnh</p>
             </div>
           )}
+
+          {activeTab === "qr" && (
+  <div className="card p-6 text-center">
+    <h2 className="text-xl font-bold mb-4">Mã QR của bạn</h2>
+
+    {qrLoading && <p>Đang tải QR...</p>}
+
+    {myQrToken && (
+      <QRCode value={myQrToken} size={220} />
+    )}
+  </div>
+)}
         </div>
       </div>
     </div>
@@ -103,7 +129,7 @@ const EventDetailView = ({ event, user, onBack }) => {
 ====================================================== */
 const Media = ({ user }) => {
   const dispatch = useDispatch();
-  const { list: myEvents, loading } = useSelector((state) => state.event);
+  const { myEvents, loading } = useSelector((state) => state.event);
 
   const [selectedEvent, setSelectedEvent] = useState(null);
 

@@ -104,6 +104,23 @@ export const fetchAllRegistrations = createAsyncThunk(
   }
 );
 
+// 8. LẤY QR CODE CỦA USER THEO EVENT
+export const fetchMyQRCode = createAsyncThunk(
+  "registration/fetchMyQRCode",
+  async (eventId, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(
+        `/api/registrations/${eventId}/my-qr`
+      );
+      return data.qrToken;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Không lấy được mã QR"
+      );
+    }
+  }
+);
+
 const registrationSlice = createSlice({
   name: "registration",
   initialState: {
@@ -118,6 +135,11 @@ const registrationSlice = createSlice({
     pendingRegistrations: [],
     pendingLoading: false,
 
+    myQrToken: null,
+    qrLoading: false,
+    qrError: null,
+
+
     successMessage: null,
     error: null,
   },
@@ -127,6 +149,11 @@ const registrationSlice = createSlice({
       state.successMessage = null;
       state.error = null;
       state.myError = null;
+    },
+    clearMyQr: (state) => {
+      state.myQrToken = null;
+      state.qrLoading = false;
+      state.qrError = null;
     },
   },
 
@@ -205,8 +232,23 @@ const registrationSlice = createSlice({
       state.pendingLoading = false;
       state.error = action.payload;
     });
+
+    builder
+    .addCase(fetchMyQRCode.pending, (state) => {
+      state.qrLoading = true;
+      state.qrError = null;
+    })
+    .addCase(fetchMyQRCode.fulfilled, (state, action) => {
+      state.qrLoading = false;
+      state.myQrToken = action.payload;
+    })
+    .addCase(fetchMyQRCode.rejected, (state, action) => {
+      state.qrLoading = false;
+      state.qrError = action.payload;
+    });
+
   },
 });
 
-export const { clearRegistrationMessages } = registrationSlice.actions;
+export const { clearRegistrationMessages, clearMyQr } = registrationSlice.actions;
 export default registrationSlice.reducer;

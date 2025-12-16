@@ -98,20 +98,25 @@ const handleCreatePost = async (postData) => {
 
   const handleLike = async (postId) => {
     if (!user) return;
+
     await dispatch(
       toggleReaction({
-        targetId: postId,
+        postId, // ✅ ĐÚNG TÊN
         type: "like",
-        targetType: "post",
       })
     );
+
     dispatch(fetchChannelByEventId(event._id || event.id));
   };
 
   const handleComment = async (postId, content) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    await dispatch(createComment({ post, content }));
+    await dispatch(
+      createComment({
+        postId,      // ✅ ĐÚNG
+        content,
+      })
+    );
+
     dispatch(fetchChannelByEventId(event._id || event.id));
   };
 

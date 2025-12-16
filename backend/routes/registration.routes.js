@@ -8,6 +8,7 @@ import {
   registerForEvent,
   cancelRegistration,
   getMyRegistrations,
+  getMyQRCode,
   getAllRegistrationsForManagement,
   acceptRegistration,
   rejectRegistration,
@@ -18,6 +19,7 @@ const router = express.Router();
 router.use(protect);
 router.post("/", protect, registerForEvent);
 router.get("/my-registrations", protect, getMyRegistrations);
+router.get("/:eventId/my-qr", protect, getMyQRCode);
 router.delete("/:id", protect, cancelRegistration);
 router.get("/pending", allowAdminOrManager, getAllRegistrationsForManagement);
 router.put("/:id/accept", allowAdminOrManager, acceptRegistration);

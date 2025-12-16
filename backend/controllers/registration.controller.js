@@ -118,6 +118,24 @@ const getMyRegistrations = asyncHandler(async (req, res) => {
   });
 });
 
+const getMyQRCode = asyncHandler(async (req, res) => {
+  const { eventId } = req.params;
+  
+  const registration = await Registration.findOne({
+    eventId,
+    userId: req.user._id,
+    status: "registered",
+  });
+
+  if (!registration || !registration.qrToken) {
+    return res.status(404).json({ message: "Chưa có QR" });
+  }
+
+  res.json({
+    qrToken: registration.qrToken,
+  });
+});
+
 // @desc    Lấy TOÀN BỘ danh sách đăng ký cho Admin (thay vì chỉ pending)
 // @route   GET /api/registrations/admin/all
 // @access  Private (Manager/Admin)
@@ -234,6 +252,7 @@ export {
   registerForEvent,
   cancelRegistration,
   getMyRegistrations,
+  getMyQRCode,
   getAllRegistrationsForManagement,
   acceptRegistration,
   rejectRegistration,
