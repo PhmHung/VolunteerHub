@@ -97,7 +97,12 @@ const importData = async () => {
     }
 
     // Lưu vào DB
-    await Registration.insertMany(allRegistrations);
+    // await Registration.insertMany(allRegistrations);
+
+    for (const reg of allRegistrations) {
+      const doc = new Registration(reg);
+      await doc.save(); 
+    }
     await Promise.all(eventUpdatePromises);
 
     console.log(

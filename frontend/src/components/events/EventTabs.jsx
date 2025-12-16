@@ -35,6 +35,12 @@ const TABS_CONFIG = [
     icon: ImageIcon,
     badge: null,
   },
+  {
+    id: "qr",
+    label: "Mã QR của bạn",
+    icon: ImageIcon,
+    badge: null,
+  },
 ];
 
 const EventTabs = ({ activeTab, setActiveTab, badgeCounts = {} }) => {

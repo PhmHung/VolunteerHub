@@ -64,6 +64,8 @@ export const fetchMyEvents = createAsyncThunk(
       const { data } = await api.get("/api/events/me", {
         params: { page, limit },
       });
+
+      console.log("🟢 MY EVENTS DATA:", data);
       return data;
     } catch (err) {
       return rejectWithValue(
@@ -207,7 +209,15 @@ const eventSlice = createSlice({
   name: "event",
   initialState: {
     list: [],
-    pagination: { page: 1, limit: 12, total: 0, pages: 0 },
+    myEvents: [],    // event user tham gia
+    pagination: {
+      page: 1,
+      limit: 12,
+      total: 0,
+      pages: 0,
+    },
+
+    // 👇 [MỚI] State quản lý bộ lọc & sắp xếp
     filters: {
       search: "",
       tag: "",
@@ -268,6 +278,23 @@ const eventSlice = createSlice({
         state.pagination = action.payload.pagination;
       })
       .addCase(fetchEvents.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+      
+    // === FETCH MY EVENTS (VOLUNTEER / MANAGER) ===
+    builder
+      .addCase(fetchMyEvents.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMyEvents.fulfilled, (state, action) => {
+        state.loading = false;
+
+        // ghi vào myEvents, KHÔNG phải list
+        state.myEvents = action.payload.data || action.payload;
+      })
+      .addCase(fetchMyEvents.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

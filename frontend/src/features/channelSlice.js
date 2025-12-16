@@ -119,8 +119,8 @@ export const createComment = createAsyncThunk(
   "channel/createComment",
   async ({ postId, content }, { rejectWithValue }) => {
     try {
-      const { data } = await api.post(`/api/comments`, {
-        postId,
+      const { data } = await api.post(`/api/comment`, {
+        post: postId,
         content,
       });
       return data.data; // comment mới
@@ -137,8 +137,8 @@ export const toggleReaction = createAsyncThunk(
   "channel/toggleReaction",
   async ({ postId, type = "like" }, { rejectWithValue }) => {
     try {
-      const { data } = await api.post(`/api/reactions/toggle`, {
-        postId,
+      const { data } = await api.post(`/api/reaction`, {
+        post: postId,
         type,
       });
       return data.data; // post đã update reaction
