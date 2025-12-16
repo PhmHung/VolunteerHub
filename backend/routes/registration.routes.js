@@ -9,6 +9,7 @@ import {
   cancelRegistration,
   getMyRegistrations,
   getMyQRCode,
+  checkInByQr,
   getAllRegistrationsForManagement,
   acceptRegistration,
   rejectRegistration,
@@ -19,10 +20,13 @@ const router = express.Router();
 router.use(protect);
 router.post("/", protect, registerForEvent);
 router.get("/my-registrations", protect, getMyRegistrations);
-router.get("/:eventId/my-qr", protect, getMyQRCode);
 router.delete("/:id", protect, cancelRegistration);
+
 router.get("/pending", allowAdminOrManager, getAllRegistrationsForManagement);
 router.put("/:id/accept", allowAdminOrManager, acceptRegistration);
 router.put("/:id/reject", allowAdminOrManager, rejectRegistration);
+
+router.get("/:eventId/my-qr", protect, getMyQRCode);
+router.post("/check-in", protect, checkInByQr);
 
 export default router;

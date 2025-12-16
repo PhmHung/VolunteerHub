@@ -12,11 +12,12 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import QRCode from "../components/socials/QRCode.jsx";
-
+import ManagerQrScanner from "../components/socials/ManagerQrScanner.jsx";
 // redux
 import { fetchMyEvents } from "../features/eventSlice";
 import { fetchChannelByEventId, clearChannel } from "../features/channelSlice";
 import { fetchMyQRCode } from "../features/registrationSlice";
+import { checkInByQr } from "../features/registrationSlice";
 
 
 // components
@@ -32,16 +33,19 @@ import MyRegistrationStatus from "../components/registrations/MyRegistrationStat
 const EventDetailView = ({ event, user, onBack }) => {
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("discussion");
+  const [scannedToken, setScannedToken] = useState(null);
+  const [scanError, setScanError] = useState(null);
+
 
   const { myQrToken, qrLoading } = useSelector(
   (state) => state.registration
 );
 
 useEffect(() => {
-  if (activeTab === "qr") {
+  if (activeTab === "qr" && user.role === "volunteer") {
     dispatch(fetchMyQRCode(event._id));
   }
-}, [activeTab, dispatch, event._id]);
+}, []);
 
 
   useEffect(() => {
@@ -109,17 +113,69 @@ useEffect(() => {
             </div>
           )}
 
-          {activeTab === "qr" && (
+{activeTab === "qr" && (
   <div className="card p-6 text-center">
-    <h2 className="text-xl font-bold mb-4">Mã QR của bạn</h2>
+    <h2 className="text-xl font-bold mb-4">
+      {user.role === "volunteer"
+        ? "Mã QR của bạn"
+        : "Quét mã QR tình nguyện viên"}
+    </h2>
 
-    {qrLoading && <p>Đang tải QR...</p>}
+    {/* ================= VOLUNTEER ================= */}
+    {user.role === "volunteer" && (
+      <>
+        {qrLoading && <p>Đang tải QR...</p>}
 
-    {myQrToken && (
-      <QRCode value={myQrToken} size={220} />
+        {myQrToken && (
+          <div className="flex justify-center">
+            <QRCode value={myQrToken} size={220} />
+          </div>
+        )}
+
+        {!myQrToken && !qrLoading && (
+          <p className="text-text-muted">
+            Bạn chưa có mã QR cho sự kiện này
+          </p>
+        )}
+      </>
+    )}
+
+{/* ================= MANAGER ================= */}
+{user.role === "manager" && (
+  <div className="max-w-sm mx-auto">
+    <ManagerQrScanner
+      onScanSuccess={(token) => {
+        setScannedToken(token);
+
+        // GỬI QR TOKEN VỀ BACKEND
+        dispatch(
+          checkInByQr({
+            qrToken: token,
+          })
+        );
+      }}
+      onScanError={(err) => {
+        setScanError(err);
+      }}
+    />
+
+    {scannedToken && (
+      <p className="mt-4 text-green-600 font-medium break-all">
+        ✔ Đã quét: {scannedToken}
+      </p>
+    )}
+
+    {scanError && (
+      <p className="mt-4 text-red-500 text-sm">
+        {scanError}
+      </p>
     )}
   </div>
 )}
+
+  </div>
+)}
+
         </div>
       </div>
     </div>
