@@ -11,6 +11,7 @@ import {
   Star,
   MapPin,
   Users,
+  AlertTriangle,
 } from "lucide-react";
 const StatBox = ({ icon, value, label, color }) => {
   const IconComponent = icon;
@@ -35,10 +36,12 @@ const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
   const type = request.type;
   const isEvent = type === "event_approval";
   const isManagerPromotion = type === "manager_promotion";
+  const isCancellation = type === "event_cancellation";
   const requester = request.requestedBy || {};
   const event = request.event || {};
   const promotionData = request.promotionData || {};
-
+  const cancellationReason =
+    request.reason || request.data?.reason || "Không có lý do cụ thể";
   // Handlers để gọi action từ cha kèm theo note
   const handleAction = (actionType) => {
     if (actionType === "approve") {
@@ -57,10 +60,15 @@ const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
         <div className='px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50'>
           <h3 className='text-lg font-bold text-gray-900 flex items-center gap-2'>
             {isEvent && <Calendar className='w-5 h-5 text-amber-600' />}
-            {isManagerPromotion && (
-              <Briefcase className='w-5 h-5 text-purple-600' />
+            {isCancellation && (
+              <AlertTriangle className='w-5 h-5 text-red-600' />
             )}
-            Duyệt Yêu Cầu: {isEvent ? "Sự kiện" : "Thăng cấp Manager"}
+            Duyệt Yêu Cầu:{" "}
+            {isEvent
+              ? "Sự kiện mới"
+              : isManagerPromotion
+              ? "Thăng cấp Manager"
+              : "Hủy sự kiện"}
           </h3>
           <button
             onClick={onClose}
@@ -116,6 +124,67 @@ const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
                 <div className='col-span-2'>
                   <p className='font-semibold text-gray-700'>Tags:</p>
                   {event.tags?.join(", ") || "Không có tags"}
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Dynamic Content */}
+          {/* 👇 CẬP NHẬT: Gom nhóm hiển thị thông tin sự kiện cho cả Tạo mới và Hủy */}
+          {(isEvent || isCancellation) && (
+            <div className='space-y-4'>
+              {isCancellation && (
+                <div className='bg-red-50 border border-red-200 p-4 rounded-xl mb-4'>
+                  <h4 className='text-red-800 font-bold flex items-center gap-2 mb-1'>
+                    <AlertTriangle className='w-4 h-4' /> Lý do yêu cầu hủy:
+                  </h4>
+                  <p className='text-red-700'>{cancellationReason}</p>
+                </div>
+              )}
+
+              <h3 className='text-2xl font-bold mb-4 text-gray-800'>
+                {event.title || "Sự kiện không xác định"}
+              </h3>
+
+              {/* Chỉ hiện mô tả nếu là tạo sự kiện mới, hủy thì có thể ẩn bớt cho gọn */}
+              {isEvent && (
+                <p className='text-gray-600 leading-relaxed'>
+                  {event.description || "Không có mô tả."}
+                </p>
+              )}
+
+              <div
+                className={`grid grid-cols-2 gap-4 text-sm mt-4 p-4 border rounded-xl ${
+                  isCancellation ? "bg-gray-50" : "bg-amber-50"
+                }`}>
+                <div className='flex items-center gap-2'>
+                  <MapPin className='w-4 h-4 text-gray-600' />{" "}
+                  <p className='font-semibold text-gray-700'>Địa điểm:</p>{" "}
+                  {event.location}
+                </div>
+                <div className='flex items-center gap-2'>
+                  <Calendar className='w-4 h-4 text-gray-600' />{" "}
+                  <p className='font-semibold text-gray-700'>Thời gian:</p>{" "}
+                  {event.startDate
+                    ? new Date(event.startDate).toLocaleString("vi-VN")
+                    : "Chưa xác định"}
+                </div>
+                <div className='flex items-center gap-2'>
+                  <Users className='w-4 h-4 text-gray-600' />{" "}
+                  <p className='font-semibold text-gray-700'>SL hiện tại:</p>{" "}
+                  {event.registeredCount || 0} / {event.maxParticipants}
+                </div>
+                <div className='col-span-2'>
+                  <p className='font-semibold text-gray-700'>
+                    Trạng thái hiện tại:
+                  </p>
+                  <span
+                    className={`inline-block px-2 py-1 rounded text-xs font-bold ${
+                      event.status === "approved"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}>
+                    {event.status}
+                  </span>
                 </div>
               </div>
             </div>

@@ -63,15 +63,16 @@ router.put(
 );
 
 // Xóa sự kiện
-router.delete("/:eventId", protect, allowAdminOrManager, deleteEvent);
+router.delete(
+  "/:eventId",
+  protect,
+  canModifyEvent,
+  allowAdminOrManager,
+  deleteEvent
+);
 
 // Lấy feedback (riêng tư)
-router.get(
-  "/:eventId/feedbacks",
-  protect,
-  allowAdminOrManager,
-  getEventFeedbacks
-);
+router.get("/:eventId/feedbacks", protect, getEventFeedbacks);
 
 // Lấy danh sách đăng ký
 router.get(

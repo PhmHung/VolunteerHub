@@ -38,7 +38,7 @@ const eventSchema = new mongoose.Schema(
     channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel" }, // 1–1
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected", "cancelled"],
+      enum: ["pending", "approved", "rejected", "cancelled", "cancel_pending"],
       default: "pending",
     },
     //HỦY

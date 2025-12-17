@@ -12,6 +12,7 @@ import {
   CheckCircle,
   XCircle,
   Star,
+  Edit,
 } from "lucide-react";
 import VolunteersList from "../registrations/VolunteersList";
 const LocationPicker = ({ lat, lng }) => (
@@ -24,6 +25,7 @@ const EventDetailModal = ({
   registrations = [],
   users = [],
   onClose,
+  onEdit,
   onApprove,
   onReject,
   onUserClick,
@@ -78,6 +80,11 @@ const EventDetailModal = ({
         return "bg-red-100 text-red-700 border-red-200";
     }
   };
+  const showEditButton =
+    onEdit &&
+    !showApprovalActions &&
+    event.status !== "cancelled" &&
+    event.status !== "cancel_pending";
 
   return (
     <div className='fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200'>
@@ -93,7 +100,15 @@ const EventDetailModal = ({
             className='w-full h-full object-cover'
           />
           <div className='absolute inset-0 bg-gradient-to-t from-black/70 to-transparent' />
-
+          {showEditButton && (
+            <button
+              onClick={() => onEdit(event)}
+              className='h-10 px-4 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-md transition flex items-center gap-2 text-sm font-medium border border-white/10'
+              title='Chỉnh sửa sự kiện'>
+              <Edit className='w-4 h-4' />
+              <span className='hidden sm:inline'>Chỉnh sửa</span>
+            </button>
+          )}
           <button
             onClick={onClose}
             className='absolute top-4 right-4 p-2.5 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-md transition'>

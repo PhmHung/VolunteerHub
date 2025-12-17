@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-// Icons
 import {
   Calendar,
   Users,
@@ -403,6 +402,9 @@ const AdminDashboard = ({ user }) => {
       },
     });
   };
+  const handleViewCancelRequest = (req) => {
+    setSelectedManagerRequest(req); // Tái sử dụng ManagerApprovalModal
+  };
 
   // --- OTHER ACTIONS (User/Manager/Reg) ---
 
@@ -429,7 +431,6 @@ const AdminDashboard = ({ user }) => {
   };
 
   const handleApproveRegistration = (reg) => {
-    /* ... giữ nguyên ... */
     setConfirmModal({
       isOpen: true,
       title: "Chấp nhận đăng ký",
@@ -445,7 +446,6 @@ const AdminDashboard = ({ user }) => {
   };
 
   const handleRejectRegistration = (reg) => {
-    /* ... giữ nguyên ... */
     setPromptModal({
       isOpen: true,
       title: "Từ chối đăng ký",
@@ -462,7 +462,6 @@ const AdminDashboard = ({ user }) => {
   };
 
   const handleApproveManager = (req) => {
-    /* ... giữ nguyên ... */
     setConfirmModal({
       isOpen: true,
       title: "Thăng cấp Manager",
@@ -481,7 +480,6 @@ const AdminDashboard = ({ user }) => {
   };
 
   const handleRejectManager = (req) => {
-    /* ... giữ nguyên ... */
     setPromptModal({
       isOpen: true,
       title: "Từ chối yêu cầu Manager",
@@ -502,7 +500,6 @@ const AdminDashboard = ({ user }) => {
   };
 
   const handleToggleUserStatus = (user) => {
-    /* ... giữ nguyên ... */
     const newStatus = user.status === "active" ? "inactive" : "active";
     setConfirmModal({
       isOpen: true,
@@ -523,7 +520,6 @@ const AdminDashboard = ({ user }) => {
   };
 
   const handleDeleteUser = (user) => {
-    /* ... giữ nguyên ... */
     setConfirmModal({
       isOpen: true,
       title: "Xóa tài khoản",
@@ -538,11 +534,11 @@ const AdminDashboard = ({ user }) => {
     });
   };
 
-  const totalPending =
-    pendingNewEvents.length +
-    pendingRegistrations.length +
-    pendingManagerRequests.length +
-    pendingCancelRequests.length;
+  // const totalPending =
+  //   pendingNewEvents.length +
+  //   pendingRegistrations.length +
+  //   pendingManagerRequests.length +
+  //   pendingCancelRequests.length;
 
   return (
     <div className='min-h-screen bg-gray-50 font-sans'>
@@ -588,15 +584,6 @@ const AdminDashboard = ({ user }) => {
                   <FileJson className='w-4 h-4 text-amber-600' /> JSON
                 </button>
               </div>
-            )}
-          </div>
-
-          <div className='relative'>
-            <Bell className='w-6 h-6 text-gray-500 cursor-pointer hover:text-gray-700' />
-            {totalPending > 0 && (
-              <span className='absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center'>
-                {totalPending > 99 ? "99+" : totalPending}
-              </span>
             )}
           </div>
 
@@ -775,6 +762,7 @@ const AdminDashboard = ({ user }) => {
                   registrations={pendingRegistrations}
                   // Props cho phần Cancel Request (Khối màu đỏ)
                   cancelRequests={pendingCancelRequests}
+                  onViewCancelRequest={handleViewCancelRequest}
                   onApproveCancellation={handleApproveCancellation}
                   onRejectCancellation={handleRejectCancellation}
                   // Props cho phần Event List (Các nút hành động)
@@ -882,8 +870,38 @@ const AdminDashboard = ({ user }) => {
         <ManagerApprovalModal
           request={selectedManagerRequest}
           onClose={() => setSelectedManagerRequest(null)}
-          onApprove={handleApproveManager}
-          onReject={handleRejectManager}
+          // onApprove={handleApproveManager}
+          // onReject={handleRejectManager}
+          onApprove={(req) => {
+            if (req.type === "event_cancellation") {
+              // Nếu là yêu cầu hủy sự kiện -> Gọi hàm duyệt hủy
+              handleApproveCancellation(req);
+              setSelectedManagerRequest(null); // Đóng modal sau khi gọi confirm
+            } else {
+              // Nếu là yêu cầu thăng cấp Manager -> Gọi logic cũ
+              handleApproveManager(req);
+            }
+          }}
+          onReject={(req, action, note) => {
+            if (req.type === "event_cancellation") {
+              // Nếu từ chối hủy -> Gọi API reject kèm lý do (note)
+              // Lưu ý: handleRejectCancellation dùng PromptModal,
+              // nhưng ở đây ta đã có note từ ManagerApprovalModal nên gọi thẳng API luôn
+              dispatch(
+                processApprovalRequest({
+                  requestId: req._id,
+                  actionType: "reject",
+                  adminNote: note, // Note nhập từ modal
+                })
+              ).unwrap();
+              dispatch(fetchPendingApprovals());
+              dispatch(fetchManagementEvents({ status: "" }));
+              setSelectedManagerRequest(null);
+              addToast("Đã từ chối yêu cầu hủy", "success");
+            } else {
+              handleRejectManager(req);
+            }
+          }}
         />
       )}
 
