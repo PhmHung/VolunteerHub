@@ -104,4 +104,19 @@ export const registrationApi = {
   getEventVolunteers: (eventId) => api.get(`/api/events/${eventId}/volunteers`),
 };
 
+export const attendanceApi = {
+  // Check-in
+  checkIn: (regId) => api.post("/api/attendances/checkin", { regId }),
+  // Check-out
+  checkOut: (regId) => api.post("/api/attendances/checkout", { regId }),
+  // Lấy danh sách điểm danh theo Event (Manager)
+  getByEvent: (eventId) => api.get(`/api/attendances/event/${eventId}`),
+  // Gửi feedback
+  submitFeedback: (attendanceId, data) =>
+    api.put(`/api/attendances/${attendanceId}/feedback`, data),
+  // Lấy feedback của event
+  getFeedbacks: (eventId) =>
+    api.get(`/api/attendances/event/${eventId}/feedbacks`),
+};
+
 export default api;

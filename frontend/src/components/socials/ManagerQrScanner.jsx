@@ -1,3 +1,5 @@
+/** @format */
+
 import { Html5Qrcode } from "html5-qrcode";
 import { useEffect, useRef } from "react";
 import React from "react";
@@ -30,9 +32,8 @@ function ManagerQrScanner({ onScanSuccess, onScanError }) {
       try {
         const cameras = await Html5Qrcode.getCameras();
         const cameraId =
-          cameras.find((c) =>
-            c.label.toLowerCase().includes("back")
-          )?.id || cameras[0].id;
+          cameras.find((c) => c.label.toLowerCase().includes("back"))?.id ||
+          cameras[0].id;
 
         await qr.start(
           cameraId,
@@ -80,11 +81,11 @@ function ManagerQrScanner({ onScanSuccess, onScanError }) {
   }, [onScanSuccess, onScanError]);
 
   return (
-    <div className="w-full max-w-sm mx-auto">
+    <div className='w-full max-w-sm mx-auto'>
       <div
-        id="qr-reader"
+        id='qr-reader'
         ref={regionRef}
-        className="w-full aspect-square bg-black rounded-lg overflow-hidden"
+        className='w-full aspect-square bg-black rounded-lg overflow-hidden'
       />
     </div>
   );

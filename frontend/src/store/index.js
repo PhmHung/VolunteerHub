@@ -7,6 +7,7 @@ import registrationReducer from "../features/registrationSlice";
 import authReducer from "../features/authSlice";
 import approvalReducer from "../features/approvalSlice";
 import channelReducer from "../features/channelSlice";
+import attendanceReducer from "../features/attendanceSlice";
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     auth: authReducer,
     approval: approvalReducer,
     channel: channelReducer,
+    attendance: attendanceReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

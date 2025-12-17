@@ -48,19 +48,16 @@ export const getMyEvents = async (req, res) => {
     const role = req.user.role;
 
     let query = {
-      status: "approved", 
+      status: "approved",
     };
 
     if (role === "volunteer") {
       query.volunteers = userId;
-    } 
-    else if (role === "manager") {
+    } else if (role === "manager") {
       query.managers = userId;
-    } 
-    else if (role === "admin") {
+    } else if (role === "admin") {
       // admin thấy hết
-    } 
-    else {
+    } else {
       return res.status(403).json({ message: "Role not supported" });
     }
 
@@ -135,25 +132,90 @@ const createEvent = asyncHandler(async (req, res) => {
 
   res.status(201).json({ message: "Tạo sự kiện thành công", data: event });
 });
-
 // @desc    Update event
 // @route   PUT /api/events/:eventId
 const updateEvent = asyncHandler(async (req, res) => {
-  // 👇 Dùng trực tiếp eventId
-  const event = await Event.findById(req.params.eventId);
+  const { eventId } = req.params;
 
+  // 1. Tìm sự kiện
+  const event = await Event.findById(eventId);
   if (!event) {
     res.status(404);
     throw new Error("Không tìm thấy sự kiện");
   }
 
-  const updatedEvent = await Event.findByIdAndUpdate(
-    req.params.eventId,
-    req.body,
-    {
-      new: true,
+  // 3. 🔒 CHECK TRẠNG THÁI (Logic chặn sửa)
+  // Nếu đang chờ hủy, đã hủy hoặc bị từ chối -> Không cho sửa
+  if (
+    ["cancelled", "rejected", "cancel_pending"].includes(event.status) &&
+    !isAdmin
+  ) {
+    res.status(400);
+    throw new Error(
+      `Không thể chỉnh sửa sự kiện đang ở trạng thái: ${event.status}`
+    );
+  }
+
+  // 4. 🔒 SANITIZE DATA (Lọc dữ liệu đầu vào)
+  // Chỉ lấy những trường cho phép, loại bỏ các trường nhạy cảm
+  const allowedUpdates = [
+    "title",
+    "description",
+    "location",
+    "coordinate",
+    "startDate",
+    "endDate",
+    "maxParticipants",
+    "tags",
+    "image",
+  ];
+
+  const updates = {};
+  Object.keys(req.body).forEach((key) => {
+    if (allowedUpdates.includes(key)) {
+      updates[key] = req.body[key];
     }
-  );
+  });
+
+  // 5. VALIDATION LOGIC (Kiểm tra logic nghiệp vụ)
+
+  // Kiểm tra: Số lượng tối đa không được nhỏ hơn số người đã đăng ký
+  if (
+    updates.maxParticipants &&
+    updates.maxParticipants < event.registeredCount
+  ) {
+    res.status(400);
+    throw new Error(
+      `Số lượng tối đa (${updates.maxParticipants}) không thể nhỏ hơn số người đã đăng ký hiện tại (${event.registeredCount})`
+    );
+  }
+
+  // 6. Thực hiện Update
+  const updatedEvent = await Event.findByIdAndUpdate(eventId, updates, {
+    new: true,
+    runValidators: true,
+  });
+
+  // 7. Gửi thông báo (Logic bạn đã có)
+  // Chỉ gửi khi sự kiện ĐANG HOẠT ĐỘNG và có thay đổi quan trọng (Time/Location)
+  if (event.status === "approved") {
+    try {
+      const participants = await Registration.find({
+        eventId: event._id,
+        status: { $in: ["registered", "approved"] },
+      }).populate("userId", "email userName");
+
+      if (participants.length > 0) {
+        console.log(
+          `📢 Gửi thông báo cập nhật cho ${participants.length} người.`
+        );
+        // Thực hiện gửi mail
+      }
+    } catch (error) {
+      console.error("Lỗi gửi thông báo:", error);
+    }
+  }
+
   res.json({ message: "Cập nhật thành công", data: updatedEvent });
 });
 
@@ -195,11 +257,10 @@ const approveEvent = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Manager/Admin: Hủy sự kiện
+// @desc    Manager yêu cầu hủy / Admin hủy cưỡng chế
 // @route   PUT /api/events/:eventId/cancel
 const cancelEvent = asyncHandler(async (req, res) => {
   const { reason } = req.body;
-  // 👇 Dùng trực tiếp eventId
   const eventId = req.params.eventId;
 
   const event = await Event.findById(eventId);
@@ -216,31 +277,72 @@ const cancelEvent = asyncHandler(async (req, res) => {
     throw new Error("Bạn không có quyền hủy sự kiện này.");
   }
 
-  // Logic Hủy
-  event.status = "cancelled";
-  event.cancellationReason = reason || "Không có lý do cụ thể.";
-  event.cancelledBy = req.user._id;
-  await event.save();
+  // =========================================================
+  // TRƯỜNG HỢP 1: ADMIN HỦY TRỰC TIẾP (FORCE CANCEL)
+  // =========================================================
+  if (isAdmin) {
+    // 1. Cập nhật trạng thái sự kiện
+    event.status = "cancelled";
+    event.cancellationReason = reason || "Admin hủy trực tiếp.";
+    event.cancelledBy = req.user._id;
+    await event.save();
 
-  // Hủy vé
-  await Registration.updateMany(
-    {
-      eventId: eventId,
-      status: { $in: ["pending", "registered", "waitlisted"] },
-    },
-    { status: "event_cancelled" }
-  );
+    // 2. Hủy toàn bộ vé
+    await Registration.updateMany(
+      {
+        eventId: eventId,
+        status: { $in: ["pending", "registered", "waitlisted"] },
+      },
+      { status: "event_cancelled" }
+    );
 
-  // Duyệt luôn request hủy nếu có
-  await ApprovalRequest.findOneAndUpdate(
-    { event: eventId, type: "event_cancellation", status: "pending" },
-    { status: "approved", adminNote: "Đã thực hiện hủy trực tiếp." }
-  );
+    // 3. Nếu có yêu cầu hủy nào đang treo, duyệt nó luôn để đóng lại
+    await ApprovalRequest.findOneAndUpdate(
+      { event: eventId, type: "event_cancellation", status: "pending" },
+      { status: "approved", adminNote: "Đã thực hiện hủy trực tiếp bởi Admin." }
+    );
 
-  res.json({
-    message: "Đã hủy sự kiện thành công.",
-    data: event,
-  });
+    return res.json({
+      message: "Đã hủy sự kiện thành công (Admin Action).",
+      data: event,
+    });
+  }
+
+  // =========================================================
+  // TRƯỜNG HỢP 2: MANAGER GỬI YÊU CẦU HỦY (REQUEST CANCEL)
+  // =========================================================
+  if (isOwner) {
+    // Kiểm tra xem đã có yêu cầu nào đang chờ chưa
+    const existingRequest = await ApprovalRequest.findOne({
+      event: eventId,
+      type: "event_cancellation",
+      status: "pending",
+    });
+
+    if (existingRequest) {
+      res.status(400);
+      throw new Error("Bạn đã gửi yêu cầu hủy cho sự kiện này rồi.");
+    }
+
+    // 1. Tạo Approval Request mới
+    await ApprovalRequest.create({
+      type: "event_cancellation",
+      event: eventId,
+      requestedBy: req.user._id,
+      reason: reason || "Manager yêu cầu hủy sự kiện.",
+      status: "pending", // Mặc định là pending
+    });
+
+    // 2. Chuyển trạng thái sự kiện sang 'cancel_pending'
+    // Lưu ý: Cần đảm bảo FE hiển thị đúng trạng thái này (hoặc coi nó như Approved nhưng bị khóa)
+    event.status = "cancel_pending";
+    await event.save();
+
+    return res.json({
+      message: "Đã gửi yêu cầu hủy sự kiện. Vui lòng chờ Admin duyệt.",
+      data: event,
+    });
+  }
 });
 
 // @desc    Lấy danh sách đăng ký

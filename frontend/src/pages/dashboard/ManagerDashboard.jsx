@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import NotificationBell from "../../components/common/NotificationBell";
 import {
   Calendar,
   Users,
@@ -57,7 +58,7 @@ export default function ManagerDashboard({ user }) {
   const { user: authUser, users: allUsers = [] } = useSelector(
     (state) => state.user
   );
-  const { list: allRegistrations = [] } = useSelector(
+  const { pendingRegistrations: allRegistrations = [] } = useSelector(
     (state) => state.registration || {}
   );
 
@@ -110,13 +111,22 @@ export default function ManagerDashboard({ user }) {
     const pending = myEvents.filter((e) => e.status === "pending").length;
     const rejected = myEvents.filter((e) => e.status === "rejected").length;
     const cancelled = myEvents.filter((e) => e.status === "cancelled").length;
-
+    const cancelPending = myEvents.filter(
+      (e) => e.status === "cancel_pending"
+    ).length;
     const totalParticipants = myEvents.reduce(
       (sum, e) => sum + (e.registeredCount || 0),
       0
     );
 
-    return { approved, pending, rejected, cancelled, totalParticipants };
+    return {
+      approved,
+      pending,
+      rejected,
+      cancelled,
+      cancelPending,
+      totalParticipants,
+    };
   }, [myEvents]);
 
   const pieData = [
@@ -124,6 +134,7 @@ export default function ManagerDashboard({ user }) {
     { name: "Chờ duyệt", value: stats.pending, color: "#f59e0b" },
     { name: "Từ chối", value: stats.rejected, color: "#ef4444" },
     { name: "Đã hủy", value: stats.cancelled, color: "#6b7280" },
+    { name: "Chờ hủy", value: stats.cancelPending, color: "#f97316" },
   ].filter((d) => d.value > 0);
 
   // Hàm này sẽ được gọi khi bấm vào tên User trong danh sách
@@ -293,40 +304,16 @@ export default function ManagerDashboard({ user }) {
     const userId = userOrId?._id || userOrId;
     setViewingUserId(userId);
   };
-
-  // const handleApproveRegistration = (regId) => {
-  //   setConfirmModal({
-  //     isOpen: true,
-  //     title: "Duyệt tình nguyện viên",
-  //     message: "Chấp nhận tình nguyện viên này tham gia?",
-  //     type: "success",
-  //     confirmText: "Chấp nhận",
-  //     onConfirm: async () => {
-  //       await dispatch(acceptRegistration(regId)).unwrap();
-  //       addToast("Đã duyệt đăng ký", "success");
-  //       dispatch(fetchAllRegistrations());
-  //       if (selectedEvent) dispatch(fetchEventRegistrations(selectedEvent._id));
-  //     },
-  //   });
-  // };
-
-  // const handleRejectRegistration = (regId) => {
-  //   setPromptModal({
-  //     isOpen: true,
-  //     title: "Từ chối tình nguyện viên",
-  //     message: "Nhập lý do từ chối:",
-  //     confirmText: "Từ chối",
-  //     onConfirm: async (reason) => {
-  //       await dispatch(
-  //         rejectRegistration({ registrationId: regId, reason })
-  //       ).unwrap();
-  //       addToast("Đã từ chối đăng ký", "info");
-  //       dispatch(fetchAllRegistrations());
-  //       if (selectedEvent) dispatch(fetchEventRegistrations(selectedEvent._id));
-  //     },
-  //   });
-  // };
-
+  const handleEditEvent = (event) => {
+    if (event.status === "cancelled") {
+      addToast("Không thể chỉnh sửa sự kiện đã hủy", "error");
+      return;
+    }
+    // Set dữ liệu sự kiện cần sửa vào state để form hiển thị lại
+    setEditingEvent(event);
+    // Mở Form
+    setShowEventForm(true);
+  };
   return (
     <div className='min-h-screen bg-gray-50 font-sans'>
       {/* HEADER */}
@@ -389,10 +376,7 @@ export default function ManagerDashboard({ user }) {
                 }`}>
                 <UserCog className='w-4 h-4' />
                 Quản lý người dùng
-                {/* Badge đếm số lượng người tham gia */}
                 <span className='ml-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full'>
-                  {/* SỬA DÒNG NÀY: */}
-                  {/* {myVolunteers.length} */}
                   {allUsers.length}
                 </span>
                 {activeTab === "users_management" && (
@@ -404,10 +388,9 @@ export default function ManagerDashboard({ user }) {
 
           {/* TAB CONTENT */}
           <div className='flex-1 p-6 bg-gray-50 overflow-hidden flex flex-col'>
-            {/* OVERVIEW */}
+            {/* OVERVIEW -cần sửa*/}
             {activeTab === "overview" && (
               <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300'>
-                {/* Stats cards giữ nguyên... */}
                 <div className='lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4'>
                   <div className='bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between'>
                     <div>
@@ -451,11 +434,22 @@ export default function ManagerDashboard({ user }) {
                   <div className='bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between'>
                     <div>
                       <p className='text-sm text-gray-500 font-medium'>
-                        Bị từ chối / Hủy
+                        Đã hủy / Chờ hủy
                       </p>
-                      <h3 className='text-2xl font-bold text-red-500 mt-1'>
-                        {stats.rejected + stats.cancelled}
-                      </h3>
+                      <div className='flex items-baseline gap-2 mt-1'>
+                        {/* Tổng số bị hủy/từ chối */}
+                        <h3 className='text-2xl font-bold text-red-500'>
+                          {stats.rejected +
+                            stats.cancelled +
+                            stats.cancelPending}
+                        </h3>
+                        {/* Hiển thị rõ số lượng đang chờ */}
+                        {stats.cancelPending > 0 && (
+                          <span className='text-sm font-medium text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100'>
+                            {stats.cancelPending} đang chờ hủy
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className='p-3 bg-red-50 text-red-600 rounded-lg'>
                       <XCircle className='w-6 h-6' />
@@ -526,6 +520,10 @@ export default function ManagerDashboard({ user }) {
           registrations={currentRegistrations}
           users={[]}
           onClose={() => setSelectedEvent(null)}
+          onEdit={() => {
+            setSelectedEvent(null); // Đóng modal xem chi tiết
+            handleEditEvent(selectedEvent); // Mở form sửa
+          }}
           onUserClick={handleViewUser}
           onApproveRegistration={handleApproveRegistration}
           onRejectRegistration={handleRejectRegistration}
