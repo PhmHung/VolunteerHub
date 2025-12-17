@@ -1,6 +1,8 @@
 import asyncHandler from "express-async-handler";
 import Channel from "../models/channelModel.js";
-import Event from "../models/eventModel.js";
+import Event from "../models/eventModel.js";  
+import Reaction from "../models/reactionModel.js";
+import Comment from "../models/commentModel.js";
 
 // ================================
 // GET ALL CHANNELS (ADMIN ONLY)
@@ -74,35 +76,35 @@ export const getChannelByEventId = asyncHandler(async (req, res) => {
   const { eventId } = req.params;
   const userId = req.user._id.toString();
 
-  // 1️⃣ Tìm channel theo eventId
+  // 1️⃣ Lấy channel + event + posts + author
   const channel = await Channel.findOne({ event: eventId })
     .populate({
       path: "event",
       populate: [
-        { path: "volunteers", select: "userName userEmail" },
-        { path: "managers", select: "userName userEmail" },
+        { path: "volunteers", select: "userName userEmail role" },
+        { path: "managers", select: "userName userEmail role" },
       ],
     })
     .populate({
       path: "posts",
-      populate: { path: "author", select: "userName userEmail" },
+      match: { isDeleted: false },
+      options: { sort: { createdAt: -1 } },
+      populate: {
+        path: "author",
+        select: "userName userEmail role",
+      },
     });
 
   if (!channel) {
-    res.status(404);
-    throw new Error("Channel not found for this event");
+    return res.status(404).json({ message: "Channel not found" });
   }
 
-  // 2️⃣ Check quyền (DÙNG event ĐÃ POPULATE)
+  // 2️⃣ Check quyền
   const event = channel.event;
 
   const isAdmin = req.user.role === "admin";
-  const isManager = event.managers.some(
-    (m) => m._id.toString() === userId
-  );
-  const isVolunteer = event.volunteers.some(
-    (v) => v._id.toString() === userId
-  );
+  const isManager = event.managers.some(m => m._id.toString() === userId);
+  const isVolunteer = event.volunteers.some(v => v._id.toString() === userId);
 
   if (!isAdmin && !isManager && !isVolunteer) {
     return res.status(403).json({
@@ -110,5 +112,101 @@ export const getChannelByEventId = asyncHandler(async (req, res) => {
     });
   }
 
-  res.json(channel);
+  // ===============================
+  // 3️⃣ Lấy reactions cho POSTS
+  // ===============================
+  const postIds = channel.posts.map(p => p._id);
+
+  const postReactions = await Reaction.find({
+    post: { $in: postIds },
+  }).populate("user", "userName role");
+
+  // Group reactions theo postId
+  const reactionsByPost = {};
+  postReactions.forEach(r => {
+    const key = r.post.toString();
+    if (!reactionsByPost[key]) reactionsByPost[key] = [];
+    reactionsByPost[key].push(r);
+  });
+
+  // ===============================
+  // 4️⃣ Lấy COMMENTS (level 1)
+  // ===============================
+  const comments = await Comment.find({
+    post: { $in: postIds },
+    parentComment: null,
+    isDeleted: false,
+  })
+    .populate("author", "userName role")
+    .sort({ createdAt: 1 });
+
+  const commentIds = comments.map(c => c._id);
+
+  // ===============================
+  // 5️⃣ Lấy REPLIES (level 2)
+  // ===============================
+  const replies = await Comment.find({
+    parentComment: { $in: commentIds },
+    isDeleted: false,
+  })
+    .populate("author", "userName role")
+    .sort({ createdAt: 1 });
+
+  // ===============================
+  // 6️⃣ Lấy reactions cho COMMENTS + REPLIES
+  // ===============================
+  const commentReactions = await Reaction.find({
+    comment: { $in: [...commentIds, ...replies.map(r => r._id)] },
+  }).populate("user", "userName role");
+
+  // Group reactions theo commentId
+  const reactionsByComment = {};
+  commentReactions.forEach(r => {
+    const key = r.comment.toString();
+    if (!reactionsByComment[key]) reactionsByComment[key] = [];
+    reactionsByComment[key].push(r);
+  });
+
+  // ===============================
+  // 7️⃣ Gắn replies vào comment cha
+  // ===============================
+  const repliesByParent = {};
+  replies.forEach(reply => {
+    const key = reply.parentComment.toString();
+    if (!repliesByParent[key]) repliesByParent[key] = [];
+    repliesByParent[key].push({
+      ...reply.toObject(),
+      reactions: reactionsByComment[reply._id.toString()] || [],
+    });
+  });
+
+  // ===============================
+  // 8️⃣ Gắn comments + reactions + replies vào post
+  // ===============================
+  const commentsByPost = {};
+  comments.forEach(comment => {
+    const key = comment.post.toString();
+    if (!commentsByPost[key]) commentsByPost[key] = [];
+    commentsByPost[key].push({
+      ...comment.toObject(),
+      reactions: reactionsByComment[comment._id.toString()] || [],
+      replies: repliesByParent[comment._id.toString()] || [],
+    });
+  });
+
+  // ===============================
+  // 9️⃣ Final payload cho frontend
+  // ===============================
+  const posts = channel.posts.map(post => ({
+    ...post.toObject(),
+    reactions: reactionsByPost[post._id.toString()] || [],
+    comments: commentsByPost[post._id.toString()] || [],
+  }));
+
+  res.json({
+    _id: channel._id,
+    event: channel.event,
+    posts,
+    createdAt: channel.createdAt,
+  });
 });

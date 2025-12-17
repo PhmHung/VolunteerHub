@@ -1,6 +1,6 @@
 /** @format */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Calendar,
@@ -39,18 +39,42 @@ const EventDetailView = ({ event, user, onBack }) => {
 
   const { myQrToken, qrLoading } = useSelector((state) => state.registration);
 
-  // Fetch QR Code nếu là Volunteer và đang ở tab QR
-  useEffect(() => {
-    if (activeTab === "qr" && user.role === "volunteer") {
-      dispatch(fetchMyQRCode(event._id));
-    }
-  }, [activeTab, user.role, event._id, dispatch]);
+  const { myQrToken, qrLoading } = useSelector(
+  (state) => state.registration
+);
+
+useEffect(() => {
+  if (activeTab === "qr" && user.role === "volunteer") {
+    dispatch(fetchMyQRCode(event._id));
+  }
+}, [activeTab, user.role]);
+  
 
   // Fetch Channel chat
   useEffect(() => {
     dispatch(fetchChannelByEventId(event._id));
     return () => dispatch(clearChannel());
   }, [dispatch, event._id]);
+
+  const handleScanSuccess = useCallback(
+    (token) => {
+      console.log("📤 check-in QR:", token);
+      setScannedToken(token);
+
+      dispatch(
+        checkInByQr({
+          qrToken: token,
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  const handleScanError = useCallback((err) => {
+    console.error("❌ Scan error:", err);
+    setScanError(err);
+  }, []);
+
 
   return (
     <div className='flex-1 bg-surface-50 h-screen overflow-y-auto'>
@@ -172,11 +196,38 @@ const EventDetailView = ({ event, user, onBack }) => {
                     }}
                   />
 
-                  {scannedToken && (
-                    <p className='mt-4 text-green-600 font-medium break-all'>
-                      ✔ Đã quét: {scannedToken}
-                    </p>
-                  )}
+        {!myQrToken && !qrLoading && (
+          <p className="text-text-muted">
+            Bạn chưa có mã QR cho sự kiện này
+          </p>
+        )}
+      </>
+    )}
+
+{/* ================= MANAGER ================= */}
+{user.role === "manager" && (
+  <div className="max-w-sm mx-auto">
+    <ManagerQrScanner
+      onScanSuccess={handleScanSuccess}
+      onScanError={handleScanError}
+    />
+
+    {scannedToken && (
+      <p className="mt-4 text-green-600 font-medium break-all">
+        ✔ Đã quét: {scannedToken}
+      </p>
+    )}
+
+    {scanError && (
+      <p className="mt-4 text-red-500 text-sm">
+        {scanError}
+      </p>
+    )}
+  </div>
+)}
+
+  </div>
+)}
 
                   {scanError && (
                     <p className='mt-4 text-red-500 text-sm'>{scanError}</p>

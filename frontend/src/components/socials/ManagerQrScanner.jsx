@@ -2,8 +2,9 @@
 
 import { Html5Qrcode } from "html5-qrcode";
 import { useEffect, useRef } from "react";
+import React from "react";
 
-export default function ManagerQrScanner({ onScanSuccess, onScanError }) {
+function ManagerQrScanner({ onScanSuccess, onScanError }) {
   const regionRef = useRef(null);
   const qrRef = useRef(null);
   const startedRef = useRef(false);
@@ -89,3 +90,8 @@ export default function ManagerQrScanner({ onScanSuccess, onScanError }) {
     </div>
   );
 }
+
+export default React.memo(
+  ManagerQrScanner,
+  () => true // không cho re-render
+);

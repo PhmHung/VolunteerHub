@@ -8,7 +8,7 @@ import {
   fetchChannelByEventId,
   createPost,
   createComment,
-  toggleReaction,
+  togglePostReaction,
 } from "../../features/channelSlice";
 import { Filter, TrendingUp, Clock } from "lucide-react";
 
@@ -23,6 +23,7 @@ const EventFeed = ({ user, event }) => {
     if (!event) return;
     const eventId = event._id || event.id;
     dispatch(fetchChannelByEventId(eventId));
+    console.log("📥 Fetching channel for eventId:", eventId);
   }, [event, dispatch]);
 
     useEffect(() => {
@@ -100,8 +101,8 @@ const handleCreatePost = async (postData) => {
     if (!user) return;
 
     await dispatch(
-      toggleReaction({
-        postId, // ✅ ĐÚNG TÊN
+      togglePostReaction({
+        postId, 
         type: "like",
       })
     );
@@ -112,7 +113,7 @@ const handleCreatePost = async (postData) => {
   const handleComment = async (postId, content) => {
     await dispatch(
       createComment({
-        postId,      // ✅ ĐÚNG
+        postId,      
         content,
       })
     );
@@ -186,6 +187,7 @@ const handleCreatePost = async (postData) => {
             <Post
               key={post.id}
               post={post}
+              eventId={event._id || event.id}
               currentUser={user}
               onLike={handleLike}
               onComment={handleComment}

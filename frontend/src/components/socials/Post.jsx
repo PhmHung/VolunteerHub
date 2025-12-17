@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Heart, MessageCircle, Share2, MoreHorizontal, CheckCircle, XCircle, FileText, Download, Edit2, Trash2, Flag, ThumbsUp } from 'lucide-react';
 import Comment from './Comment';
 
-const Post = ({ post, onLike, onComment, onApprove, onReject, onEdit, onDelete, onDeleteComment, currentUser }) => {
+const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, onDelete, onDeleteComment, currentUser }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [showMenu, setShowMenu] = useState(false);
@@ -18,7 +18,7 @@ const Post = ({ post, onLike, onComment, onApprove, onReject, onEdit, onDelete, 
   const handleCommentSubmit = (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
-    onComment(post.id, commentText);
+    onComment(post._id, commentText);
     setCommentText("");
     setShowComments(true);
   };
@@ -287,6 +287,7 @@ const Post = ({ post, onLike, onComment, onApprove, onReject, onEdit, onDelete, 
                         <Comment 
                             key={comment.id} 
                             comment={comment} 
+                            eventId={eventId}
                             currentUser={currentUser}
                             onDelete={() => onDeleteComment(post.id, comment.id)}
                         />
