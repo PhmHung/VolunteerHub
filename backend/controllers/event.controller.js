@@ -48,19 +48,16 @@ export const getMyEvents = async (req, res) => {
     const role = req.user.role;
 
     let query = {
-      status: "approved", 
+      status: "approved",
     };
 
     if (role === "volunteer") {
       query.volunteers = userId;
-    } 
-    else if (role === "manager") {
+    } else if (role === "manager") {
       query.managers = userId;
-    } 
-    else if (role === "admin") {
+    } else if (role === "admin") {
       // admin thấy hết
-    } 
-    else {
+    } else {
       return res.status(403).json({ message: "Role not supported" });
     }
 
@@ -195,11 +192,10 @@ const approveEvent = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Manager/Admin: Hủy sự kiện
+// @desc    Manager yêu cầu hủy / Admin hủy cưỡng chế
 // @route   PUT /api/events/:eventId/cancel
 const cancelEvent = asyncHandler(async (req, res) => {
   const { reason } = req.body;
-  // 👇 Dùng trực tiếp eventId
   const eventId = req.params.eventId;
 
   const event = await Event.findById(eventId);
@@ -216,31 +212,72 @@ const cancelEvent = asyncHandler(async (req, res) => {
     throw new Error("Bạn không có quyền hủy sự kiện này.");
   }
 
-  // Logic Hủy
-  event.status = "cancelled";
-  event.cancellationReason = reason || "Không có lý do cụ thể.";
-  event.cancelledBy = req.user._id;
-  await event.save();
+  // =========================================================
+  // TRƯỜNG HỢP 1: ADMIN HỦY TRỰC TIẾP (FORCE CANCEL)
+  // =========================================================
+  if (isAdmin) {
+    // 1. Cập nhật trạng thái sự kiện
+    event.status = "cancelled";
+    event.cancellationReason = reason || "Admin hủy trực tiếp.";
+    event.cancelledBy = req.user._id;
+    await event.save();
 
-  // Hủy vé
-  await Registration.updateMany(
-    {
-      eventId: eventId,
-      status: { $in: ["pending", "registered", "waitlisted"] },
-    },
-    { status: "event_cancelled" }
-  );
+    // 2. Hủy toàn bộ vé
+    await Registration.updateMany(
+      {
+        eventId: eventId,
+        status: { $in: ["pending", "registered", "waitlisted"] },
+      },
+      { status: "event_cancelled" }
+    );
 
-  // Duyệt luôn request hủy nếu có
-  await ApprovalRequest.findOneAndUpdate(
-    { event: eventId, type: "event_cancellation", status: "pending" },
-    { status: "approved", adminNote: "Đã thực hiện hủy trực tiếp." }
-  );
+    // 3. Nếu có yêu cầu hủy nào đang treo, duyệt nó luôn để đóng lại
+    await ApprovalRequest.findOneAndUpdate(
+      { event: eventId, type: "event_cancellation", status: "pending" },
+      { status: "approved", adminNote: "Đã thực hiện hủy trực tiếp bởi Admin." }
+    );
 
-  res.json({
-    message: "Đã hủy sự kiện thành công.",
-    data: event,
-  });
+    return res.json({
+      message: "Đã hủy sự kiện thành công (Admin Action).",
+      data: event,
+    });
+  }
+
+  // =========================================================
+  // TRƯỜNG HỢP 2: MANAGER GỬI YÊU CẦU HỦY (REQUEST CANCEL)
+  // =========================================================
+  if (isOwner) {
+    // Kiểm tra xem đã có yêu cầu nào đang chờ chưa
+    const existingRequest = await ApprovalRequest.findOne({
+      event: eventId,
+      type: "event_cancellation",
+      status: "pending",
+    });
+
+    if (existingRequest) {
+      res.status(400);
+      throw new Error("Bạn đã gửi yêu cầu hủy cho sự kiện này rồi.");
+    }
+
+    // 1. Tạo Approval Request mới
+    await ApprovalRequest.create({
+      type: "event_cancellation",
+      event: eventId,
+      requestedBy: req.user._id,
+      reason: reason || "Manager yêu cầu hủy sự kiện.",
+      status: "pending", // Mặc định là pending
+    });
+
+    // 2. Chuyển trạng thái sự kiện sang 'cancel_pending'
+    // Lưu ý: Cần đảm bảo FE hiển thị đúng trạng thái này (hoặc coi nó như Approved nhưng bị khóa)
+    event.status = "cancel_pending";
+    await event.save();
+
+    return res.json({
+      message: "Đã gửi yêu cầu hủy sự kiện. Vui lòng chờ Admin duyệt.",
+      data: event,
+    });
+  }
 });
 
 // @desc    Lấy danh sách đăng ký

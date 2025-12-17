@@ -16,15 +16,16 @@ import {
   Minimize2,
   Star,
   FileX,
-  Ban, // Icon Hủy
+  Ban, // Icon cấm/hủy
+  AlertTriangle, // Thêm icon cảnh báo
 } from "lucide-react";
 
 const EventManagementTable = ({
   events = [],
   registrations = [],
-  cancelRequests = [],
-  onApprove, // Nếu undefined (Manager) -> Sẽ ẩn nút duyệt
-  onReject, // Nếu undefined (Manager) -> Sẽ ẩn nút từ chối
+  cancelRequests = [], // Danh sách đơn hủy riêng (nếu dùng Red Block)
+  onApprove, // Hàm duyệt (Admin)
+  onReject, // Hàm từ chối (Admin)
   onDeleteEvent,
   onViewEvent,
   onCancelEvent,
@@ -57,40 +58,53 @@ const EventManagementTable = ({
     return matchesSearch && matchesStatus;
   });
 
-  // 3. Cấu hình hiển thị Badge
+  // 3. Cấu hình hiển thị Badge (ĐÃ CẬP NHẬT)
   const getStatusConfig = (status) => {
     switch (status) {
       case "approved":
         return {
-          label: "Đã duyệt",
+          label: "Đang hoạt động",
           icon: CheckCircle,
           bg: "bg-emerald-50",
           text: "text-emerald-700",
           border: "border-emerald-200",
+          cardBorder: "border-gray-200", // Viền mặc định
         };
       case "pending":
         return {
-          label: "Chờ duyệt",
+          label: "CHỜ DUYỆT MỚI", // Viết hoa nhấn mạnh
           icon: Clock,
           bg: "bg-amber-50",
           text: "text-amber-700",
           border: "border-amber-200",
+          cardBorder: "border-amber-300 ring-1 ring-amber-100", // Viền vàng
+        };
+      case "cancel_pending":
+        return {
+          label: "YÊU CẦU HỦY", // Viết hoa, nhấn mạnh
+          icon: Ban,
+          bg: "bg-red-100",
+          text: "text-red-800",
+          border: "border-red-300",
+          cardBorder: "border-red-400 bg-red-50/30", // Viền đỏ, nền hơi đỏ
         };
       case "rejected":
         return {
           label: "Đã từ chối",
           icon: XCircle,
-          bg: "bg-red-50",
-          text: "text-red-700",
-          border: "border-red-200",
+          bg: "bg-gray-100",
+          text: "text-gray-500",
+          border: "border-gray-200",
+          cardBorder: "border-gray-200 opacity-75",
         };
       case "cancelled":
         return {
           label: "Đã hủy",
           icon: Ban,
-          bg: "bg-gray-100",
+          bg: "bg-gray-200",
           text: "text-gray-600",
           border: "border-gray-300",
+          cardBorder: "border-gray-200 opacity-60",
         };
       default:
         return {
@@ -99,21 +113,38 @@ const EventManagementTable = ({
           bg: "bg-gray-50",
           text: "text-gray-700",
           border: "border-gray-200",
+          cardBorder: "border-gray-200",
         };
     }
   };
 
-  // 4. Render Card
+  // 4. Render Card (ĐÃ CẬP NHẬT GIAO DIỆN)
   const renderEventCard = (event) => {
     const pendingCount = getPendingCount(event._id || event.id);
     const statusConfig = getStatusConfig(event.status);
     const StatusIcon = statusConfig.icon;
 
+    // Cờ trạng thái
+    const isCancelRequest = event.status === "cancel_pending";
+    const isNewRequest = event.status === "pending";
+
     return (
       <div
         key={event._id}
-        className='bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group'>
-        <div className='flex flex-col lg:flex-row justify-between gap-6'>
+        // Thêm class viền động và relative để chứa dải màu
+        className={`bg-white border rounded-xl p-6 hover:shadow-lg transition-all duration-200 group relative overflow-hidden ${
+          statusConfig.cardBorder || "border-gray-200"
+        }`}>
+        {/* Dải màu đánh dấu bên trái thẻ */}
+        {isCancelRequest && (
+          <div className='absolute left-0 top-0 bottom-0 w-1.5 bg-red-500'></div>
+        )}
+        {isNewRequest && (
+          <div className='absolute left-0 top-0 bottom-0 w-1.5 bg-amber-400'></div>
+        )}
+
+        {/* Nội dung chính (thêm padding trái nếu có dải màu) */}
+        <div className='flex flex-col lg:flex-row justify-between gap-6 pl-2'>
           {/* CỘT TRÁI: THÔNG TIN */}
           <div className='flex-1'>
             <div className='flex items-start justify-between mb-4'>
@@ -121,11 +152,26 @@ const EventManagementTable = ({
                 {event.title}
               </h3>
               <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border}`}>
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border}`}>
                 <StatusIcon className='w-4 h-4' />
                 {statusConfig.label}
               </span>
             </div>
+
+            {/* ALERT BOX CHO YÊU CẦU HỦY */}
+            {isCancelRequest && (
+              <div className='mb-4 p-3 bg-red-100 border border-red-200 rounded-lg text-red-800 flex items-start gap-3'>
+                <AlertTriangle className='w-5 h-5 shrink-0 mt-0.5' />
+                <div>
+                  <p className='font-bold text-sm'>
+                    Manager yêu cầu hủy sự kiện này
+                  </p>
+                  <p className='text-xs mt-1'>
+                    Hành động này sẽ hủy vé của tất cả tình nguyện viên.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600'>
               <div className='flex items-center gap-2'>
@@ -159,35 +205,83 @@ const EventManagementTable = ({
 
           {/* CỘT PHẢI: HÀNH ĐỘNG */}
           <div className='flex items-center gap-2 self-start lg:self-center'>
-            {/* 👇 SỬA LỖI: Chỉ hiện nút Duyệt/Từ chối nếu có prop onApprove (tức là Admin) */}
-            {event.status === "pending" && onApprove && (
+            {/* --- TRƯỜNG HỢP 1: DUYỆT SỰ KIỆN MỚI --- */}
+            {isNewRequest && onApprove && (
               <>
                 <button
                   onClick={() => onApprove(event)}
-                  className='p-2.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition'
-                  title='Duyệt sự kiện'>
-                  <CheckCircle className='w-5 h-5' />
+                  className='px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition shadow-sm font-medium text-sm flex items-center gap-2'
+                  title='Duyệt đăng sự kiện'>
+                  <CheckCircle className='w-4 h-4' /> Duyệt đăng
                 </button>
                 <button
                   onClick={() => onReject(event)}
-                  className='p-2.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition'
-                  title='Từ chối sự kiện'>
+                  className='p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition'
+                  title='Từ chối đăng'>
                   <XCircle className='w-5 h-5' />
                 </button>
               </>
             )}
 
-            {/* Nút Hủy (Admin Force Cancel hoặc Manager Request) */}
-            {event.status === "approved" && onCancelEvent && (
-              <button
-                onClick={() => onCancelEvent(event)}
-                className='p-2.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition'
-                title={onApprove ? "Hủy sự kiện (Khẩn cấp)" : "Yêu cầu hủy"}>
-                <Ban className='w-5 h-5' />
-              </button>
-            )}
+            {/* --- TRƯỜNG HỢP 2: XỬ LÝ YÊU CẦU HỦY --- */}
+            {isCancelRequest &&
+              onApproveCancellation &&
+              (() => {
+                // Tìm request tương ứng trong mảng cancelRequests
+                const request = cancelRequests.find(
+                  (r) => r.event?._id === event._id || r.event === event._id
+                );
+                // Nếu không tìm thấy request (do chưa load kịp), hiện thông báo lỗi nhỏ
+                if (!request)
+                  return (
+                    <span className='text-xs text-red-500 italic'>
+                      Đang tải request...
+                    </span>
+                  );
 
-            <div className='w-px h-8 bg-gray-200 mx-1'></div>
+                return (
+                  <>
+                    <button
+                      onClick={() => onApproveCancellation(request)}
+                      className='px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-sm font-medium text-sm flex items-center gap-2 animate-pulse'>
+                      <Trash2 className='w-4 h-4' /> Chấp thuận Hủy
+                    </button>
+                    <button
+                      onClick={() => onRejectCancellation(request)}
+                      className='p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition'
+                      title='Từ chối hủy (Giữ lại sự kiện)'>
+                      <XCircle className='w-5 h-5' />
+                    </button>
+                  </>
+                );
+              })()}
+
+            {/* --- TRƯỜNG HỢP 3: CÁC NÚT THÔNG THƯỜNG --- */}
+            {!isNewRequest && !isCancelRequest && (
+              <>
+                {/* Nút Hủy khẩn cấp cho Admin */}
+                {event.status === "approved" && onCancelEvent && (
+                  <button
+                    onClick={() => onCancelEvent(event)}
+                    className='p-2.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition'
+                    title={
+                      onApprove ? "Hủy sự kiện (Khẩn cấp)" : "Yêu cầu hủy"
+                    }>
+                    <Ban className='w-5 h-5' />
+                  </button>
+                )}
+                {event.status === "cancel_pending" && !onApprove && (
+                  <button
+                    disabled
+                    className='p-2.5 bg-gray-100 text-gray-400 rounded-lg cursor-not-allowed'
+                    title='Đã gửi yêu cầu hủy, đang chờ Admin duyệt'>
+                    <Clock className='w-5 h-5' />
+                  </button>
+                )}
+
+                <div className='w-px h-8 bg-gray-200 mx-1'></div>
+              </>
+            )}
 
             <button
               onClick={() => onViewEvent(event)}
@@ -249,7 +343,7 @@ const EventManagementTable = ({
               />
             </div>
 
-            {/* BỘ LỌC (Đã bỏ icon) */}
+            {/* BỘ LỌC */}
             <div className='relative'>
               <Filter className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
               <select
@@ -257,11 +351,9 @@ const EventManagementTable = ({
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className='pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white appearance-none cursor-pointer font-medium text-gray-700'>
                 <option value='all'>Tất cả trạng thái</option>
-                <option value='pending'>
-                  Chờ duyệt (
-                  {events.filter((e) => e.status === "pending").length})
-                </option>
-                <option value='approved'>Đã duyệt</option>
+                <option value='pending'>Chờ duyệt mới</option>
+                <option value='cancel_pending'>Chờ hủy</option>
+                <option value='approved'>Đang hoạt động</option>
                 <option value='rejected'>Đã từ chối</option>
                 <option value='cancelled'>Đã hủy</option>
               </select>
@@ -272,10 +364,9 @@ const EventManagementTable = ({
 
       {/* BODY */}
       <div className='flex-1 overflow-y-auto bg-gray-50 p-6'>
-        {/* KHỐI YÊU CẦU HỦY */}
+        {/* KHỐI YÊU CẦU HỦY (RED BLOCK) - Giữ lại để hiển thị danh sách gom nhóm trên đầu */}
         {cancelRequests.length > 0 && (
           <div className='bg-red-50 border border-red-200 rounded-xl p-6 mb-8 animate-in slide-in-from-top-2'>
-            {/* ... (Giữ nguyên logic hiển thị yêu cầu hủy) */}
             <h3 className='text-lg font-bold text-red-800 flex items-center gap-2 mb-4'>
               <span className='relative flex h-3 w-3'>
                 <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75'></span>
@@ -283,7 +374,6 @@ const EventManagementTable = ({
               </span>
               Yêu cầu Hủy Sự kiện cần xử lý ({cancelRequests.length})
             </h3>
-            {/* Map cancelRequests ở đây... */}
             <div className='grid gap-4'>
               {cancelRequests.map((req) => (
                 <div
@@ -331,7 +421,7 @@ const EventManagementTable = ({
           </div>
         )}
 
-        {/* DANH SÁCH SỰ KIỆN */}
+        {/* DANH SÁCH SỰ KIỆN CHÍNH */}
         {filteredEvents.length > 0 ? (
           <div className='grid gap-5'>
             {filteredEvents.map(renderEventCard)}
