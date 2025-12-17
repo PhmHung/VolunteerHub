@@ -1,7 +1,7 @@
 /** @format */
 
 import React from "react";
-import { MessageSquare, Info, Users, ImageIcon, Star } from "lucide-react";
+import { MessageSquare, Info, Users, ImageIcon, Star, QrCodeIcon } from "lucide-react";
 
 const TABS_CONFIG = [
   {
@@ -37,8 +37,8 @@ const TABS_CONFIG = [
   },
   {
     id: "qr",
-    label: "Mã QR của bạn",
-    icon: ImageIcon,
+    label: "Mã QR",
+    icon: QrCodeIcon,
     badge: null,
   },
 ];

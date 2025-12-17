@@ -1,6 +1,6 @@
 /** @format */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Calendar,
@@ -45,13 +45,33 @@ useEffect(() => {
   if (activeTab === "qr" && user.role === "volunteer") {
     dispatch(fetchMyQRCode(event._id));
   }
-}, []);
-
+}, [activeTab, user.role]);
+  
 
   useEffect(() => {
     dispatch(fetchChannelByEventId(event._id));
     return () => dispatch(clearChannel());
   }, [dispatch, event._id]);
+
+  const handleScanSuccess = useCallback(
+    (token) => {
+      console.log("📤 check-in QR:", token);
+      setScannedToken(token);
+
+      dispatch(
+        checkInByQr({
+          qrToken: token,
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  const handleScanError = useCallback((err) => {
+    console.error("❌ Scan error:", err);
+    setScanError(err);
+  }, []);
+
 
   return (
     <div className="flex-1 bg-surface-50 h-screen overflow-y-auto">
@@ -144,19 +164,8 @@ useEffect(() => {
 {user.role === "manager" && (
   <div className="max-w-sm mx-auto">
     <ManagerQrScanner
-      onScanSuccess={(token) => {
-        setScannedToken(token);
-
-        // GỬI QR TOKEN VỀ BACKEND
-        dispatch(
-          checkInByQr({
-            qrToken: token,
-          })
-        );
-      }}
-      onScanError={(err) => {
-        setScanError(err);
-      }}
+      onScanSuccess={handleScanSuccess}
+      onScanError={handleScanError}
     />
 
     {scannedToken && (

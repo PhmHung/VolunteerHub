@@ -117,12 +117,20 @@ export const createPost = createAsyncThunk(
 // 3️⃣ Tạo comment
 export const createComment = createAsyncThunk(
   "channel/createComment",
-  async ({ postId, content }, { rejectWithValue }) => {
+  async ({ postId, parentCommentId, content }, { rejectWithValue }) => {
     try {
-      const { data } = await api.post(`/api/comment`, {
-        post: postId,
-        content,
-      });
+      const payload = { content };
+
+      if (postId) {
+        payload.post = postId;
+      }
+
+      if (parentCommentId) {
+        payload.parentComment = parentCommentId;
+      }
+
+      const { data } = await api.post("/api/comment", payload);
+
       return data.data; // comment mới
     } catch (err) {
       return rejectWithValue(
@@ -132,13 +140,31 @@ export const createComment = createAsyncThunk(
   }
 );
 
+
 // 4️⃣ Like / reaction
-export const toggleReaction = createAsyncThunk(
+export const togglePostReaction = createAsyncThunk(
   "channel/toggleReaction",
   async ({ postId, type = "like" }, { rejectWithValue }) => {
     try {
       const { data } = await api.post(`/api/reaction`, {
         post: postId,
+        type,
+      });
+      return data.data; // post đã update reaction
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Reaction thất bại"
+      );
+    }
+  }
+);
+
+export const toggleCommentReaction = createAsyncThunk(
+  "channel/toggleReaction",
+  async ({ commentId, type = "like" }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post(`/api/reaction`, {
+        comment: commentId,
         type,
       });
       return data.data; // post đã update reaction
