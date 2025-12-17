@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import NotificationBell from "../../components/common/NotificationBell";
 import {
   Calendar,
   Users,
@@ -57,7 +58,7 @@ export default function ManagerDashboard({ user }) {
   const { user: authUser, users: allUsers = [] } = useSelector(
     (state) => state.user
   );
-  const { list: allRegistrations = [] } = useSelector(
+  const { pendingRegistrations: allRegistrations = [] } = useSelector(
     (state) => state.registration || {}
   );
 
@@ -303,7 +304,16 @@ export default function ManagerDashboard({ user }) {
     const userId = userOrId?._id || userOrId;
     setViewingUserId(userId);
   };
-
+  const handleEditEvent = (event) => {
+    if (event.status === "cancelled") {
+      addToast("Không thể chỉnh sửa sự kiện đã hủy", "error");
+      return;
+    }
+    // Set dữ liệu sự kiện cần sửa vào state để form hiển thị lại
+    setEditingEvent(event);
+    // Mở Form
+    setShowEventForm(true);
+  };
   return (
     <div className='min-h-screen bg-gray-50 font-sans'>
       {/* HEADER */}
@@ -366,10 +376,7 @@ export default function ManagerDashboard({ user }) {
                 }`}>
                 <UserCog className='w-4 h-4' />
                 Quản lý người dùng
-                {/* Badge đếm số lượng người tham gia */}
                 <span className='ml-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full'>
-                  {/* SỬA DÒNG NÀY: */}
-                  {/* {myVolunteers.length} */}
                   {allUsers.length}
                 </span>
                 {activeTab === "users_management" && (
@@ -513,6 +520,10 @@ export default function ManagerDashboard({ user }) {
           registrations={currentRegistrations}
           users={[]}
           onClose={() => setSelectedEvent(null)}
+          onEdit={() => {
+            setSelectedEvent(null); // Đóng modal xem chi tiết
+            handleEditEvent(selectedEvent); // Mở form sửa
+          }}
           onUserClick={handleViewUser}
           onApproveRegistration={handleApproveRegistration}
           onRejectRegistration={handleRejectRegistration}

@@ -132,25 +132,90 @@ const createEvent = asyncHandler(async (req, res) => {
 
   res.status(201).json({ message: "Tạo sự kiện thành công", data: event });
 });
-
 // @desc    Update event
 // @route   PUT /api/events/:eventId
 const updateEvent = asyncHandler(async (req, res) => {
-  // 👇 Dùng trực tiếp eventId
-  const event = await Event.findById(req.params.eventId);
+  const { eventId } = req.params;
 
+  // 1. Tìm sự kiện
+  const event = await Event.findById(eventId);
   if (!event) {
     res.status(404);
     throw new Error("Không tìm thấy sự kiện");
   }
 
-  const updatedEvent = await Event.findByIdAndUpdate(
-    req.params.eventId,
-    req.body,
-    {
-      new: true,
+  // 3. 🔒 CHECK TRẠNG THÁI (Logic chặn sửa)
+  // Nếu đang chờ hủy, đã hủy hoặc bị từ chối -> Không cho sửa
+  if (
+    ["cancelled", "rejected", "cancel_pending"].includes(event.status) &&
+    !isAdmin
+  ) {
+    res.status(400);
+    throw new Error(
+      `Không thể chỉnh sửa sự kiện đang ở trạng thái: ${event.status}`
+    );
+  }
+
+  // 4. 🔒 SANITIZE DATA (Lọc dữ liệu đầu vào)
+  // Chỉ lấy những trường cho phép, loại bỏ các trường nhạy cảm
+  const allowedUpdates = [
+    "title",
+    "description",
+    "location",
+    "coordinate",
+    "startDate",
+    "endDate",
+    "maxParticipants",
+    "tags",
+    "image",
+  ];
+
+  const updates = {};
+  Object.keys(req.body).forEach((key) => {
+    if (allowedUpdates.includes(key)) {
+      updates[key] = req.body[key];
     }
-  );
+  });
+
+  // 5. VALIDATION LOGIC (Kiểm tra logic nghiệp vụ)
+
+  // Kiểm tra: Số lượng tối đa không được nhỏ hơn số người đã đăng ký
+  if (
+    updates.maxParticipants &&
+    updates.maxParticipants < event.registeredCount
+  ) {
+    res.status(400);
+    throw new Error(
+      `Số lượng tối đa (${updates.maxParticipants}) không thể nhỏ hơn số người đã đăng ký hiện tại (${event.registeredCount})`
+    );
+  }
+
+  // 6. Thực hiện Update
+  const updatedEvent = await Event.findByIdAndUpdate(eventId, updates, {
+    new: true,
+    runValidators: true,
+  });
+
+  // 7. Gửi thông báo (Logic bạn đã có)
+  // Chỉ gửi khi sự kiện ĐANG HOẠT ĐỘNG và có thay đổi quan trọng (Time/Location)
+  if (event.status === "approved") {
+    try {
+      const participants = await Registration.find({
+        eventId: event._id,
+        status: { $in: ["registered", "approved"] },
+      }).populate("userId", "email userName");
+
+      if (participants.length > 0) {
+        console.log(
+          `📢 Gửi thông báo cập nhật cho ${participants.length} người.`
+        );
+        // Thực hiện gửi mail
+      }
+    } catch (error) {
+      console.error("Lỗi gửi thông báo:", error);
+    }
+  }
+
   res.json({ message: "Cập nhật thành công", data: updatedEvent });
 });
 

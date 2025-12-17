@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-// Icons
 import {
   Calendar,
   Users,
@@ -535,11 +534,11 @@ const AdminDashboard = ({ user }) => {
     });
   };
 
-  const totalPending =
-    pendingNewEvents.length +
-    pendingRegistrations.length +
-    pendingManagerRequests.length +
-    pendingCancelRequests.length;
+  // const totalPending =
+  //   pendingNewEvents.length +
+  //   pendingRegistrations.length +
+  //   pendingManagerRequests.length +
+  //   pendingCancelRequests.length;
 
   return (
     <div className='min-h-screen bg-gray-50 font-sans'>
@@ -585,15 +584,6 @@ const AdminDashboard = ({ user }) => {
                   <FileJson className='w-4 h-4 text-amber-600' /> JSON
                 </button>
               </div>
-            )}
-          </div>
-
-          <div className='relative'>
-            <Bell className='w-6 h-6 text-gray-500 cursor-pointer hover:text-gray-700' />
-            {totalPending > 0 && (
-              <span className='absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center'>
-                {totalPending > 99 ? "99+" : totalPending}
-              </span>
             )}
           </div>
 
