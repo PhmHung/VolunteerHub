@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Heart, MessageCircle, Share2, MoreHorizontal, CheckCircle, XCircle, FileText, Download, Edit2, Trash2, Flag, ThumbsUp } from 'lucide-react';
 import Comment from './Comment';
 
-const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, onDelete, onDeleteComment, currentUser }) => {
+const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, onDelete, onDeleteComment, currentUser, onOpenDetail }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [showMenu, setShowMenu] = useState(false);
@@ -14,6 +14,12 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
   const canModerate = isManager;
   const canEdit = isAuthor;
   const canDelete = isAuthor || isManager;
+
+  // Hàm helper để ngăn chặn sự kiện nổi bọt khi click vào các nút chức năng
+  const handleAction = (e, callback) => {
+    e.stopPropagation();
+    callback();
+  };
 
   const handleCommentSubmit = (e) => {
     e.preventDefault();
@@ -43,7 +49,10 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div 
+      className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden cursor-pointer"
+      onClick={() => onOpenDetail(post)} // Mở modal khi click vào vùng trống bài viết
+    >
       {/* Header */}
       <div className="p-4 flex items-start justify-between">
         <div className="flex gap-3">
@@ -72,14 +81,14 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
           {post.status === 'pending' && canModerate && (
             <div className="flex gap-1 mr-2">
               <button 
-                onClick={() => onApprove(post.id)}
+                onClick={(e) => handleAction(e, () => onApprove(post.id))}
                 className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-full transition"
                 title="Duyệt bài"
               >
                 <CheckCircle className="w-5 h-5" />
               </button>
               <button 
-                onClick={() => onReject(post.id)}
+                onClick={(e) => handleAction(e, () => onReject(post.id))}
                 className="p-1.5 text-red-600 hover:bg-red-50 rounded-full transition"
                 title="Từ chối"
               >
@@ -90,7 +99,7 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
           
           <div className="relative">
             <button 
-              onClick={() => setShowMenu(!showMenu)}
+              onClick={(e) => handleAction(e, () => setShowMenu(!showMenu))}
               className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"
             >
               <MoreHorizontal className="w-5 h-5" />
@@ -98,11 +107,11 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
 
             {showMenu && (
                 <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)}></div>
+                    <div className="fixed inset-0 z-10" onClick={(e) => handleAction(e, () => setShowMenu(false))}></div>
                     <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20 animate-in fade-in zoom-in duration-100">
                         {canEdit && (
                             <button 
-                                onClick={startEdit}
+                                onClick={(e) => handleAction(e, startEdit)}
                                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                             >
                                 <Edit2 className="w-4 h-4" /> Chỉnh sửa bài viết
@@ -110,14 +119,17 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
                         )}
                         {canDelete && (
                             <button 
-                                onClick={() => { onDelete(post.id); setShowMenu(false); }}
+                                onClick={(e) => handleAction(e, () => { onDelete(post.id); setShowMenu(false); })}
                                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                             >
                                 <Trash2 className="w-4 h-4" /> Xóa bài viết
                             </button>
                         )}
                         {!isAuthor && (
-                            <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                            <button 
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
                                 <Flag className="w-4 h-4" /> Báo cáo bài viết
                             </button>
                         )}
@@ -131,7 +143,7 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
       {/* Content */}
       <div className="px-4 pb-2">
         {isEditing ? (
-            <div className="mb-4">
+            <div className="mb-4" onClick={(e) => e.stopPropagation()}>
                 <textarea 
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
@@ -184,6 +196,7 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
                 <a 
                     href={post.file.url} 
                     download={post.file.name}
+                    onClick={(e) => e.stopPropagation()} // Chặn tải file không mở modal
                     className="p-2 text-gray-400 hover:text-gray-600 group-hover:bg-white rounded-full transition-all shadow-sm"
                 >
                     <Download className="w-4 h-4" />
@@ -210,7 +223,7 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
           <div className="flex gap-2">
               {(post.comments?.length || 0) > 0 && (
                   <span 
-                      onClick={() => setShowComments(!showComments)}
+                      onClick={(e) => handleAction(e, () => setShowComments(!showComments))}
                       className="hover:underline cursor-pointer"
                   >
                       {post.comments.length} bình luận
@@ -226,7 +239,7 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
       {/* Actions - Facebook style */}
       <div className="px-2 py-1 flex items-center">
         <button 
-            onClick={() => onLike(post.id)}
+            onClick={(e) => handleAction(e, () => onLike(post.id))}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                 post.isLiked 
                     ? 'text-blue-600' 
@@ -237,13 +250,16 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
             <span>Thích</span>
         </button>
         <button 
-            onClick={() => setShowComments(!showComments)}
+            onClick={(e) => handleAction(e, () => setShowComments(!showComments))}
             className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
         >
             <MessageCircle className="w-5 h-5" />
             <span>Bình luận</span>
         </button>
-        <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+        <button 
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+        >
             <Share2 className="w-5 h-5" />
             <span>Chia sẻ</span>
         </button>
@@ -251,8 +267,8 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
 
       {/* Comments Section - Facebook style */}
       {showComments && (
-        <div className="px-4 pb-4 pt-2">
-            {/* Comment Input - Always visible like Facebook */}
+        <div className="px-4 pb-4 pt-2" onClick={(e) => e.stopPropagation()}>
+            {/* Comment Input */}
             <div className="flex gap-2 mb-3">
                 <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
                     <img 
@@ -287,6 +303,7 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
                         <Comment 
                             key={comment.id} 
                             comment={comment} 
+                            postId={post._id}
                             eventId={eventId}
                             currentUser={currentUser}
                             onDelete={() => onDeleteComment(post.id, comment.id)}

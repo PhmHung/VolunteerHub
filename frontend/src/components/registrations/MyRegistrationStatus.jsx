@@ -4,18 +4,26 @@ import { Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { REGISTRATION_STATUS } from '../../utils/constants';
 
 const MyRegistrationStatus = ({ eventId, userId }) => {
-  const { myRegistrations } = useSelector((state) => state.registration);
-  
+  // Safe fallback nếu state chưa kịp có
+  const myRegistrations =
+    useSelector((state) => state.registration?.myRegistrations) ?? [];
+
   const myReg = myRegistrations.find(
-    reg => (reg.eventId?._id || reg.eventId) === eventId && (reg.userId?._id || reg.userId) === userId
+    (reg) =>
+      (reg?.eventId?._id || reg?.eventId) === eventId &&
+      (reg?.userId?._id || reg?.userId) === userId
   );
 
-  if (!myReg) {
-    return null;
-  }
+  if (!myReg) return null;
 
-  const statusConfig = REGISTRATION_STATUS[myReg.status];
-  
+  // Safe status + fallback config để tránh crash
+  const statusKey = myReg?.status ?? 'pending';
+
+  const statusConfig =
+    REGISTRATION_STATUS?.[statusKey] ?? { label: 'Không xác định', color: 'gray' };
+
+  const colorKey = statusConfig?.color ?? 'gray';
+
   const icons = {
     pending: <Clock className="w-5 h-5" />,
     accepted: <CheckCircle className="w-5 h-5" />,
@@ -57,24 +65,47 @@ const MyRegistrationStatus = ({ eventId, userId }) => {
   };
 
   return (
-    <div className={`p-4 rounded-xl border-2 shadow-sm ${bgColors[statusConfig.color]}`}>
+    <div
+      className={`p-4 rounded-xl border-2 shadow-sm ${
+        bgColors[colorKey] ?? bgColors.gray
+      }`}
+    >
       <div className="flex items-start gap-4">
-        <div className={`flex-shrink-0 p-2.5 rounded-full ${iconBgColors[statusConfig.color]}`}>
-          {icons[myReg.status]}
+        <div
+          className={`flex-shrink-0 p-2.5 rounded-full ${
+            iconBgColors[colorKey] ?? iconBgColors.gray
+          }`}
+        >
+          {icons[statusKey] ?? <AlertCircle className="w-5 h-5" />}
         </div>
+
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h4 className="font-bold text-gray-900">Trạng thái đăng ký</h4>
-            <span className={`text-sm font-semibold px-2 py-0.5 rounded ${colors[statusConfig.color]}`}>{statusConfig.label}</span>
+            <span
+              className={`text-sm font-semibold px-2 py-0.5 rounded ${
+                colors[colorKey] ?? colors.gray
+              }`}
+            >
+              {statusConfig.label}
+            </span>
           </div>
-          <p className="text-sm text-gray-700">{messages[myReg.status]}</p>
-          {myReg.rejectReason && myReg.status === 'rejected' && (
+
+          <p className="text-sm text-gray-700">
+            {messages[statusKey] ?? 'Trạng thái đăng ký chưa xác định.'}
+          </p>
+
+          {myReg.rejectReason && statusKey === 'rejected' && (
             <p className="text-sm mt-2 italic text-gray-600">
               Lý do: {myReg.rejectReason}
             </p>
           )}
+
           <p className="text-xs mt-2 text-gray-500">
-            Đăng ký lúc: {new Date(myReg.registeredAt).toLocaleString('vi-VN')}
+            Đăng ký lúc:{' '}
+            {myReg.registeredAt
+              ? new Date(myReg.registeredAt).toLocaleString('vi-VN')
+              : 'N/A'}
           </p>
         </div>
       </div>
