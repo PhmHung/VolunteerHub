@@ -13,7 +13,6 @@ import {
 import { motion } from "framer-motion";
 import QRCode from "../components/socials/QRCode.jsx";
 import ManagerQrScanner from "../components/socials/ManagerQrScanner.jsx";
-
 // redux
 import { fetchMyEvents } from "../features/eventSlice";
 import { fetchChannelByEventId, clearChannel, togglePostReaction, createComment } from "../features/channelSlice";
@@ -22,6 +21,7 @@ import { fetchMyQRCode, checkInByQr } from "../features/registrationSlice";
 // components
 import EventFeed from "../components/socials/EventFeed";
 import EventTabs from "../components/events/EventTabs";
+import EventReviews from "../components/events/EventReview";
 import EventReviews from "../components/events/EventReview";
 import VolunteersList from "../components/registrations/VolunteersList";
 import MyRegistrationStatus from "../components/registrations/MyRegistrationStatus";
@@ -102,6 +102,7 @@ const EventDetailView = ({ event, user, onBack }) => {
           </div>
         </div>
 
+        {/* Tabs */}
         {/* Tabs */}
         <EventTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 

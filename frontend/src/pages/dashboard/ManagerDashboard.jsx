@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import NotificationBell from "../../components/common/NotificationBell";
+import { useDeepLink } from "../../hooks/useDeepLink";
+import RegistrationManagementTable from "../../components/registrations/RegistrationManagementTable";
 import {
   Calendar,
   Users,
@@ -48,10 +50,11 @@ import PieStat from "../../components/users/PieStat";
 import { ToastContainer } from "../../components/common/Toast";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import PromptModal from "../../components/common/PromptModal";
-
+//import { useSearchParams } from "react-router-dom";
 export default function ManagerDashboard({ user }) {
   const dispatch = useDispatch();
   //const navigate = useNavigate();
+  //const [searchParams, setSearchParams] = useSearchParams();
   // Redux state
   const { list: allEvents = [], registrations: currentRegistrations = [] } =
     useSelector((state) => state.event);
@@ -105,6 +108,20 @@ export default function ManagerDashboard({ user }) {
     });
   }, [allEvents, activeUser]);
 
+  const myManagerRegistrations = useMemo(() => {
+    if (!myEvents.length || !allRegistrations.length) return [];
+
+    const myEventIds = myEvents.map((e) => e._id);
+
+    return allRegistrations.filter((reg) => {
+      // Xử lý trường hợp eventId là object (populated) hoặc string
+      const eventId = reg.eventId?._id || reg.eventId || reg.event;
+      return myEventIds.includes(eventId);
+    });
+  }, [myEvents, allRegistrations]);
+  const pendingRegCount = myManagerRegistrations.filter((r) =>
+    ["pending", "waitlisted"].includes(r.status)
+  ).length;
   // --- THỐNG KÊ (STATS) ---
   const stats = useMemo(() => {
     const approved = myEvents.filter((e) => e.status === "approved").length;
@@ -137,10 +154,17 @@ export default function ManagerDashboard({ user }) {
     { name: "Chờ hủy", value: stats.cancelPending, color: "#f97316" },
   ].filter((d) => d.value > 0);
 
-  // Hàm này sẽ được gọi khi bấm vào tên User trong danh sách
-  // const handleReviewRegistration = (registration) => {
-  //   setSelectedRegistration(registration);
-  // };
+  const { highlightId, clearParams } = useDeepLink({
+    setActiveTab,
+    setSelectedEvent,
+    dataList: myEvents,
+  });
+
+  // Hàm chuyển tab mới: Vừa đổi State vừa dọn dẹp URL rác
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    clearParams(tabId); // Xóa các tham số như action, eventId, highlight
+  };
 
   // Hàm duyệt thật sự (được gọi từ bên trong Modal)
   const handleApproveRegistration = async (regId) => {
@@ -337,7 +361,7 @@ export default function ManagerDashboard({ user }) {
           <div className='border-b border-gray-200 px-6 pt-4'>
             <div className='flex gap-8 overflow-x-auto no-scrollbar'>
               <button
-                onClick={() => setActiveTab("overview")}
+                onClick={() => handleTabChange("overview")}
                 className={`pb-4 text-sm font-medium relative flex items-center gap-2 whitespace-nowrap ${
                   activeTab === "overview"
                     ? "text-primary-600"
@@ -350,7 +374,7 @@ export default function ManagerDashboard({ user }) {
                 )}
               </button>
               <button
-                onClick={() => setActiveTab("events")}
+                onClick={() => handleTabChange("events")}
                 className={`pb-4 text-sm font-medium relative flex items-center gap-2 whitespace-nowrap ${
                   activeTab === "events"
                     ? "text-primary-600"
@@ -366,9 +390,28 @@ export default function ManagerDashboard({ user }) {
                 )}
               </button>
 
+              <button
+                onClick={() => handleTabChange("registrations")}
+                className={`pb-4 text-sm font-medium relative flex items-center gap-2 whitespace-nowrap ${
+                  activeTab === "registrations"
+                    ? "text-primary-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}>
+                <Users className='w-4 h-4' />
+                Duyệt đăng ký
+                {pendingRegCount > 0 && (
+                  <span className='ml-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full font-bold'>
+                    {pendingRegCount}
+                  </span>
+                )}
+                {activeTab === "registrations" && (
+                  <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600' />
+                )}
+              </button>
+
               {/* TAB QUẢN LÝ NGƯỜI DÙNG */}
               <button
-                onClick={() => setActiveTab("users_management")}
+                onClick={() => handleTabChange("users_management")}
                 className={`pb-4 text-sm font-medium relative flex items-center gap-2 whitespace-nowrap ${
                   activeTab === "users_management"
                     ? "text-primary-600"
@@ -481,6 +524,18 @@ export default function ManagerDashboard({ user }) {
                 onViewEvent={handleViewEvent}
                 onDeleteEvent={handleDeleteEvent}
                 onCancelEvent={handleRequestCancel}
+                highlightedId={highlightId}
+              />
+            )}
+
+            {activeTab === "registrations" && (
+              <RegistrationManagementTable
+                registrations={myManagerRegistrations}
+                users={allUsers}
+                events={myEvents}
+                onApprove={handleApproveRegistration}
+                onReject={handleRejectRegistration}
+                highlightedId={highlightId}
               />
             )}
 
@@ -519,10 +574,13 @@ export default function ManagerDashboard({ user }) {
           event={selectedEvent}
           registrations={currentRegistrations}
           users={[]}
-          onClose={() => setSelectedEvent(null)}
+          onClose={() => {
+            setSelectedEvent(null);
+            clearParams(activeTab);
+          }}
           onEdit={() => {
-            setSelectedEvent(null); // Đóng modal xem chi tiết
-            handleEditEvent(selectedEvent); // Mở form sửa
+            setSelectedEvent(null);
+            handleEditEvent(selectedEvent);
           }}
           onUserClick={handleViewUser}
           onApproveRegistration={handleApproveRegistration}

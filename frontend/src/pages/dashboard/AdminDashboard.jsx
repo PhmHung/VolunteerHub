@@ -1,6 +1,7 @@
 /** @format */
 
 import React, { useState, useEffect } from "react";
+//import { useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Calendar,
@@ -137,7 +138,7 @@ const AdminDashboard = ({ user }) => {
   const [selectedManagerRequest, setSelectedManagerRequest] = useState(null);
   const [viewingUser, setViewingUser] = useState(null);
   const [viewingEventDetail, setViewingEventDetail] = useState(null);
-
+  //const [searchParams, setSearchParams] = useSearchParams();
   const [toasts, setToasts] = useState([]);
 
   // Confirm / Prompt modals
