@@ -1,6 +1,6 @@
 /** @format */
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Briefcase,
   User,
@@ -9,10 +9,23 @@ import {
   TrendingUp,
   ArrowRight,
 } from "lucide-react";
-
 // Dùng cho component này, thường được AdminDashboard truyền xuống
 // Giả định mỗi user trong list đã được tính toán kinh nghiệm
-const PotentialManagerList = ({ suggestedUsers, onRecommend }) => {
+const PotentialManagerList = ({
+  suggestedUsers,
+  onRecommend,
+  highlightedId,
+}) => {
+  useEffect(() => {
+    if (highlightedId) {
+      const element = document.getElementById(
+        `suggestion-card-${highlightedId}`
+      );
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [highlightedId]);
   if (!suggestedUsers || suggestedUsers.length === 0) {
     return (
       <div className='text-center py-12 bg-white rounded-xl border border-gray-200'>
@@ -62,49 +75,75 @@ const PotentialManagerList = ({ suggestedUsers, onRecommend }) => {
             </tr>
           </thead>
           <tbody className='bg-white divide-y divide-gray-200'>
-            {suggestedUsers.map((user) => (
-              <tr
-                key={user._id}
-                className='hover:bg-green-50/50 transition-colors'>
-                <td className='px-6 py-4 whitespace-nowrap'>
-                  <div className='flex items-center'>
-                    <div className='flex-shrink-0 w-10 h-10'>
-                      <div className='w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold'>
-                        {user.userName?.charAt(0) || "U"}
+            {suggestedUsers.map((user) => {
+              // 1. Xác định xem hàng này có đang được highlight hay không
+              const isHighlighted = user._id === highlightedId;
+
+              return (
+                <tr
+                  key={user._id}
+                  // 2. Gán ID để useEffect trong component có thể tìm và cuộn đến đúng dòng này
+                  id={`suggestion-card-${user._id}`}
+                  // 3. Cập nhật ClassName: Thêm viền (ring) và nền màu xanh lá khi được highlight
+                  className={`transition-all duration-500 group ${
+                    isHighlighted
+                      ? "bg-green-100 ring-2 ring-green-500 ring-inset z-10 relative shadow-sm"
+                      : "hover:bg-green-50/50"
+                  }`}>
+                  <td className='px-6 py-4 whitespace-nowrap'>
+                    <div className='flex items-center'>
+                      <div className='flex-shrink-0 w-10 h-10'>
+                        {/* Thay đổi màu sắc Avatar dựa trên trạng thái highlight */}
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
+                            isHighlighted
+                              ? "bg-green-600 text-white"
+                              : "bg-green-100 text-green-700"
+                          }`}>
+                          {user.userName?.charAt(0) || "U"}
+                        </div>
+                      </div>
+                      <div className='ml-4'>
+                        <div
+                          className={`text-sm font-bold transition-colors ${
+                            isHighlighted ? "text-green-800" : "text-gray-900"
+                          }`}>
+                          {user.userName}
+                        </div>
+                        <div className='text-sm text-gray-500'>
+                          {user.userEmail}
+                        </div>
                       </div>
                     </div>
-                    <div className='ml-4'>
-                      <div className='text-sm font-medium text-gray-900'>
-                        {user.userName}
-                      </div>
-                      <div className='text-sm text-gray-500'>
-                        {user.userEmail}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                {/* ⚠️ LƯU Ý: Hiện tại đang giả định dữ liệu này có sẵn trong user object */}
-                <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-700'>
-                  {user.promotionData?.eventsCompleted || "N/A"}
-                </td>
-                <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-700'>
-                  {user.promotionData?.totalAttendanceHours?.toFixed(1) ||
-                    "N/A"}{" "}
-                  giờ
-                </td>
-                <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-700'>
-                  {user.promotionData?.averageRating?.toFixed(1) || "N/A"} / 5
-                </td>
-                <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium'>
-                  <button
-                    onClick={() => onRecommend(user)}
-                    className='text-green-600 hover:text-green-900 flex items-center gap-1 transition'>
-                    Đề cử ngay
-                    <ArrowRight className='w-4 h-4' />
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-700'>
+                    {user.promotionData?.eventsCompleted || "N/A"}
+                  </td>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-700'>
+                    {user.promotionData?.totalAttendanceHours?.toFixed(1) ||
+                      "N/A"}{" "}
+                    giờ
+                  </td>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-700'>
+                    {user.promotionData?.averageRating?.toFixed(1) || "N/A"} / 5
+                  </td>
+
+                  <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium'>
+                    <button
+                      onClick={() => onRecommend(user)}
+                      className={`flex items-center gap-1 transition-all ${
+                        isHighlighted
+                          ? "text-green-800 font-bold scale-105"
+                          : "text-green-600 hover:text-green-900"
+                      }`}>
+                      {isHighlighted ? "Đề cử ngay" : "Đề cử ngay"}
+                      <ArrowRight className='w-4 h-4' />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

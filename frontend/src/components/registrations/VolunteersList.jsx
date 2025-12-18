@@ -16,7 +16,6 @@ const VolunteersList = ({
 }) => {
   // Logic tạo volunteers (populate user vào reg object)
   const volunteers = registrations.map((reg) => {
-    // ... (Logic populate user) ...
     const user =
       users.find(
         (u) => u._id === (reg.userId?._id || reg.userId || reg.volunteer?._id)

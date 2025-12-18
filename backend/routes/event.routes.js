@@ -75,12 +75,7 @@ router.delete(
 router.get("/:eventId/feedbacks", protect, getEventFeedbacks);
 
 // Lấy danh sách đăng ký
-router.get(
-  "/:eventId/registrations",
-  protect,
-  allowAdminOrManager,
-  getEventRegistrations
-);
+router.get("/:eventId/registrations", protect, getEventRegistrations);
 
 // --- SPECIFIC ACTIONS (DUYỆT & HỦY) ---
 
