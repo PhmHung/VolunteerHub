@@ -16,16 +16,6 @@ const PotentialManagerList = ({
   onRecommend,
   highlightedId,
 }) => {
-  if (!suggestedUsers || suggestedUsers.length === 0) {
-    return (
-      <div className='text-center py-12 bg-white rounded-xl border border-gray-200'>
-        <Briefcase className='w-10 h-10 text-gray-400 mx-auto mb-3' />
-        <p className='text-gray-500 font-medium'>
-          Hiện tại không có ứng viên tiềm năng nào thỏa mãn tiêu chí tự động.
-        </p>
-      </div>
-    );
-  }
   useEffect(() => {
     if (highlightedId) {
       const element = document.getElementById(
@@ -36,6 +26,16 @@ const PotentialManagerList = ({
       }
     }
   }, [highlightedId]);
+  if (!suggestedUsers || suggestedUsers.length === 0) {
+    return (
+      <div className='text-center py-12 bg-white rounded-xl border border-gray-200'>
+        <Briefcase className='w-10 h-10 text-gray-400 mx-auto mb-3' />
+        <p className='text-gray-500 font-medium'>
+          Hiện tại không có ứng viên tiềm năng nào thỏa mãn tiêu chí tự động.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-4'>
