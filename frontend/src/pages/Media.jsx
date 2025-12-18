@@ -13,7 +13,6 @@ import {
 import { motion } from "framer-motion";
 import QRCode from "../components/socials/QRCode.jsx";
 import ManagerQrScanner from "../components/socials/ManagerQrScanner.jsx";
-
 // redux
 import { fetchMyEvents } from "../features/eventSlice";
 import { fetchChannelByEventId, clearChannel } from "../features/channelSlice";
@@ -23,11 +22,10 @@ import { checkInByQr } from "../features/registrationSlice";
 // components
 import EventFeed from "../components/socials/EventFeed";
 import EventTabs from "../components/events/EventTabs";
-import EventReview from "../components/events/EventReview";
+import EventReviews from "../components/events/EventReview";
 import VolunteersList from "../components/registrations/VolunteersList";
 import MyRegistrationStatus from "../components/registrations/MyRegistrationStatus";
-// 👇 IMPORT MỚI: Component bảng điểm danh
-import AttendanceTable from "../components/attendance/attendanceTab.jsx";
+
 /* ======================================================
    EVENT DETAIL VIEW
 ====================================================== */
@@ -39,18 +37,12 @@ const EventDetailView = ({ event, user, onBack }) => {
 
   const { myQrToken, qrLoading } = useSelector((state) => state.registration);
 
-  const { myQrToken, qrLoading } = useSelector(
-  (state) => state.registration
-);
+  useEffect(() => {
+    if (activeTab === "qr" && user.role === "volunteer") {
+      dispatch(fetchMyQRCode(event._id));
+    }
+  }, [activeTab, user.role]);
 
-useEffect(() => {
-  if (activeTab === "qr" && user.role === "volunteer") {
-    dispatch(fetchMyQRCode(event._id));
-  }
-}, [activeTab, user.role]);
-  
-
-  // Fetch Channel chat
   useEffect(() => {
     dispatch(fetchChannelByEventId(event._id));
     return () => dispatch(clearChannel());
@@ -75,11 +67,10 @@ useEffect(() => {
     setScanError(err);
   }, []);
 
-
   return (
     <div className='flex-1 bg-surface-50 h-screen overflow-y-auto'>
       <div className='max-w-6xl mx-auto pb-10'>
-        {/* Back Button */}
+        {/* Back */}
         <div className='p-4 sticky top-0 z-30 bg-white border-b shadow-sm'>
           <button
             onClick={onBack}
@@ -88,8 +79,7 @@ useEffect(() => {
             Quay lại
           </button>
         </div>
-
-        {/* Header Image & Title */}
+        {/* Header */}
         <div className='relative h-72 overflow-hidden'>
           <img
             src={event.image}
@@ -104,35 +94,22 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Tabs Navigation */}
+        {/* Tabs */}
         <EventTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {/* Content Area */}
         <div className='px-4 lg:px-8 mt-6'>
           <MyRegistrationStatus eventId={event._id} userId={user._id} />
 
-          {/* 1. DISCUSSION TAB */}
           {activeTab === "discussion" && (
             <EventFeed event={event} user={user} />
           )}
-
-          {/* 2. REVIEWS TAB */}
           {activeTab === "reviews" && (
-            <EventReview user={user} eventId={event._id} />
+            <EventReviews user={user} eventId={event._id} />
           )}
-
-          {/* 3. MEMBERS TAB (Đã sửa lỗi cú pháp) */}
           {activeTab === "members" && (
-            <>
-              {user.role === "manager" || user.role === "admin" ? (
-                <AttendanceTable eventId={event._id} />
-              ) : (
-                <VolunteersList eventId={event._id} user={user} />
-              )}
-            </>
+            <VolunteersList eventId={event._id} user={user} />
           )}
 
-          {/* 4. ABOUT TAB */}
           {activeTab === "about" && (
             <div className='card p-6'>
               <h2 className='text-xl font-bold mb-4'>Giới thiệu</h2>
@@ -142,7 +119,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* 5. MEDIA TAB */}
           {activeTab === "media" && (
             <div className='card p-12 text-center'>
               <ImageIcon className='w-10 h-10 mx-auto text-text-muted mb-3' />
@@ -150,7 +126,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* 6. QR TAB */}
           {activeTab === "qr" && (
             <div className='card p-6 text-center'>
               <h2 className='text-xl font-bold mb-4'>
@@ -159,7 +134,7 @@ useEffect(() => {
                   : "Quét mã QR tình nguyện viên"}
               </h2>
 
-              {/* --- Volunteer View: Show My QR --- */}
+              {/* ================= VOLUNTEER ================= */}
               {user.role === "volunteer" && (
                 <>
                   {qrLoading && <p>Đang tải QR...</p>}
@@ -178,56 +153,19 @@ useEffect(() => {
                 </>
               )}
 
-              {/* --- Manager View: Show Scanner --- */}
+              {/* ================= MANAGER ================= */}
               {user.role === "manager" && (
                 <div className='max-w-sm mx-auto'>
                   <ManagerQrScanner
-                    onScanSuccess={(token) => {
-                      setScannedToken(token);
-                      // Gửi mã QR lên server để check-in
-                      dispatch(
-                        checkInByQr({
-                          qrToken: token,
-                        })
-                      );
-                    }}
-                    onScanError={(err) => {
-                      setScanError(err);
-                    }}
+                    onScanSuccess={handleScanSuccess}
+                    onScanError={handleScanError}
                   />
 
-        {!myQrToken && !qrLoading && (
-          <p className="text-text-muted">
-            Bạn chưa có mã QR cho sự kiện này
-          </p>
-        )}
-      </>
-    )}
-
-{/* ================= MANAGER ================= */}
-{user.role === "manager" && (
-  <div className="max-w-sm mx-auto">
-    <ManagerQrScanner
-      onScanSuccess={handleScanSuccess}
-      onScanError={handleScanError}
-    />
-
-    {scannedToken && (
-      <p className="mt-4 text-green-600 font-medium break-all">
-        ✔ Đã quét: {scannedToken}
-      </p>
-    )}
-
-    {scanError && (
-      <p className="mt-4 text-red-500 text-sm">
-        {scanError}
-      </p>
-    )}
-  </div>
-)}
-
-  </div>
-)}
+                  {scannedToken && (
+                    <p className='mt-4 text-green-600 font-medium break-all'>
+                      ✔ Đã quét: {scannedToken}
+                    </p>
+                  )}
 
                   {scanError && (
                     <p className='mt-4 text-red-500 text-sm'>{scanError}</p>
@@ -256,7 +194,6 @@ const Media = ({ user }) => {
     dispatch(fetchMyEvents());
   }, [dispatch, user]);
 
-  // Nếu đã chọn event -> Hiển thị chi tiết (EventDetailView)
   if (selectedEvent) {
     return (
       <EventDetailView
@@ -267,7 +204,6 @@ const Media = ({ user }) => {
     );
   }
 
-  // Nếu chưa chọn event -> Hiển thị danh sách (Grid)
   return (
     <div className='flex-1 bg-surface-50 h-screen overflow-y-auto'>
       <div className='max-w-5xl mx-auto p-6 lg:p-10'>

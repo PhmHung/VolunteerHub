@@ -64,7 +64,7 @@ export function fullUrl(path) {
 export const approvalRequestApi = {
   // Lấy danh sách yêu cầu chờ duyệt
   getPendingRequests: () => api.get("/api/approval-requests/pending"),
-
+  getMyRequests: () => api.get("/api/approval-requests/my-requests"),
   // Duyệt yêu cầu
   approveRequest: (requestId, adminNote = "") =>
     api.patch(`/api/approval-requests/${requestId}/approve`, { adminNote }),

@@ -1,5 +1,11 @@
 /** @format */
-import React, { useState, useMemo } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react"; // 1. Thêm hooks
 import {
   Users,
   CheckCircle,
@@ -12,7 +18,7 @@ import {
   Search,
   Filter,
 } from "lucide-react";
-import { REGISTRATION_STATUS } from "../../utils/constants"; // Đảm bảo đường dẫn đúng
+import { REGISTRATION_STATUS } from "../../utils/constants";
 
 // Component con: Card hiển thị từng đăng ký
 const RegistrationCard = ({
@@ -21,8 +27,20 @@ const RegistrationCard = ({
   event,
   onAccept,
   onReject,
+  isHighlighted, // 2. Nhận prop highlight
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const cardRef = useRef(null); // 3. Tạo Ref
+
+  // 4. Effect: Tự động cuộn đến thẻ này nếu được highlight
+  useEffect(() => {
+    if (isHighlighted && cardRef.current) {
+      cardRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [isHighlighted]);
 
   // Fallback config nếu chưa có trong constants
   const statusConfig = REGISTRATION_STATUS?.[registration.status] || {
@@ -38,14 +56,19 @@ const RegistrationCard = ({
 
   const handleReject = async () => {
     setIsProcessing(true);
-    // Logic nhập lý do từ chối có thể xử lý ở parent hoặc tại đây
-    // Ở đây ta gọi hàm reject của parent để mở Modal/Prompt
     await onReject(registration);
     setIsProcessing(false);
   };
 
   return (
-    <div className='bg-white p-5 rounded-xl border border-gray-200 hover:shadow-md transition duration-200'>
+    <div
+      ref={cardRef} // Gắn Ref vào thẻ cha
+      // 5. Logic CSS: Giữ nguyên style cũ (bg-white, p-5...), chỉ đổi Border và Shadow khi highlight
+      className={`bg-white p-5 rounded-xl border transition-all duration-500 ${
+        isHighlighted
+          ? "border-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.3)] ring-1 ring-blue-300 scale-[1.02] z-10" // Hiệu ứng làm sáng viền
+          : "border-gray-200 hover:shadow-md" // Style mặc định cũ
+      }`}>
       <div className='flex flex-col sm:flex-row items-start gap-4'>
         {/* Avatar */}
         <div className='flex-shrink-0'>
@@ -180,36 +203,38 @@ const RegistrationCard = ({
 
 // Component chính
 const RegistrationManagementTable = ({
-  registrations = [], // Nhận từ AdminDashboard
-  users = [], // Nhận từ AdminDashboard
-  events = [], // Nhận từ AdminDashboard
-  onApprove, // Hàm xử lý duyệt từ AdminDashboard
-  onReject, // Hàm xử lý từ chối từ AdminDashboard
+  registrations = [],
+  users = [],
+  events = [],
+  onApprove,
+  onReject,
   loading = false,
+  highlightedId, // 6. Nhận ID cần highlight từ Parent
 }) => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Helper tìm thông tin
-  const findVolunteer = (userId) => {
-    if (!userId) return {};
-    // Xử lý cả trường hợp userId là object (đã populate) hoặc string ID
-    const id = userId._id || userId;
-    // Nếu userId là object đã populate thì dùng luôn, nếu không thì tìm trong list users
-    return userId.userName ? userId : users.find((u) => u._id === id) || {};
-  };
+  const findVolunteer = useCallback(
+    (userId) => {
+      if (!userId) return {};
+      const id = userId._id || userId;
+      return userId.userName ? userId : users.find((u) => u._id === id) || {};
+    },
+    [users]
+  ); // Phụ thuộc vào danh sách users
 
-  const findEvent = (eventId) => {
-    if (!eventId) return {};
-    const id = eventId._id || eventId;
-    return eventId.title ? eventId : events.find((e) => e._id === id) || {};
-  };
+  const findEvent = useCallback(
+    (eventId) => {
+      if (!eventId) return {};
+      const id = eventId._id || eventId;
+      return eventId.title ? eventId : events.find((e) => e._id === id) || {};
+    },
+    [events]
+  );
 
-  // Filter Logic
   const filteredRegistrations = useMemo(() => {
+    // Ưu tiên đưa thẻ được highlight lên đầu danh sách (Tùy chọn, ở đây mình giữ nguyên thứ tự)
     return registrations.filter((reg) => {
-      // 1. Filter by Status
-      // Lưu ý: Mapping các trạng thái nếu backend dùng từ khác nhau (waitlisted vs pending)
       const currentStatus = reg.status;
       if (filterStatus !== "all") {
         if (
@@ -232,7 +257,6 @@ const RegistrationManagementTable = ({
           return false;
       }
 
-      // 2. Filter by Search
       if (searchQuery) {
         const volunteer = findVolunteer(reg.userId || reg.volunteer);
         const event = findEvent(reg.eventId || reg.event);
@@ -246,7 +270,7 @@ const RegistrationManagementTable = ({
       }
       return true;
     });
-  }, [registrations, filterStatus, searchQuery, users, events]);
+  }, [registrations, filterStatus, searchQuery, findVolunteer, findEvent]);
 
   // Stats
   const stats = {
@@ -273,7 +297,7 @@ const RegistrationManagementTable = ({
 
   return (
     <div className='space-y-6'>
-      {/* 1. Thống kê nhanh (Stats) */}
+      {/* 1. Thống kê nhanh (Stats) - Giữ nguyên */}
       <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
         <div className='bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3'>
           <div className='p-2 bg-blue-50 text-blue-600 rounded-lg'>
@@ -321,7 +345,7 @@ const RegistrationManagementTable = ({
         </div>
       </div>
 
-      {/* 2. Bộ lọc (Filters) */}
+      {/* 2. Bộ lọc (Filters) - Giữ nguyên */}
       <div className='bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row gap-4'>
         <div className='flex-1 relative'>
           <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
@@ -348,7 +372,7 @@ const RegistrationManagementTable = ({
       </div>
 
       {/* 3. Danh sách (List) */}
-      <div className='space-y-4'>
+      <div className='space-y-4 pb-20'>
         {filteredRegistrations.length === 0 ? (
           <div className='bg-white p-12 rounded-xl border border-gray-200 border-dashed text-center'>
             <div className='w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4'>
@@ -372,6 +396,8 @@ const RegistrationManagementTable = ({
               event={findEvent(registration.eventId || registration.event)}
               onAccept={onApprove}
               onReject={onReject}
+              // 7. Truyền trạng thái highlight
+              isHighlighted={registration._id === highlightedId}
             />
           ))
         )}

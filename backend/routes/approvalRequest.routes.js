@@ -19,10 +19,10 @@ router.route("/:id/approve").patch(protect, allowAdminOnly, approveRequest); // 
 
 router.route("/:id/reject").patch(protect, allowAdminOnly, rejectRequest); // Admin: Từ chối
 
+// === MANAGER ROUTES ===
+router.route("/my-requests").get(protect, getMyRequests); //Xem yêu cầu của mình
+
 // === SHARED ROUTES ===
 router.route("/:id").get(protect, getRequestById); // Manager/Admin: Xem chi tiết
-
-// === MANAGER ROUTES ===
-router.route("/my-request").get(protect, getMyRequests); // Manager: Xem yêu cầu của mình
 
 export default router;

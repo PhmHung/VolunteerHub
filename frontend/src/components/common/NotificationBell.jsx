@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import {
   Bell,
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Info,
   Clock,
+  Trash2,
 } from "lucide-react";
 
 // Actions
@@ -27,6 +28,7 @@ import {
 
 const NotificationBell = ({ user }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -42,69 +44,72 @@ const NotificationBell = ({ user }) => {
 
   const role = user?.role;
 
-  // --- 1. FETCH DATA DỰA TRÊN ROLE ---
+  // --- 1. FETCH DATA ---
   useEffect(() => {
+    if (!role || !user?._id) return;
+
     if (role === "admin") {
       dispatch(fetchPendingApprovals());
-      dispatch(fetchManagementEvents({ status: "pending" })); // Lấy sự kiện chờ duyệt
-      // Admin cũng cần xem registration pending nếu muốn (tùy logic)
-      dispatch(fetchAllRegistrations());
+      dispatch(fetchManagementEvents({ status: "pending" }));
     } else if (role === "manager") {
-      dispatch(fetchMyEvents({ limit: 100 })); // Lấy event của tôi để check registration
-      dispatch(fetchMyRequests()); // Xem trạng thái các yêu cầu hủy/tạo event
-      dispatch(fetchAllRegistrations()); // Lấy danh sách đăng ký pending
+      dispatch(fetchMyEvents({ limit: 100 }));
+      dispatch(fetchMyRequests());
+      dispatch(fetchAllRegistrations());
     } else if (role === "volunteer") {
       dispatch(fetchMyRegistrations());
     }
-  }, [dispatch, role]);
+  }, [dispatch, role, user?._id]);
 
-  // --- 2. XỬ LÝ LOGIC THÔNG BÁO CHO TỪNG ROLE ---
+  // --- 2. XỬ LÝ LOGIC THÔNG BÁO ---
   const notifications = useMemo(() => {
     let list = [];
 
-    // === ADMIN: Yêu cầu duyệt Event, User, Hủy Event ===
+    // === ADMIN ===
     if (role === "admin") {
-      // 1. Sự kiện mới chờ duyệt
       const newEvents = allEvents.filter((e) => e.status === "pending");
       newEvents.forEach((e) => {
         list.push({
           id: `new_event_${e._id}`,
           title: "Sự kiện mới chờ duyệt",
-          message: e.title,
+          message: `Sự kiện "${e.title}" vừa được tạo và đang chờ bạn phê duyệt.`,
           type: "info",
           time: e.createdAt,
           icon: CalendarIcon,
+          link: `/admin/dashboard?tab=events_management&action=view&id=${e._id}`,
         });
       });
 
-      // 2. Yêu cầu từ Approval Slice (Thăng cấp, Hủy sự kiện)
       pendingApprovals.forEach((req) => {
-        if (req.type === "manager_promotion") {
-          list.push({
-            id: req._id,
-            title: "Yêu cầu thăng cấp Manager",
-            message: `Từ: ${req.requestedBy?.userName || "User"}`,
-            type: "warning",
-            time: req.createdAt,
-            icon: UserIcon,
-          });
-        } else if (req.type === "event_cancellation") {
+        if (req.type === "event_cancellation") {
           list.push({
             id: req._id,
             title: "Yêu cầu HỦY sự kiện",
-            message: `Event: ${req.event?.title || "Unknown"}`,
+            message: `${req.requestedBy?.userName || "Ai đó"} muốn hủy: "${
+              req.event?.title || "sự kiện"
+            }".`,
             type: "danger",
             time: req.createdAt,
             icon: AlertIcon,
+            link: `/admin/dashboard?tab=events_management&action=review_cancel&id=${req._id}`,
+          });
+        } else if (req.type === "manager_promotion") {
+          list.push({
+            id: req._id,
+            title: "Yêu cầu thăng cấp",
+            message: `Người dùng ${
+              req.requestedBy?.userName || "Hội viên"
+            } đang chờ duyệt thăng cấp.`,
+            type: "warning",
+            time: req.createdAt,
+            icon: UserIcon,
+            link: `/admin/dashboard?tab=users_management&action=review_promotion&id=${req._id}`,
           });
         }
       });
     }
 
-    // === MANAGER: Đăng ký mới, Trạng thái Event, Trạng thái yêu cầu hủy ===
+    // === MANAGER ===
     if (role === "manager") {
-      // 1. User đăng ký tham gia event của tôi (Pending)
-      // Lọc các đăng ký thuộc về event do manager này tạo
       const myEventIds = myEvents.map((e) => e._id);
       const myPendingRegs = pendingRegistrations.filter(
         (reg) =>
@@ -113,105 +118,116 @@ const NotificationBell = ({ user }) => {
       );
 
       myPendingRegs.forEach((reg) => {
-        const eventTitle = reg.eventId?.title || "Sự kiện của bạn";
         list.push({
           id: reg._id,
           title: "Đăng ký tham gia mới",
-          message: `${reg.userId?.userName} đã đăng ký "${eventTitle}"`,
+          message: `${reg.userId?.userName || "Tình nguyện viên"} đã đăng ký "${
+            reg.eventId?.title || "sự kiện của bạn"
+          }"`,
           type: "info",
           time: reg.createdAt,
           icon: UserIcon,
+          link: `/manager/dashboard?tab=registrations&highlight=${reg._id}`,
         });
       });
 
-      // 2. Thông báo về trạng thái yêu cầu (Event được duyệt, Event hủy được duyệt)
-      // Dựa vào myRequestsList
       myRequestsList.forEach((req) => {
-        // Chỉ hiện những cái đã xử lý (approved/rejected) gần đây (Logic giả định vì ko có field 'read')
+        // 👇 Lấy ID an toàn
+        const targetEventId = req.event?._id || req.event;
         if (req.status === "approved") {
-          if (req.type === "event_approval") {
-            list.push({
-              id: req._id,
-              title: "Sự kiện được CHẤP NHẬN",
-              message: `Admin đã duyệt sự kiện "${req.event?.title}"`,
-              type: "success",
-              time: req.reviewedAt || req.updatedAt,
-              icon: CheckIcon,
-            });
-          } else if (req.type === "event_cancellation") {
-            list.push({
-              id: req._id,
-              title: "Yêu cầu HỦY được chấp nhận",
-              message: `Sự kiện "${req.event?.title}" đã được hủy thành công.`,
-              type: "danger", // Màu đỏ để chú ý nhưng là success action
-              time: req.reviewedAt || req.updatedAt,
-              icon: CheckIcon,
-            });
-          }
+          list.push({
+            id: req._id,
+            title:
+              req.type === "event_approval"
+                ? "Sự kiện ĐÃ ĐƯỢC DUYỆT"
+                : "Yêu cầu ĐÃ CHẤP NHẬN",
+            message: `Yêu cầu cho "${
+              req.event?.title || "sự kiện"
+            }" đã được thông qua.`,
+            type: "success",
+            time: req.reviewedAt || req.updatedAt,
+            icon: CheckIcon,
+            link: `/manager/dashboard?tab=events&highlight=${targetEventId}`,
+          });
         } else if (req.status === "rejected") {
           list.push({
             id: req._id,
             title: "Yêu cầu bị TỪ CHỐI",
-            message: `Admin từ chối yêu cầu cho "${req.event?.title}". Lý do: ${req.adminNote}`,
-            type: "warning",
+            message: `Admin từ chối yêu cầu cho sự kiện "${
+              req.event?.title || "sự kiện"
+            }".`,
+            type: "danger",
             time: req.reviewedAt || req.updatedAt,
             icon: XIcon,
+            link: `/manager/dashboard?tab=events&highlight=${targetEventId}`,
           });
         }
       });
 
-      // 3. Sự kiện bị hủy cưỡng chế (Admin Force Cancel)
-      // Check trong myEvents nếu status = cancelled và không phải do mình request (logic tương đối)
       myEvents.forEach((e) => {
-        if (e.status === "cancelled" && e.cancelledBy !== user._id) {
-          // Đây là logic giả định, cần backend hỗ trợ để biết chính xác ai hủy
-          // Hoặc kiểm tra xem có approval request nào approved không, nếu không mà status cancelled -> Admin hủy
+        if (e.status === "cancelled" && e.cancelledBy !== user?._id) {
+          list.push({
+            id: `force_cancel_${e._id}`,
+            title: "Sự kiện bị Admin HỦY",
+            message: `"${e.title}" đã bị hủy trực tiếp bởi Admin.`,
+            type: "danger",
+            time: e.updatedAt,
+            icon: AlertIcon,
+            link: `/manager/dashboard?tab=events&highlight=${e._id}`,
+          });
         }
       });
     }
 
-    // === VOLUNTEER: Trạng thái đăng ký, Check-in ===
+    // === VOLUNTEER ===
     if (role === "volunteer") {
       myRegistrations.forEach((reg) => {
-        const eventTitle = reg.eventId?.title || "Sự kiện";
+        const event = reg.eventId;
+        const eventId = event?._id || event; // 👈 Lấy ID an toàn cho link
+        const eventTitle = event?.title || "Sự kiện";
 
-        if (reg.status === "registered" || reg.status === "approved") {
+        if (reg.status === "approved" || reg.status === "registered") {
           list.push({
-            id: `reg_app_${reg._id}`,
+            id: `approved_${reg._id}`,
             title: "Đăng ký thành công",
-            message: `Bạn đã được chấp nhận tham gia "${eventTitle}"`,
+            message: `Bạn đã được duyệt tham gia "${eventTitle}"`,
             type: "success",
             time: reg.updatedAt,
             icon: CheckIcon,
-          });
-        } else if (reg.status === "cancelled" || reg.status === "rejected") {
-          // Có thể là bị từ chối hoặc user tự hủy
-          if (reg.status === "rejected") {
-            list.push({
-              id: `reg_rej_${reg._id}`,
-              title: "Đăng ký bị từ chối",
-              message: `Rất tiếc, đăng ký tham gia "${eventTitle}" không thành công.`,
-              type: "danger",
-              time: reg.updatedAt,
-              icon: XIcon,
-            });
-          }
-        } else if (reg.status === "event_cancelled") {
-          list.push({
-            id: `evt_cx_${reg._id}`,
-            title: "Sự kiện bị HỦY",
-            message: `Sự kiện "${eventTitle}" đã bị hủy bởi BTC.`,
-            type: "danger",
-            time: reg.updatedAt,
-            icon: AlertIcon,
+            link: `/events/${eventId}`,
           });
         }
 
-        // Check-in (Logic: Có attendance record - cần attendanceSlice, tạm thời bỏ qua hoặc check field checkInTime trong registration nếu có)
+        if (event?.status === "cancelled") {
+          list.push({
+            id: `event_cancelled_${eventId}`,
+            title: "Sự kiện đã bị hủy",
+            message: `Rất tiếc, sự kiện "${eventTitle}" bạn tham gia đã bị hủy.`,
+            type: "danger",
+            time: event.updatedAt,
+            icon: AlertIcon,
+            link: `/events/${eventId}`,
+          });
+        }
+
+        if (
+          event?.updatedAt &&
+          new Date(event.updatedAt) > new Date(reg.createdAt) &&
+          event.status === "approved"
+        ) {
+          list.push({
+            id: `event_updated_${eventId}`,
+            title: "Sự kiện có cập nhật mới",
+            message: `Thông tin sự kiện "${eventTitle}" đã được thay đổi. Hãy kiểm tra lại.`,
+            type: "info",
+            time: event.updatedAt,
+            icon: CalendarIcon,
+            link: `/events/${eventId}`,
+          });
+        }
       });
     }
 
-    // Sắp xếp mới nhất lên đầu
     return list.sort((a, b) => new Date(b.time) - new Date(a.time));
   }, [
     role,
@@ -221,16 +237,20 @@ const NotificationBell = ({ user }) => {
     myEvents,
     myRequestsList,
     myRegistrations,
+    user?._id,
   ]);
 
+  // (Phần handleItemClick và Render giữ nguyên như cũ...)
   const unreadCount = notifications.length;
+  const handleItemClick = (item) => {
+    setIsOpen(false);
+    if (item.link) navigate(item.link);
+  };
 
-  // Click outside to close
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target))
         setIsOpen(false);
-      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -239,12 +259,10 @@ const NotificationBell = ({ user }) => {
   return (
     <div className='relative' ref={dropdownRef}>
       <div
-        className='relative cursor-pointer p-1 rounded-full hover:bg-gray-100 transition'
+        className='relative cursor-pointer p-1 rounded-full hover:bg-gray-100'
         onClick={() => setIsOpen(!isOpen)}>
         <Bell
-          className={`w-6 h-6 ${
-            isOpen ? "text-primary-600" : "text-gray-500 hover:text-gray-700"
-          }`}
+          className={`w-6 h-6 ${isOpen ? "text-primary-600" : "text-gray-500"}`}
         />
         {unreadCount > 0 && (
           <span className='absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-white transform translate-x-1 -translate-y-1'>
@@ -253,27 +271,26 @@ const NotificationBell = ({ user }) => {
         )}
       </div>
 
-      {/* DROPDOWN MENU */}
       {isOpen && (
-        <div className='absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200'>
+        <div className='absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50'>
           <div className='px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center'>
             <h3 className='font-bold text-gray-800'>Thông báo</h3>
             <span className='text-xs text-gray-500 bg-white px-2 py-1 rounded border'>
               {unreadCount} mới
             </span>
           </div>
-
-          <div className='max-h-[400px] overflow-y-auto custom-scrollbar'>
+          <div className='max-h-[400px] overflow-y-auto'>
             {notifications.length === 0 ? (
               <div className='p-8 text-center text-gray-500'>
                 <Bell className='w-10 h-10 mx-auto mb-2 text-gray-300' />
-                <p className='text-sm'>Bạn không có thông báo nào.</p>
+                <p>Không có thông báo nào.</p>
               </div>
             ) : (
               notifications.map((item) => (
                 <div
                   key={item.id}
-                  className='px-4 py-3 hover:bg-gray-50 border-b border-gray-50 transition cursor-pointer flex gap-3 items-start'>
+                  onClick={() => handleItemClick(item)}
+                  className='px-4 py-3 hover:bg-gray-50 border-b flex gap-3 cursor-pointer'>
                   <div
                     className={`mt-1 p-1.5 rounded-full shrink-0 ${getIconColor(
                       item.type
@@ -289,20 +306,12 @@ const NotificationBell = ({ user }) => {
                     </p>
                     <p className='text-[10px] text-gray-400 mt-1 flex items-center gap-1'>
                       <Clock className='w-3 h-3' />
-                      {item.time
-                        ? new Date(item.time).toLocaleString("vi-VN")
-                        : "Vừa xong"}
+                      {new Date(item.time).toLocaleString("vi-VN")}
                     </p>
                   </div>
                 </div>
               ))
             )}
-          </div>
-
-          <div className='p-2 bg-gray-50 text-center border-t border-gray-100'>
-            <button className='text-xs text-primary-600 hover:text-primary-700 font-medium'>
-              Xem tất cả
-            </button>
           </div>
         </div>
       )}
@@ -310,10 +319,9 @@ const NotificationBell = ({ user }) => {
   );
 };
 
-// --- HELPER ICONS & STYLES ---
+// --- HELPER ICONS (Giữ nguyên các hàm Icon của bạn) ---
 const CalendarIcon = ({ className }) => (
   <svg
-    xmlns='http://www.w3.org/2000/svg'
     width='24'
     height='24'
     viewBox='0 0 24 24'
@@ -331,7 +339,6 @@ const CalendarIcon = ({ className }) => (
 );
 const UserIcon = ({ className }) => (
   <svg
-    xmlns='http://www.w3.org/2000/svg'
     width='24'
     height='24'
     viewBox='0 0 24 24'
@@ -348,6 +355,7 @@ const UserIcon = ({ className }) => (
 const CheckIcon = ({ className }) => <CheckCircle className={className} />;
 const XIcon = ({ className }) => <XCircle className={className} />;
 const AlertIcon = ({ className }) => <AlertTriangle className={className} />;
+const TrashIcon = ({ className }) => <Trash2 className={className} />;
 
 const getIconColor = (type) => {
   switch (type) {

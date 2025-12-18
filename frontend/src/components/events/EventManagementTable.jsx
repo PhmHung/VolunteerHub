@@ -31,6 +31,7 @@ const EventManagementTable = ({
   onApproveCancellation,
   onRejectCancellation,
   onEditEvent,
+  highlightedId,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -65,6 +66,14 @@ const EventManagementTable = ({
       statusFilter === "all" || event.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+  React.useEffect(() => {
+    if (highlightedId) {
+      const element = document.getElementById(`event-row-${highlightedId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [highlightedId]);
 
   // Config Status UI
   const getStatusConfig = (status) => {
@@ -241,11 +250,17 @@ const EventManagementTable = ({
 
                 const isCancelPending = event.status === "cancel_pending";
                 const isPending = event.status === "pending";
-
+                const isHighlighted = event._id === highlightedId;
                 return (
                   <tr
                     key={event._id}
-                    className='hover:bg-gray-50/80 transition-colors group'>
+                    id={`event-row-${event._id}`}
+                    //className='hover:bg-gray-50/80 transition-colors group'>
+                    className={`transition-all duration-500 group ${
+                      isHighlighted
+                        ? "bg-blue-50/80 ring-2 ring-blue-500 ring-inset z-10 relative shadow-md"
+                        : "hover:bg-gray-50/80"
+                    }`}>
                     {/* Cột 1: Tên sự kiện */}
                     <td className='px-6 py-4 align-top'>
                       <div className='flex gap-3'>
