@@ -211,7 +211,7 @@ const RegistrationManagementTable = ({
   loading = false,
   highlightedId, // 6. Nhận ID cần highlight từ Parent
 }) => {
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("pending");
   const [searchQuery, setSearchQuery] = useState("");
 
   const findVolunteer = useCallback(
@@ -232,11 +232,68 @@ const RegistrationManagementTable = ({
     [events]
   );
 
+  // const filteredRegistrations = useMemo(() => {
+  //   // Ưu tiên đưa thẻ được highlight lên đầu danh sách (Tùy chọn, ở đây mình giữ nguyên thứ tự)
+  //   return registrations.filter((reg) => {
+  //     const event = findEvent(reg.eventId || reg.event);
+  //     if (event?.status === "cancelled") return false;
+  //     const currentStatus = reg.status;
+  //     const isTargetHighlighted = reg._id === highlightedId;
+  //     if (isTargetHighlighted) return true;
+  //     if (filterStatus !== "all") {
+  //       if (
+  //         filterStatus === "pending" &&
+  //         currentStatus !== "pending" &&
+  //         currentStatus !== "waitlisted"
+  //       )
+  //         return false;
+  //       if (
+  //         filterStatus === "approved" &&
+  //         currentStatus !== "approved" &&
+  //         currentStatus !== "registered"
+  //       )
+  //         return false;
+  //       if (
+  //         filterStatus === "rejected" &&
+  //         currentStatus !== "rejected" &&
+  //         currentStatus !== "cancelled"
+  //       )
+  //         return false;
+  //     }
+
+  //     if (searchQuery) {
+  //       const volunteer = findVolunteer(reg.userId || reg.volunteer);
+  //       const event = findEvent(reg.eventId || reg.event);
+  //       const term = searchQuery.toLowerCase();
+
+  //       return (
+  //         volunteer?.userName?.toLowerCase().includes(term) ||
+  //         volunteer?.userEmail?.toLowerCase().includes(term) ||
+  //         event?.title?.toLowerCase().includes(term)
+  //       );
+  //     }
+  //     return true;
+  //   });
+  // }, [
+  //   registrations,
+  //   filterStatus,
+  //   searchQuery,
+  //   findVolunteer,
+  //   findEvent,
+  //   highlightedId,
+  // ]);
   const filteredRegistrations = useMemo(() => {
-    // Ưu tiên đưa thẻ được highlight lên đầu danh sách (Tùy chọn, ở đây mình giữ nguyên thứ tự)
     return registrations.filter((reg) => {
-      const currentStatus = reg.status;
+      const event = findEvent(reg.eventId || reg.event);
+      if (!event || event.status === "cancelled") return false;
+
+      // QUY TẮC NGOẠI LỆ: Nếu là bản ghi đang được highlight, LUÔN giữ lại
+      const isTargetHighlighted = reg._id === highlightedId;
+      if (isTargetHighlighted) return true;
+
+      // Logic lọc theo trạng thái thông thường
       if (filterStatus !== "all") {
+        const currentStatus = reg.status;
         if (
           filterStatus === "pending" &&
           currentStatus !== "pending" &&
@@ -257,24 +314,37 @@ const RegistrationManagementTable = ({
           return false;
       }
 
+      // Logic tìm kiếm (Nếu có searchQuery, nó sẽ lọc tiếp trên danh sách đã qua bộ lọc status)
       if (searchQuery) {
         const volunteer = findVolunteer(reg.userId || reg.volunteer);
-        const event = findEvent(reg.eventId || reg.event);
         const term = searchQuery.toLowerCase();
-
         return (
           volunteer?.userName?.toLowerCase().includes(term) ||
           volunteer?.userEmail?.toLowerCase().includes(term) ||
           event?.title?.toLowerCase().includes(term)
         );
       }
+
       return true;
     });
-  }, [registrations, filterStatus, searchQuery, findVolunteer, findEvent]);
+  }, [
+    registrations,
+    filterStatus,
+    searchQuery,
+    findVolunteer,
+    findEvent,
+    highlightedId,
+  ]);
+  const activeRegistrations = useMemo(() => {
+    return registrations.filter((reg) => {
+      const event = findEvent(reg.eventId || reg.event);
+      return event?.status !== "cancelled";
+    });
+  }, [registrations, findEvent]);
 
   // Stats
   const stats = {
-    total: registrations.length,
+    total: activeRegistrations.length,
     pending: registrations.filter((r) =>
       ["pending", "waitlisted"].includes(r.status)
     ).length,

@@ -51,12 +51,13 @@ const EventDetail = () => {
 
         try {
           const regRes = await api.get(`/api/events/${id}/registrations`);
-          setRegistrations(regRes.data);
-        } catch (regError) {
-          console.warn("Lỗi tải danh sách đăng ký:", regError);
+          // Đảm bảo lấy đúng mảng registrations (thêm fallback mảng rỗng)
+          const regData = regRes.data?.data || regRes.data || [];
+          setRegistrations(Array.isArray(regData) ? regData : []);
+        } catch {
+          setRegistrations([]);
         }
-      } catch (err) {
-        console.error("Lỗi tải sự kiện:", err);
+      } catch {
         setError("Không thể tải thông tin sự kiện.");
       } finally {
         setLoading(false);

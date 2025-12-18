@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Clock,
   Trash2,
+  Check,
 } from "lucide-react";
 
 // Actions
@@ -25,14 +26,23 @@ import {
   fetchAllRegistrations,
   fetchMyRegistrations,
 } from "../../features/registrationSlice";
+import { fetchSuggestedManagers } from "../../features/userSlice";
 
 const NotificationBell = ({ user }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [readIds, setReadIds] = useState(() => {
+    const saved = localStorage.getItem(`read_notifications_${user?._id}`);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    const saved = localStorage.getItem(`dismissed_notifications_${user?._id}`);
+    return saved ? JSON.parse(saved) : [];
+  });
   const dropdownRef = useRef(null);
 
-  // --- REDUX STATE ---
   const { list: allEvents = [], myEvents = [] } = useSelector(
     (state) => state.event
   );
@@ -41,16 +51,31 @@ const NotificationBell = ({ user }) => {
   const { pendingRegistrations = [], myRegistrations = [] } = useSelector(
     (state) => state.registration
   );
-
+  const { suggestedManagers = [] } = useSelector((state) => state.user);
   const role = user?.role;
 
   // --- 1. FETCH DATA ---
+  useEffect(() => {
+    if (user?._id) {
+      localStorage.setItem(
+        `read_notifications_${user?._id}`,
+        JSON.stringify(readIds)
+      );
+      localStorage.setItem(
+        `dismissed_notifications_${user?._id}`,
+        JSON.stringify(dismissedIds)
+      );
+    }
+  }, [readIds, dismissedIds, user?._id]);
+
   useEffect(() => {
     if (!role || !user?._id) return;
 
     if (role === "admin") {
       dispatch(fetchPendingApprovals());
       dispatch(fetchManagementEvents({ status: "pending" }));
+      dispatch(fetchSuggestedManagers());
+      dispatch(fetchAllRegistrations());
     } else if (role === "manager") {
       dispatch(fetchMyEvents({ limit: 100 }));
       dispatch(fetchMyRequests());
@@ -60,12 +85,31 @@ const NotificationBell = ({ user }) => {
     }
   }, [dispatch, role, user?._id]);
 
+  const handleMarkAsRead = (e, id) => {
+    e.stopPropagation();
+    if (!readIds.includes(id)) setReadIds([...readIds, id]);
+  };
+
+  const handleDismiss = (e, id) => {
+    e.stopPropagation();
+    if (!dismissedIds.includes(id)) setDismissedIds([...dismissedIds, id]);
+  };
+  const handleMarkAllRead = () => {
+    const allIds = notifications.map((n) => n.id);
+    setReadIds((prev) => {
+      // Sử dụng Set để tránh trùng lặp ID
+      const newReadIds = new Set([...prev, ...allIds]);
+      return Array.from(newReadIds);
+    });
+  };
   // --- 2. XỬ LÝ LOGIC THÔNG BÁO ---
   const notifications = useMemo(() => {
     let list = [];
 
-    // === ADMIN ===
+    // === ADMIN === ?? Đang lõi route
+
     if (role === "admin") {
+      // 1. Thông báo Sự kiện mới chờ duyệt (Tab Quản lý sự kiện)
       const newEvents = allEvents.filter((e) => e.status === "pending");
       newEvents.forEach((e) => {
         list.push({
@@ -75,11 +119,33 @@ const NotificationBell = ({ user }) => {
           type: "info",
           time: e.createdAt,
           icon: CalendarIcon,
-          link: `/admin/dashboard?tab=events_management&action=view&id=${e._id}`,
+          // Dẫn đến tab Quản lý sự kiện, mở modal view và highlight
+          link: `/admin/dashboard?tab=events_management&action=view&highlight=${e._id}`,
         });
       });
 
+      // 2. Thông báo Duyệt đăng ký tham gia của Volunteer (Tab Duyệt đăng ký)
+      pendingRegistrations
+        .filter(
+          (reg) => reg.status === "pending" || reg.status === "waitlisted"
+        )
+        .forEach((reg) => {
+          list.push({
+            id: `reg_vol_${reg._id}`,
+            title: "Yêu cầu tham gia mới",
+            message: `${
+              reg.userId?.userName || "Tình nguyện viên"
+            } đăng ký tham gia "${reg.eventId?.title}"`,
+            type: "info",
+            time: reg.createdAt,
+            icon: UserIcon,
+            // Trỏ về tab volunteers (Duyệt đăng ký) và highlight đơn đó
+            link: `/admin/dashboard?tab=volunteers&highlight=${reg._id}`,
+          });
+        });
+
       pendingApprovals.forEach((req) => {
+        // 3. Thông báo Yêu cầu HỦY sự kiện (Tab Quản lý sự kiện)
         if (req.type === "event_cancellation") {
           list.push({
             id: req._id,
@@ -90,21 +156,40 @@ const NotificationBell = ({ user }) => {
             type: "danger",
             time: req.createdAt,
             icon: AlertIcon,
-            link: `/admin/dashboard?tab=events_management&action=review_cancel&id=${req._id}`,
+            // Dẫn đến tab Quản lý sự kiện, mở modal review_cancel và highlight sự kiện
+            link: `/admin/dashboard?tab=events_management&action=review_cancel&highlight=${
+              req.event?._id || req.event
+            }`,
           });
-        } else if (req.type === "manager_promotion") {
+        }
+        // 4. Thông báo Yêu cầu thăng cấp Manager chủ động (Tab Duyệt Manager)
+        else if (req.type === "manager_promotion") {
           list.push({
             id: req._id,
             title: "Yêu cầu thăng cấp",
             message: `Người dùng ${
               req.requestedBy?.userName || "Hội viên"
-            } đang chờ duyệt thăng cấp.`,
+            } đang chờ duyệt thăng cấp Manager.`,
             type: "warning",
             time: req.createdAt,
             icon: UserIcon,
-            link: `/admin/dashboard?tab=users_management&action=review_promotion&id=${req._id}`,
+            link: `/admin/dashboard?tab=managers&action=review_promotion&highlight=${req._id}`,
           });
         }
+      });
+
+      // 5. Thông báo Gợi ý ứng viên tiềm năng
+      suggestedManagers.forEach((suggest) => {
+        list.push({
+          id: `suggest_${suggest._id}`,
+          title: "Ứng viên Manager tiềm năng",
+          message: `Hệ thống gợi ý thăng cấp cho "${suggest.userName}" dựa trên hoạt động tích cực.`,
+          type: "success",
+          time: new Date(),
+          icon: CheckIcon,
+          // Dẫn đến tab suggestions (Gợi ý Manager) và highlight User đó
+          link: `/admin/dashboard?tab=suggestions&highlight=${suggest._id}`,
+        });
       });
     }
 
@@ -228,7 +313,21 @@ const NotificationBell = ({ user }) => {
       });
     }
 
-    return list.sort((a, b) => new Date(b.time) - new Date(a.time));
+    return list
+      .filter((item) => !dismissedIds.includes(item.id)) // Loại bỏ thông báo bị ẩn
+      .sort((a, b) => {
+        const aRead = readIds.includes(a.id);
+        const bRead = readIds.includes(b.id);
+
+        // 1. Nếu một cái chưa đọc (false) và một cái đã đọc (true)
+        // false - true = -1 (đẩy lên đầu)
+        if (aRead !== bRead) {
+          return aRead ? 1 : -1;
+        }
+
+        // 2. Nếu cùng trạng thái đọc/chưa đọc, sắp xếp theo thời gian mới nhất
+        return new Date(b.time) - new Date(a.time);
+      });
   }, [
     role,
     allEvents,
@@ -237,13 +336,19 @@ const NotificationBell = ({ user }) => {
     myEvents,
     myRequestsList,
     myRegistrations,
+    suggestedManagers,
+    dismissedIds,
+    readIds,
     user?._id,
   ]);
 
-  // (Phần handleItemClick và Render giữ nguyên như cũ...)
-  const unreadCount = notifications.length;
+  const unreadCount = notifications.filter(
+    (n) => !readIds.includes(n.id)
+  ).length;
+
   const handleItemClick = (item) => {
     setIsOpen(false);
+    if (!readIds.includes(item.id)) setReadIds([...readIds, item.id]); // Tự động đánh dấu đã đọc khi click
     if (item.link) navigate(item.link);
   };
 
@@ -259,58 +364,106 @@ const NotificationBell = ({ user }) => {
   return (
     <div className='relative' ref={dropdownRef}>
       <div
-        className='relative cursor-pointer p-1 rounded-full hover:bg-gray-100'
+        className='relative cursor-pointer p-1 rounded-full hover:bg-gray-100 transition-colors'
         onClick={() => setIsOpen(!isOpen)}>
         <Bell
           className={`w-6 h-6 ${isOpen ? "text-primary-600" : "text-gray-500"}`}
         />
         {unreadCount > 0 && (
-          <span className='absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-white transform translate-x-1 -translate-y-1'>
-            {unreadCount > 99 ? "99+" : unreadCount}
+          <span className='absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white transform translate-x-1 -translate-y-1'>
+            {unreadCount > 99 ? "9" : unreadCount}
           </span>
         )}
       </div>
 
       {isOpen && (
-        <div className='absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50'>
-          <div className='px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center'>
-            <h3 className='font-bold text-gray-800'>Thông báo</h3>
-            <span className='text-xs text-gray-500 bg-white px-2 py-1 rounded border'>
-              {unreadCount} mới
-            </span>
+        <div className='absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50'>
+          <div className='px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center'>
+            <h3 className='font-bold text-gray-800 text-sm'>Thông báo</h3>
+            <div className='flex gap-3'>
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  className='text-[11px] text-blue-600 font-medium hover:underline'>
+                  Đọc tất cả
+                </button>
+              )}
+            </div>
           </div>
-          <div className='max-h-[400px] overflow-y-auto'>
+
+          <div className='max-h-[420px] overflow-y-auto custom-scrollbar'>
             {notifications.length === 0 ? (
-              <div className='p-8 text-center text-gray-500'>
-                <Bell className='w-10 h-10 mx-auto mb-2 text-gray-300' />
-                <p>Không có thông báo nào.</p>
+              <div className='p-12 text-center text-gray-400'>
+                <Bell className='w-12 h-12 mx-auto mb-3 opacity-20' />
+                <p className='text-sm'>Hộp thư trống</p>
               </div>
             ) : (
-              notifications.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => handleItemClick(item)}
-                  className='px-4 py-3 hover:bg-gray-50 border-b flex gap-3 cursor-pointer'>
+              notifications.map((item) => {
+                const isRead = readIds.includes(item.id);
+                return (
                   <div
-                    className={`mt-1 p-1.5 rounded-full shrink-0 ${getIconColor(
-                      item.type
-                    )}`}>
-                    <item.icon className='w-4 h-4 text-white' />
+                    key={item.id}
+                    onClick={() => handleItemClick(item)}
+                    className={`px-4 py-3 border-b border-gray-50 flex gap-3 cursor-pointer relative group transition-all duration-300 ${
+                      isRead
+                        ? "opacity-60 bg-white"
+                        : "bg-blue-50/30 hover:bg-white shadow-inner"
+                    }`}>
+                    {/* NÚT THAO TÁC (Hiện khi hover) */}
+                    <div className='absolute right-2 top-2 hidden group-hover:flex gap-1 z-10'>
+                      {!isRead && (
+                        <button
+                          onClick={(e) => handleMarkAsRead(e, item.id)}
+                          className='p-1.5 bg-white shadow-sm border border-gray-100 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors'
+                          title='Đã đọc'>
+                          <Check className='w-3.5 h-3.5' />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => handleDismiss(e, item.id)}
+                        className='p-1.5 bg-white shadow-sm border border-gray-100 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors'
+                        title='Bỏ qua'>
+                        <Trash2 className='w-3.5 h-3.5' />
+                      </button>
+                    </div>
+
+                    <div
+                      className={`mt-1 p-2 rounded-lg shrink-0 ${getIconColor(
+                        item.type
+                      )} shadow-sm`}>
+                      <item.icon className='w-4 h-4 text-white' />
+                    </div>
+
+                    <div className='flex-1 pr-6'>
+                      <div className='flex items-center gap-2'>
+                        <p
+                          className={`text-sm ${
+                            isRead
+                              ? "font-medium text-gray-500"
+                              : "font-bold text-gray-800"
+                          }`}>
+                          {item.title}
+                        </p>
+                        {!isRead && (
+                          <span className='w-2 h-2 bg-blue-500 rounded-full animate-pulse'></span>
+                        )}
+                      </div>
+                      <p className='text-xs text-gray-600 mt-0.5 line-clamp-2 leading-relaxed'>
+                        {item.message}
+                      </p>
+                      <p className='text-[10px] text-gray-400 mt-1.5 flex items-center gap-1'>
+                        <Clock className='w-3 h-3' />
+                        {new Date(item.time).toLocaleString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          day: "2-digit",
+                          month: "2-digit",
+                        })}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className='text-sm font-semibold text-gray-800'>
-                      {item.title}
-                    </p>
-                    <p className='text-xs text-gray-600 mt-0.5 line-clamp-2'>
-                      {item.message}
-                    </p>
-                    <p className='text-[10px] text-gray-400 mt-1 flex items-center gap-1'>
-                      <Clock className='w-3 h-3' />
-                      {new Date(item.time).toLocaleString("vi-VN")}
-                    </p>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

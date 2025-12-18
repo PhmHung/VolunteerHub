@@ -1,7 +1,8 @@
 /** @format */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 //import { useSearchParams } from "react-router-dom";
+import { useDeepLink } from "../../hooks/useDeepLink";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Calendar,
@@ -158,7 +159,15 @@ const AdminDashboard = ({ user }) => {
     confirmText: "",
     cancelText: "Hủy",
   });
-
+  //Hiển thị lượng đăng ký
+  const displayRegistrations = useMemo(() => {
+    return pendingRegistrations.filter((reg) => {
+      const eventId =
+        reg.eventId?._id || reg.eventId || reg.event?._id || reg.event;
+      const event = allEvents.find((e) => e._id === eventId);
+      return event && event.status !== "cancelled";
+    });
+  }, [pendingRegistrations, allEvents]);
   // Helpers
   const addToast = (message, type = "success") => {
     const id = Date.now();
@@ -167,6 +176,24 @@ const AdminDashboard = ({ user }) => {
   const removeToast = (id) =>
     setToasts((prev) => prev.filter((t) => t.id !== id));
 
+  const { highlightId, clearParams } = useDeepLink({
+    setActiveTab,
+    setSelectedEvent: setViewingEventDetail,
+    setSelectedManagerRequest: setSelectedManagerRequest,
+    setViewingUser: setViewingUser,
+    dataList:
+      activeTab === "managers"
+        ? pendingManagerRequests
+        : activeTab === "users_management"
+        ? allUsers
+        : allEvents,
+  });
+
+  // Hàm chuyển tab đồng bộ URL
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    clearParams(tabId); // Xóa sạch các tham số rác trên URL
+  };
   // Effects
   useEffect(() => {
     dispatch(fetchManagementEvents({ status: "", limit: 1000 }));
@@ -175,6 +202,17 @@ const AdminDashboard = ({ user }) => {
     dispatch(fetchSuggestedManagers());
     dispatch(fetchPendingApprovals());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (activeTab === "managers" && highlightId) {
+      const element = document.getElementById(`manager-req-${highlightId}`);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 100);
+      }
+    }
+  }, [activeTab, highlightId]);
 
   // Toast handling
   useEffect(() => {
@@ -655,7 +693,7 @@ const AdminDashboard = ({ user }) => {
                   {
                     id: "volunteers",
                     label: "Duyệt đăng ký",
-                    count: pendingRegistrations.length,
+                    count: displayRegistrations.length,
                     color: "blue",
                   },
                   {
@@ -674,7 +712,7 @@ const AdminDashboard = ({ user }) => {
                 ].map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`pb-4 text-sm font-medium relative whitespace-nowrap ${
                       activeTab === tab.id
                         ? "text-emerald-600"
@@ -763,6 +801,7 @@ const AdminDashboard = ({ user }) => {
                   registrations={pendingRegistrations}
                   // Props cho phần Cancel Request (Khối màu đỏ)
                   cancelRequests={pendingCancelRequests}
+                  highlightedId={highlightId}
                   onViewCancelRequest={handleViewCancelRequest}
                   onApproveCancellation={handleApproveCancellation}
                   onRejectCancellation={handleRejectCancellation}
@@ -778,9 +817,10 @@ const AdminDashboard = ({ user }) => {
               {/* Các Tabs khác (Giữ nguyên) */}
               {activeTab === "volunteers" && (
                 <RegistrationManagementTable
-                  registrations={pendingRegistrations}
+                  registrations={displayRegistrations}
                   users={allUsers}
                   events={allEvents}
+                  highlightedId={highlightId}
                   onApprove={handleApproveRegistration}
                   onReject={handleRejectRegistration}
                   loading={false}
@@ -794,44 +834,84 @@ const AdminDashboard = ({ user }) => {
                       Không có yêu cầu Manager nào đang chờ duyệt.
                     </div>
                   ) : (
-                    pendingManagerRequests.map((req) => (
-                      <div
-                        key={req._id}
-                        className='bg-white rounded-xl border p-5 flex items-center justify-between hover:shadow-md transition'>
-                        <div className='flex items-center gap-4'>
-                          <div className='w-12 h-12 rounded-full bg-purple-100 overflow-hidden'>
-                            {req.requestedBy?.profilePicture ? (
-                              <img
-                                src={req.requestedBy.profilePicture}
-                                alt=''
-                                className='w-full h-full object-cover'
-                              />
-                            ) : (
-                              <div className='w-full h-full flex items-center justify-center text-purple-700 font-bold'>
-                                {req.requestedBy?.userName?.[0] || "U"}
-                              </div>
-                            )}
+                    pendingManagerRequests.map((req) => {
+                      // 1. Kiểm tra trạng thái highlight dựa trên ID từ URL
+                      const isHighlighted = req._id === highlightId;
+
+                      return (
+                        <div
+                          key={req._id}
+                          // 2. Gán ID để logic scrollIntoView có thể tìm thấy hàng này
+                          id={`manager-req-${req._id}`}
+                          // 3. Thêm các class CSS để hiển thị viền tím và nền nổi bật khi được highlight
+                          className={`bg-white rounded-xl border p-5 flex items-center justify-between transition-all duration-500 ${
+                            isHighlighted
+                              ? "ring-2 ring-purple-500 bg-purple-50/50 shadow-md z-10 relative"
+                              : "hover:shadow-md border-gray-200"
+                          }`}>
+                          <div className='flex items-center gap-4'>
+                            {/* Avatar với viền thay đổi khi highlight */}
+                            <div
+                              className={`w-12 h-12 rounded-full overflow-hidden border-2 transition-colors ${
+                                isHighlighted
+                                  ? "border-purple-500"
+                                  : "border-transparent"
+                              }`}>
+                              {req.requestedBy?.profilePicture ? (
+                                <img
+                                  src={req.requestedBy.profilePicture}
+                                  alt=''
+                                  className='w-full h-full object-cover'
+                                />
+                              ) : (
+                                <div
+                                  className={`w-full h-full flex items-center justify-center font-bold transition-colors ${
+                                    isHighlighted
+                                      ? "bg-purple-600 text-white"
+                                      : "bg-purple-100 text-purple-700"
+                                  }`}>
+                                  {req.requestedBy?.userName?.[0] || "U"}
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              {/* Tên người dùng chuyển màu tím đậm khi highlight */}
+                              <p
+                                className={`font-bold transition-colors ${
+                                  isHighlighted
+                                    ? "text-purple-900"
+                                    : "text-gray-900"
+                                }`}>
+                                {req.requestedBy?.userName ||
+                                  "Người dùng không xác định"}
+                              </p>
+                              <p className='text-sm text-gray-500'>
+                                Hoàn thành:{" "}
+                                <span className='font-semibold text-gray-700'>
+                                  {req.promotionData?.eventsCompleted || 0}
+                                </span>{" "}
+                                sự kiện •{" "}
+                                <span className='font-semibold text-gray-700'>
+                                  {req.promotionData?.totalAttendanceHours || 0}
+                                </span>{" "}
+                                giờ
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className='font-semibold'>
-                              {req.requestedBy?.userName ||
-                                "Người dùng không xác định"}
-                            </p>
-                            <p className='text-sm text-gray-500'>
-                              Hoàn thành:{" "}
-                              {req.promotionData?.eventsCompleted || 0} sự kiện
-                              • {req.promotionData?.totalAttendanceHours || 0}{" "}
-                              giờ
-                            </p>
-                          </div>
+
+                          {/* Nút bấm chuyển sang màu đặc khi highlight */}
+                          <button
+                            onClick={() => setSelectedManagerRequest(req)}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                              isHighlighted
+                                ? "bg-purple-600 text-white shadow-sm scale-105"
+                                : "bg-purple-50 text-purple-700 hover:bg-purple-100"
+                            }`}>
+                            Xem chi tiết
+                          </button>
                         </div>
-                        <button
-                          onClick={() => setSelectedManagerRequest(req)}
-                          className='px-4 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 font-medium'>
-                          Xem chi tiết
-                        </button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               )}
@@ -842,6 +922,7 @@ const AdminDashboard = ({ user }) => {
                   onViewUser={handleViewUser}
                   onToggleUserStatus={handleToggleUserStatus}
                   onDeleteUser={handleDeleteUser}
+                  highlightedId={highlightId}
                 />
               )}
 
@@ -849,6 +930,7 @@ const AdminDashboard = ({ user }) => {
                 <PotentialManagerList
                   suggestedUsers={suggestedManagers}
                   onRecommend={handleRecommendManager}
+                  highlightedId={highlightId}
                 />
               )}
             </div>
@@ -912,7 +994,10 @@ const AdminDashboard = ({ user }) => {
         events={allEvents}
         addToast={addToast}
         setConfirmModal={setConfirmModal}
-        onClose={() => setViewingUser(null)}
+        onClose={() => {
+          setViewingUser(null);
+          clearParams(activeTab);
+        }}
         onEventClick={handleViewEvent}
       />
 
@@ -920,7 +1005,10 @@ const AdminDashboard = ({ user }) => {
         event={viewingEventDetail}
         registrations={pendingRegistrations}
         users={allUsers}
-        onClose={() => setViewingEventDetail(null)}
+        onClose={() => {
+          setViewingEventDetail(null);
+          clearParams(activeTab);
+        }}
         onUserClick={handleViewEvent}
       />
 
