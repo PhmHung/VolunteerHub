@@ -22,7 +22,6 @@ import { fetchMyQRCode, checkInByQr } from "../features/registrationSlice";
 import EventFeed from "../components/socials/EventFeed";
 import EventTabs from "../components/events/EventTabs";
 import EventReviews from "../components/events/EventReview";
-import EventReviews from "../components/events/EventReview";
 import VolunteersList from "../components/registrations/VolunteersList";
 import MyRegistrationStatus from "../components/registrations/MyRegistrationStatus";
 import PostDetailModal from "../components/socials/PostDetailModal"; // Import khối Modal chi tiết
