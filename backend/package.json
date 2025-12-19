@@ -9,6 +9,7 @@
     "dev:full": "concurrently \"npm run start:be\" \"npm run start:fe\"",
     "seed:user": "node seeder/seederUser.js",
     "seed:event": "node seeder/seederEvent.js",
+    "seed:event:dates": "node seeder/seedEventDates.js",
     "seed:registration": "node seeder/seederRegistration.js",
     "seed:attendance": "node seeder/seederAttendance.js",
     "seed:approval": "node seeder/seedApprovalRequest.js",

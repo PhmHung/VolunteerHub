@@ -15,8 +15,9 @@ import QRCode from "../components/socials/QRCode.jsx";
 import ManagerQrScanner from "../components/socials/ManagerQrScanner.jsx";
 // redux
 import { fetchMyEvents } from "../features/eventSlice";
-import { fetchChannelByEventId, clearChannel, togglePostReaction, createComment } from "../features/channelSlice";
-import { fetchMyQRCode, checkInByQr } from "../features/registrationSlice";
+import { fetchChannelByEventId, clearChannel } from "../features/channelSlice";
+import { fetchMyQRCode } from "../features/registrationSlice";
+import { checkOutByQr } from "../features/registrationSlice";
 
 // components
 import EventFeed from "../components/socials/EventFeed";
@@ -24,7 +25,7 @@ import EventTabs from "../components/events/EventTabs";
 import EventReviews from "../components/events/EventReview";
 import VolunteersList from "../components/registrations/VolunteersList";
 import MyRegistrationStatus from "../components/registrations/MyRegistrationStatus";
-import PostDetailModal from "../components/socials/PostDetailModal"; // Import khối Modal chi tiết
+import { EventMediaGallery } from "../components/socials/EventMediaGallery.jsx";
 
 /* ======================================================
    EVENT DETAIL VIEW (Trang chi tiết sự kiện)
@@ -32,13 +33,23 @@ import PostDetailModal from "../components/socials/PostDetailModal"; // Import k
 const EventDetailView = ({ event, user, onBack }) => {
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("discussion");
-  const [scannedToken, setScannedToken] = useState(null);
   const [scanError, setScanError] = useState(null);
 
-  // STATE QUẢN LÝ MODAL CHI TIẾT BÀI VIẾT
-  const [selectedPostDetail, setSelectedPostDetail] = useState(null);
+  const {
+  checkOutMessage,
+  checkOutError,
+  checkOutLoading,
+} = useSelector((state) => state.registration);
+
 
   const { myQrToken, qrLoading } = useSelector((state) => state.registration);
+  const [scrollToPostId, setScrollToPostId] = useState(null);
+
+  const currentChannel = useSelector(
+  (state) => state.channel.current
+);
+
+
 
   useEffect(() => {
     if (activeTab === "qr" && user.role === "volunteer") {
@@ -52,31 +63,34 @@ const EventDetailView = ({ event, user, onBack }) => {
   }, [dispatch, event._id]);
 
   const handleScanSuccess = useCallback(
-    (token) => {
-      setScannedToken(token);
-      dispatch(checkInByQr({ qrToken: token }));
-    },
-    [dispatch]
-  );
+  (token) => {
+    dispatch(checkOutByQr({ qrToken: token }));
+  },
+  [dispatch]
+);
+
 
   const handleScanError = useCallback((err) => {
     setScanError(err);
   }, []);
 
-  // Hàm Like/Comment dùng chung cho Modal
-  const handleLike = (postId) => {
-    dispatch(togglePostReaction({ postId, type: "like" }));
-  };
+  const attendances = currentChannel?.attendances || [];
 
-  const handleComment = (postId, content) => {
-    dispatch(createComment({ postId, content }));
-  };
+  const attendanceRegistrations = attendances.map((att) => ({
+    _id: att._id,
+    userId: att.regId?.userId,
+    status: att.status,
+    registeredAt: att.regId?.registeredAt,
+    checkOut: att.checkOut,
+    feedback: att.feedback,
+  }));
+
 
   return (
-    <div className="flex-1 bg-surface-50 h-screen overflow-y-auto relative">
+    <div className="flex-1 bg-surface-50 min-h-screen">
       <div className="max-w-6xl mx-auto pb-10">
-        {/* Nút quay lại */}
-        <div className="p-4 sticky top-0 z-30 bg-white border-b shadow-sm">
+        {/* Back */}
+        <div className="p-4 bg-white border-b shadow-sm">
           <button
             onClick={onBack}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200"
@@ -110,11 +124,28 @@ const EventDetailView = ({ event, user, onBack }) => {
 
           {activeTab === "discussion" && (
             <EventFeed 
-              event={event} 
-              user={user} 
-              onOpenDetail={(post) => setSelectedPostDetail(post)} // Mở modal khi nhấn vào post
-            />
+            event={event} 
+            user={user} 
+            scrollToPostId={scrollToPostId}
+  onScrolled={() => setScrollToPostId(null)}
+/>
           )}
+          {activeTab === "reviews" && (
+            <EventReviews user={user} eventId={event._id} />
+          )}
+          {activeTab === "members" && (
+  <div className="card p-6">
+    <VolunteersList
+      registrations={attendanceRegistrations}
+      compact={false}
+      canView={true}
+      onUserClick={(user) => {
+        console.log("Click user:", user);
+      }}
+    />
+  </div>
+)}
+
 
           {activeTab === "reviews" && <EventReviews user={user} eventId={event._id} />}
           {activeTab === "members" && <VolunteersList eventId={event._id} user={user} />}
@@ -127,12 +158,14 @@ const EventDetailView = ({ event, user, onBack }) => {
             </div>
           )}
 
-          {activeTab === "media" && (
-            <div className="card p-12 text-center bg-white rounded-xl shadow-sm border border-gray-100">
-              <ImageIcon className="w-10 h-10 mx-auto text-gray-300 mb-3" />
-              <p className="text-gray-400">Chưa có hình ảnh</p>
-            </div>
-          )}
+{activeTab === "media" && (
+  <EventMediaGallery
+    posts={currentChannel?.posts || []}
+    user={user}
+    eventId={event._id || event.id}
+  />
+)}
+
 
           {activeTab === "qr" && (
             <div className="card p-6 text-center bg-white rounded-xl shadow-sm border border-gray-100">
@@ -158,12 +191,29 @@ const EventDetailView = ({ event, user, onBack }) => {
                     onScanSuccess={handleScanSuccess}
                     onScanError={handleScanError}
                   />
-                  {scannedToken && (
-                    <p className="mt-4 text-green-600 font-medium break-all">
-                      ✔ Đã quét thành công
-                    </p>
+
+                  {checkOutLoading && (
+  <p className="mt-4 text-blue-500 font-medium">
+    ⏳ Đang xử lý check-out...
+  </p>
+)}
+
+{checkOutMessage && (
+  <p className="mt-4 text-green-600 font-semibold">
+    ✔ {checkOutMessage}
+  </p>
+)}
+
+{checkOutError && (
+  <p className="mt-4 text-red-500 font-medium">
+    ❌ {checkOutError}
+  </p>
+)}
+
+
+                  {scanError && (
+                    <p className='mt-4 text-red-500 text-sm'>{scanError}</p>
                   )}
-                  {scanError && <p className="mt-4 text-red-500 text-sm">{scanError}</p>}
                 </div>
               )}
             </div>
@@ -210,10 +260,10 @@ const Media = ({ user }) => {
   }
 
   return (
-    <div className="flex-1 bg-surface-50 h-screen overflow-y-auto">
+    <div className="flex-1 bg-surface-50 min-h-screen">
       <div className="max-w-5xl mx-auto p-6 lg:p-10">
-        <h1 className="text-3xl font-bold mb-2 text-gray-900">Cộng đồng của tôi</h1>
-        <p className="text-gray-500 mb-8">
+        <h1 className="text-3xl font-bold mb-2">Cộng đồng của tôi</h1>
+        <p className="text-text-secondary mb-8">
           Các sự kiện bạn đang tham gia
         </p>
 

@@ -2,7 +2,7 @@
 
 // Enum trạng thái điểm danh (Khớp với Attendance Model)
 export const ATTENDANCE_STATUS = {
-  IN_PROGRESS: "in-progress", // Đã check-in, chưa check-out
+  IN_PROGRESS: "in-progress", // Đang đợi check-out
   COMPLETED: "completed", // Đã check-out xong
   ABSENT: "absent", // Vắng mặt (Có đăng ký nhưng không đến)
 };

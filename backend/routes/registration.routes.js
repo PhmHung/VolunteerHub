@@ -9,7 +9,7 @@ import {
   cancelRegistration,
   getMyRegistrations,
   getMyQRCode,
-  checkInByQr,
+  checkOutByQr,
   getAllRegistrationsForManagement,
   acceptRegistration,
   rejectRegistration,
@@ -27,6 +27,6 @@ router.put("/:id/accept", allowAdminOrManager, acceptRegistration);
 router.put("/:id/reject", allowAdminOrManager, rejectRegistration);
 
 router.get("/:eventId/my-qr", protect, getMyQRCode);
-router.post("/check-in", protect, checkInByQr);
+router.post("/check-out", protect, checkOutByQr);
 
 export default router;

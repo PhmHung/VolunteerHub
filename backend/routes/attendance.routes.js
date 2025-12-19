@@ -2,8 +2,6 @@
 
 import express from "express";
 import {
-  recordCheckIn,
-  recordCheckOut,
   addFeedback,
   getAttendancesByEvent,
   getEventFeedbacks,
@@ -27,11 +25,7 @@ router.get("/event/:eventId/rating", getEventPublicRating);
 // Áp dụng middleware protect cho tất cả các route bên dưới
 router.use(protect);
 
-// 1. Nhóm thao tác Check-in / Check-out (User/Volunteer)
-router.post("/checkin", recordCheckIn);
-router.post("/checkout", recordCheckOut);
-
-// 2. Nhóm thao tác Feedback (User)
+// 1. Nhóm thao tác Feedback (User)
 // @desc    Gửi feedback (Chỉ người đã check-out mới gửi được - logic nằm trong controller)
 // @route   PUT /api/attendances/:id/feedback
 router.put("/:id/feedback", addFeedback);
@@ -40,7 +34,7 @@ router.put("/:id/feedback", addFeedback);
 // @route   GET /api/attendances/event/:eventId/feedbacks
 router.get("/event/:eventId/feedbacks", getEventFeedbacks);
 
-// 3. Nhóm tiện ích cá nhân
+// 2. Nhóm tiện ích cá nhân
 // @desc    Lấy thông tin điểm danh dựa trên Registration ID (Để hiển thị trạng thái check-in cho user)
 // @route   GET /api/attendances/registration/:regId
 router.get("/registration/:regId", getAttendanceByRegId);

@@ -90,7 +90,7 @@ const EventFeed = ({ user, event }) => {
           <div key={post.id} onClick={() => setSelectedPost(post)}>
             <Post
               post={post}
-              eventId={event._id || event.id}
+              eventId={event._id || event.id} 
               currentUser={user}
               onLike={handleLike}
               onComment={handleComment}

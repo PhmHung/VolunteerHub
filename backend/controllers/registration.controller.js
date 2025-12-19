@@ -3,6 +3,8 @@
 import asyncHandler from "express-async-handler";
 import Registration from "../models/registrationModel.js";
 import Event from "../models/eventModel.js";
+import Attendance from "../models/attendanceModel.js";
+
 
 // Import Enum từ file constants (Đảm bảo đường dẫn đúng với cấu trúc dự án của bạn)
 import { REGISTRATION_STATUS, EVENT_STATUS } from "../config/typeEnum.js";
@@ -136,7 +138,7 @@ const getMyQRCode = asyncHandler(async (req, res) => {
   });
 });
 
-export const checkInByQr = async (req, res) => {
+export const checkOutByQr = async (req, res) => {
   try {
     const { qrToken } = req.body;
     const userId = req.user._id;
@@ -172,34 +174,60 @@ export const checkInByQr = async (req, res) => {
 
     if (!isManager) {
       return res.status(403).json({
-        message: "Bạn không có quyền check-in cho sự kiện này",
+        message: "Bạn không có quyền check-out cho sự kiện này",
       });
     }
 
+    // 4️⃣ Tìm attendance
+    const attendance = await Attendance.findOne({
+      regId: registration._id,
+    });
 
-    // 4️⃣ Kiểm tra đã check-in chưa
+    if (!attendance) {
+      return res.status(404).json({
+        message: "Trạng thái tham gia không tồn tại",
+      });
+    }
 
-    // 5️⃣ Check-in
-    
-await registration.populate([
-  { path: "userId", select: "email name" },
-  { path: "eventId", select: "title" },
-]);
+    console.log("ATTENDANCE FOUND:", attendance._id);
 
-console.log("Check-in thành công");
+    // 5️⃣ Kiểm tra đã check-out chưa
+    if (attendance.checkOut) {
+      return res.status(400).json({
+        message: "Người dùng đã check-out trước đó",
+      });
+    }
 
+    // 6️⃣ Thực hiện check-out
+    attendance.checkOut = new Date();
+    attendance.status = "completed"; // Cập nhật trạng thái thành completed
+    await attendance.save();
+
+    // 7️⃣ Populate để trả dữ liệu đẹp
+    await attendance.populate({
+  path: "regId",
+  populate: [
+    { path: "userId", select: "name email" },
+    { path: "eventId", select: "title" },
+  ],
+});
+
+console.log("CHECK-OUT SUCCESS");
 return res.json({
-  message: "Check-in thành công",
+  message: "Check-out thành công",
   data: {
-    user: registration.userId,
-    event: registration.eventId,
+    user: attendance.regId.userId,
+    event: attendance.regId.eventId,
+    checkOut: attendance.checkOut,
   },
 });
 
+
+
   } catch (error) {
-    console.error("CHECK-IN ERROR:", error);
+    console.error("CHECK-OUT ERROR:", error);
     return res.status(500).json({
-      message: "Lỗi server khi check-in",
+      message: "Lỗi server khi check-out",
     });
   }
 };
@@ -267,6 +295,12 @@ const acceptRegistration = asyncHandler(async (req, res) => {
     // 2. Tăng số lượng người tham gia trong Event (ĐÂY LÀ CHỖ DUY NHẤT TĂNG)
     event.currentParticipants += 1;
     await event.save();
+
+    // 3️. TẠO ATTENDANCE
+    await Attendance.create({
+      regId: registration._id,
+      status: "in-progress", // đợi checkout
+    });
   }
 
   res.json({

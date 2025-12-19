@@ -11,6 +11,7 @@ import {
 const Comment = ({
   comment,
   postId,
+  rootCommentId,
   eventId,
   currentUser,
   onDelete,
@@ -43,18 +44,21 @@ const Comment = ({
   };
 
   const handleReply = async () => {
-    if (!replyText.trim()) return;
-    await dispatch(
-      createComment({
-        content: replyText,
-        postId,
-        parentCommentId: comment._id,
-      })
-    );
-    setReplyText("");
-    setShowReply(false);
-    dispatch(fetchChannelByEventId(eventId));
-  };
+  if (!replyText.trim()) return;
+
+  await dispatch(
+    createComment({
+      content: replyText,
+      postId,
+      parentCommentId: rootCommentId, // ✅ luôn là comment gốc
+    })
+  );
+
+  setReplyText("");
+  setShowReply(false);
+  dispatch(fetchChannelByEventId(eventId));
+};
+
 
   return (
     <div className={`group ${isReply ? "mt-2" : "mt-4"}`}>
@@ -133,18 +137,19 @@ const Comment = ({
 
           {/* Danh sách phản hồi con (Đệ quy) */}
           {comment.replies?.length > 0 && (
-            <div className="border-l-2 border-gray-100 ml-1 pl-2 mt-1">
-              {comment.replies.map((reply) => (
-                <Comment
-                  key={reply._id}
-                  comment={reply}
-                  postId={postId}
-                  eventId={eventId}
-                  currentUser={currentUser}
-                  onDelete={onDelete}
-                  isReply={true} // Đánh dấu là reply
-                />
-              ))}
+            <div className="ml-6 mt-3 space-y-3">
+              {comment.replies?.map((reply) => (
+  <Comment
+    key={reply._id}
+    comment={reply}
+    postId={postId}
+    rootCommentId={rootCommentId} // 👈 giữ nguyên
+    eventId={eventId}
+    currentUser={currentUser}
+    onDelete={onDelete}
+  />
+))}
+
             </div>
           )}
         </div>

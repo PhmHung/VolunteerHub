@@ -139,6 +139,11 @@ const registrationSlice = createSlice({
     qrLoading: false,
     qrError: null,
 
+    checkOutLoading: false,
+    checkOutMessage: null,
+    checkOutError: null,
+
+
 
     successMessage: null,
     error: null,
@@ -247,21 +252,36 @@ const registrationSlice = createSlice({
       state.qrError = action.payload;
     });
 
+    builder
+    .addCase(checkOutByQr.pending, (state) => {
+      state.checkOutLoading = true;
+      state.checkOutMessage = null;
+      state.checkOutError = null;
+    })
+    .addCase(checkOutByQr.fulfilled, (state, action) => {
+      state.checkOutLoading = false;
+      state.checkOutMessage = action.payload.message; // 👈 MESSAGE TỪ API
+    })
+    .addCase(checkOutByQr.rejected, (state, action) => {
+      state.checkOutLoading = false;
+      state.checkOutError = action.payload;
+    });
+
   },
 });
 
-export const checkInByQr = createAsyncThunk(
+export const checkOutByQr = createAsyncThunk(
   "registration/checkInByQr",
   async ({ qrToken }, { rejectWithValue }) => {
     try {
       const { data } = await api.post(
-        `/api/registrations/check-in`,
+        `/api/registrations/check-out`,
         { qrToken }
       );
       return data;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.message || "Check-in thất bại"
+        err.response?.data?.message || "Check-out thất bại"
       );
     }
   }

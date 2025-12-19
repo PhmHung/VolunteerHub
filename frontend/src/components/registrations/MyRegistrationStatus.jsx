@@ -88,7 +88,7 @@ const MyRegistrationStatus = ({ eventId, userId }) => {
               }`}
             >
               {statusConfig.label}
-            </span>
+</span>
           </div>
 
           <p className="text-sm text-gray-700">
