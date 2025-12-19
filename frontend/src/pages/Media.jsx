@@ -17,7 +17,7 @@ import ManagerQrScanner from "../components/socials/ManagerQrScanner.jsx";
 import { fetchMyEvents } from "../features/eventSlice";
 import { fetchChannelByEventId, clearChannel } from "../features/channelSlice";
 import { fetchMyQRCode } from "../features/registrationSlice";
-import { checkInByQr } from "../features/registrationSlice";
+import { checkOutByQr } from "../features/registrationSlice";
 
 // components
 import EventFeed from "../components/socials/EventFeed";
@@ -25,6 +25,7 @@ import EventTabs from "../components/events/EventTabs";
 import EventReviews from "../components/events/EventReview";
 import VolunteersList from "../components/registrations/VolunteersList";
 import MyRegistrationStatus from "../components/registrations/MyRegistrationStatus";
+import { EventMediaGallery } from "../components/socials/EventMediaGallery.jsx";
 
 /* ======================================================
    EVENT DETAIL VIEW
@@ -35,7 +36,13 @@ const EventDetailView = ({ event, user, onBack }) => {
   const [scannedToken, setScannedToken] = useState(null);
   const [scanError, setScanError] = useState(null);
 
-  const { myQrToken, qrLoading } = useSelector((state) => state.registration);
+  const [scrollToPostId, setScrollToPostId] = useState(null);
+
+  const currentChannel = useSelector(
+  (state) => state.channel.current
+);
+
+
 
   useEffect(() => {
     if (activeTab === "qr" && user.role === "volunteer") {
@@ -54,7 +61,7 @@ const EventDetailView = ({ event, user, onBack }) => {
       setScannedToken(token);
 
       dispatch(
-        checkInByQr({
+        checkOutByQr({
           qrToken: token,
         })
       );
@@ -68,10 +75,10 @@ const EventDetailView = ({ event, user, onBack }) => {
   }, []);
 
   return (
-    <div className='flex-1 bg-surface-50 h-screen overflow-y-auto'>
-      <div className='max-w-6xl mx-auto pb-10'>
+    <div className="flex-1 bg-surface-50 min-h-screen">
+      <div className="max-w-6xl mx-auto pb-10">
         {/* Back */}
-        <div className='p-4 sticky top-0 z-30 bg-white border-b shadow-sm'>
+        <div className="p-4 bg-white border-b shadow-sm">
           <button
             onClick={onBack}
             className='flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200'>
@@ -101,7 +108,12 @@ const EventDetailView = ({ event, user, onBack }) => {
           <MyRegistrationStatus eventId={event._id} userId={user._id} />
 
           {activeTab === "discussion" && (
-            <EventFeed event={event} user={user} />
+            <EventFeed 
+            event={event} 
+            user={user} 
+            scrollToPostId={scrollToPostId}
+  onScrolled={() => setScrollToPostId(null)}
+/>
           )}
           {activeTab === "reviews" && (
             <EventReviews user={user} eventId={event._id} />
@@ -119,12 +131,14 @@ const EventDetailView = ({ event, user, onBack }) => {
             </div>
           )}
 
-          {activeTab === "media" && (
-            <div className='card p-12 text-center'>
-              <ImageIcon className='w-10 h-10 mx-auto text-text-muted mb-3' />
-              <p className='text-text-muted'>Chưa có hình ảnh</p>
-            </div>
-          )}
+{activeTab === "media" && (
+  <EventMediaGallery
+    posts={currentChannel?.posts || []}
+    user={user}
+    eventId={event._id || event.id}
+  />
+)}
+
 
           {activeTab === "qr" && (
             <div className='card p-6 text-center'>
@@ -205,10 +219,10 @@ const Media = ({ user }) => {
   }
 
   return (
-    <div className='flex-1 bg-surface-50 h-screen overflow-y-auto'>
-      <div className='max-w-5xl mx-auto p-6 lg:p-10'>
-        <h1 className='text-3xl font-bold mb-2'>Cộng đồng của tôi</h1>
-        <p className='text-text-secondary mb-8'>
+    <div className="flex-1 bg-surface-50 min-h-screen">
+      <div className="max-w-5xl mx-auto p-6 lg:p-10">
+        <h1 className="text-3xl font-bold mb-2">Cộng đồng của tôi</h1>
+        <p className="text-text-secondary mb-8">
           Các sự kiện bạn đang tham gia
         </p>
 

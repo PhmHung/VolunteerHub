@@ -3,6 +3,9 @@ import Channel from "../models/channelModel.js";
 import Event from "../models/eventModel.js";  
 import Reaction from "../models/reactionModel.js";
 import Comment from "../models/commentModel.js";
+import Attendance from "../models/attendanceModel.js";
+import Registration from "../models/registrationModel.js";
+
 
 // ================================
 // GET ALL CHANNELS (ADMIN ONLY)
@@ -203,10 +206,39 @@ export const getChannelByEventId = asyncHandler(async (req, res) => {
     comments: commentsByPost[post._id.toString()] || [],
   }));
 
+  // ===============================
+  // 🔟 Lấy ATTENDANCES của EVENT
+  // ===============================
+
+  // Lấy tất cả registration của event
+  const registrations = await Registration.find({
+    eventId: event._id,
+  }).select("_id userId");
+
+  // Map regId
+  const regIds = registrations.map(r => r._id);
+
+  // Lấy attendance theo regId + feedback
+  const attendances = await Attendance.find({
+    regId: { $in: regIds },
+  })
+    .select("+feedback +feedback.comment")
+    .populate({
+      path: "regId",
+      populate: {
+        path: "userId",
+        select: "userName userEmail role",
+      },
+    })
+    .sort({ updatedAt: -1 });
+
+
+
   res.json({
     _id: channel._id,
     event: channel.event,
     posts,
+    attendances,
     createdAt: channel.createdAt,
   });
 });

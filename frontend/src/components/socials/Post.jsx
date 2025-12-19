@@ -243,10 +243,6 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
             <MessageCircle className="w-5 h-5" />
             <span>Bình luận</span>
         </button>
-        <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
-            <Share2 className="w-5 h-5" />
-            <span>Chia sẻ</span>
-        </button>
       </div>
 
       {/* Comments Section - Facebook style */}
@@ -284,14 +280,16 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
             {post.comments?.length > 0 && (
                 <div className="space-y-3">
                     {post.comments.map(comment => (
-                        <Comment 
-                            key={comment.id} 
-                            comment={comment} 
-                            eventId={eventId}
-                            currentUser={currentUser}
-                            onDelete={() => onDeleteComment(post.id, comment.id)}
-                        />
-                    ))}
+  <Comment
+    key={comment.id}
+    comment={comment}
+    postId={post.id}
+    rootCommentId={comment._id}   // 👈 comment gốc
+    eventId={eventId}
+    currentUser={currentUser}
+    onDelete={() => onDeleteComment(post.id, comment.id)}
+  />
+))}
                 </div>
             )}
         </div>

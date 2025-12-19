@@ -11,6 +11,7 @@ import {
 const Comment = ({
   comment,
   postId,
+  rootCommentId,
   eventId,
   currentUser,
   onDelete,
@@ -42,20 +43,21 @@ const Comment = ({
   };
 
   const handleReply = async () => {
-    if (!replyText.trim()) return;
+  if (!replyText.trim()) return;
 
-    await dispatch(
-      createComment({
-        content: replyText,
-        postId,
-        parentCommentId: comment._id,
-      })
-    );
+  await dispatch(
+    createComment({
+      content: replyText,
+      postId,
+      parentCommentId: rootCommentId, // ✅ luôn là comment gốc
+    })
+  );
 
-    setReplyText("");
-    setShowReply(false);
-    dispatch(fetchChannelByEventId(eventId));
-  };
+  setReplyText("");
+  setShowReply(false);
+  dispatch(fetchChannelByEventId(eventId));
+};
+
 
   return (
     <div>
@@ -124,16 +126,18 @@ const Comment = ({
           {/* REPLIES */}
           {comment.replies?.length > 0 && (
             <div className="ml-6 mt-3 space-y-3">
-              {comment.replies.map((reply) => (
-                <Comment
-                  key={reply._id}
-                  comment={reply}
-                  postId={postId}
-                  eventId={eventId}
-                  currentUser={currentUser}
-                  onDelete={onDelete}
-                />
-              ))}
+              {comment.replies?.map((reply) => (
+  <Comment
+    key={reply._id}
+    comment={reply}
+    postId={postId}
+    rootCommentId={rootCommentId} // 👈 giữ nguyên
+    eventId={eventId}
+    currentUser={currentUser}
+    onDelete={onDelete}
+  />
+))}
+
             </div>
           )}
         </div>

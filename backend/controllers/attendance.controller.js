@@ -43,100 +43,7 @@ const calcAverageRatings = async (eventId) => {
   }
 };
 
-// @desc    Ghi nhận Check-in (Người tham gia đến sự kiện)
-// @route   POST /api/attendances/checkin
-// @access  Private (Volunteer/Admin/Manager - Người phụ trách điểm danh)
-const recordCheckIn = asyncHandler(async (req, res) => {
-  const { regId } = req.body;
-  const registration = await Registration.findById(regId).populate("eventId");
-  if (!registration) {
-    res.status(404);
-    throw new Error("Không tìm thấy bản ghi đăng ký.");
-  }
-
-  const event = registration.eventId;
-  const now = new Date();
-  const startDate = new Date(event.startDate);
-  const endDate = new Date(event.endDate);
-
-  if (now < startDate) {
-    res.status(400);
-    throw new Error("Sự kiện chưa bắt đầu, chưa thể điểm danh.");
-  }
-  if (now > endDate) {
-    res.status(400);
-    throw new Error("Sự kiện đã kết thúc, không thể điểm danh vào.");
-  }
-
-  let attendance = await Attendance.findOne({ regId });
-  if (attendance) {
-    if (attendance.checkIn) {
-      res.status(400);
-      throw new Error("Người dùng đã check-in rồi.");
-    }
-    attendance.checkIn = now;
-    attendance.status = "in-progress";
-    await attendance.save();
-  } else {
-    attendance = await Attendance.create({
-      regId,
-      checkIn: now,
-      status: "in-progress",
-    });
-  }
-  res.status(201).json({
-    message: "Check-In thành công.",
-    attendanceId: attendance._id,
-    checkInTime: attendance.checkIn,
-  });
-});
-
-// @desc    Ghi nhận Check-out (Người tham gia rời sự kiện)
-// @route   POST /api/attendances/checkout
-// @access  Private (Volunteer/Admin/Manager - Người phụ trách điểm danh)
-const recordCheckOut = asyncHandler(async (req, res) => {
-  const { regId } = req.body;
-  const attendance = await Attendance.findOne({ regId }).populate({
-    path: "regId",
-    populate: { path: "eventId" },
-  });
-  if (!attendance) {
-    res.status(404);
-    throw new Error(
-      "Chưa tìm thấy bản ghi điểm danh. Vui lòng Check-in trước."
-    );
-  }
-  if (!attendance.checkIn) {
-    res.status(400);
-    throw new Error("Bạn chưa Check-in nên không thể Check-out.");
-  }
-  if (attendance.checkOut) {
-    res.status(400);
-    throw new Error("Bạn đã Check-out rồi.");
-  }
-
-  const now = new Date();
-  attendance.checkOut = now;
-  attendance.status = "completed";
-  await attendance.save();
-
-  const durationMs = attendance.checkOut - attendance.checkIn;
-  const durationMinutes = Math.floor(durationMs / 60000);
-  const durationHours = (durationMs / (1000 * 60 * 60)).toFixed(2);
-
-  res.json({
-    message: "Check-Out thành công. Hoàn thành tham gia.",
-    attendanceId: attendance._id,
-    checkOutTime: attendance.checkOut,
-    duration: {
-      milliseconds: durationMs,
-      minutes: durationMinutes,
-      hours: Number(durationHours),
-    },
-  });
-});
-
-// @desc    Gửi phản hồi và đánh giá sau sự kiện
+// @desc    Add feedback and rating -> CẬP NHẬT LOGIC TÍNH RATING
 // @route   PUT /api/attendances/:id/feedback
 // @access  Private (User đã tham gia và đã check-out)
 const addFeedback = asyncHandler(async (req, res) => {
@@ -288,8 +195,6 @@ const getAttendancesByEvent = asyncHandler(async (req, res) => {
 });
 
 export {
-  recordCheckIn,
-  recordCheckOut,
   addFeedback,
   getAttendanceByRegId,
   getEventPublicRating,

@@ -187,7 +187,7 @@ const handleCreatePost = async (postData) => {
             <Post
               key={post.id}
               post={post}
-              eventId={event._id || event.id}
+              eventId={event._id || event.id} 
               currentUser={user}
               onLike={handleLike}
               onComment={handleComment}

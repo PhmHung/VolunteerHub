@@ -250,18 +250,18 @@ const registrationSlice = createSlice({
   },
 });
 
-export const checkInByQr = createAsyncThunk(
+export const checkOutByQr = createAsyncThunk(
   "registration/checkInByQr",
   async ({ qrToken }, { rejectWithValue }) => {
     try {
       const { data } = await api.post(
-        `/api/registrations/check-in`,
+        `/api/registrations/check-out`,
         { qrToken }
       );
       return data;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.message || "Check-in thất bại"
+        err.response?.data?.message || "Check-out thất bại"
       );
     }
   }
