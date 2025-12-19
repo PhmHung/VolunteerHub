@@ -178,25 +178,51 @@ export const checkOutByQr = async (req, res) => {
       });
     }
 
+    // 4️⃣ Tìm attendance
+    const attendance = await Attendance.findOne({
+      regId: registration._id,
+    });
 
-    // 4️⃣ Kiểm tra đã check-out chưa
+    if (!attendance) {
+      return res.status(404).json({
+        message: "Trạng thái tham gia không tồn tại",
+      });
+    }
 
-    // 5️⃣ Check-out
+    console.log("ATTENDANCE FOUND:", attendance._id);
 
-await registration.populate([
-  { path: "userId", select: "email name" },
-  { path: "eventId", select: "title" },
-]);
+    // 5️⃣ Kiểm tra đã check-out chưa
+    if (attendance.checkOut) {
+      return res.status(400).json({
+        message: "Người dùng đã check-out trước đó",
+      });
+    }
 
-console.log("Check-out thành công");
+    // 6️⃣ Thực hiện check-out
+    attendance.checkOut = new Date();
+    attendance.status = "completed"; // Cập nhật trạng thái thành completed
+    await attendance.save();
 
+    // 7️⃣ Populate để trả dữ liệu đẹp
+    await attendance.populate({
+  path: "regId",
+  populate: [
+    { path: "userId", select: "name email" },
+    { path: "eventId", select: "title" },
+  ],
+});
+
+console.log("CHECK-OUT SUCCESS");
 return res.json({
   message: "Check-out thành công",
   data: {
-    user: registration.userId,
-    event: registration.eventId,
+    user: attendance.regId.userId,
+    event: attendance.regId.eventId,
+    checkOut: attendance.checkOut,
   },
 });
+
+
 
   } catch (error) {
     console.error("CHECK-OUT ERROR:", error);

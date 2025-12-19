@@ -14,7 +14,7 @@ const MyRegistrationStatus = ({ eventId, userId }) => {
     return null;
   }
 
-  const statusConfig = REGISTRATION_STATUS[myReg.status];
+  const statusConfig = REGISTRATION_STATUS[myReg.status] || { color: "gray" };;
   
   const icons = {
     pending: <Clock className="w-5 h-5" />,

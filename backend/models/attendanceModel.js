@@ -14,7 +14,6 @@ const feedbackSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: [300, "Comment cannot exceed 300 characters"],
-      select: false,
     },
     submittedAt: {
       type: Date,

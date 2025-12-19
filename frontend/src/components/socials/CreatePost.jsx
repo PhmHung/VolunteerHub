@@ -103,17 +103,6 @@ const handleSubmit = () => {
                 <Image className="w-5 h-5 text-green-500" />
                 <span className="hidden sm:inline">Ảnh/Video</span>
             </button>
-            <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium"
-            >
-                <Paperclip className="w-5 h-5 text-blue-500" />
-                <span className="hidden sm:inline">Tệp đính kèm</span>
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium">
-                <Smile className="w-5 h-5 text-yellow-500" />
-                <span className="hidden sm:inline">Cảm xúc</span>
-            </button>
         </div>
 
         <button 

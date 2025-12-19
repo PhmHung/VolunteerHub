@@ -107,16 +107,20 @@ const getEventFeedbacks = asyncHandler(async (req, res) => {
   const registrationIds = await Registration.find({ eventId }).distinct("_id");
 
   // Tìm tất cả feedback của sự kiện đó
-  const feedbacks = await Attendance.find({
-    regId: { $in: registrationIds },
-    "feedback.rating": { $exists: true }, // Chỉ lấy những người đã rate
+const feedbacks = await Attendance.find({
+  regId: { $in: registrationIds },
+  "feedback.rating": { $exists: true },
+})
+  .select("+feedback")
+  .populate({
+    path: "regId",
+    populate: {
+      path: "userId",
+      select: "userName userEmail profilePicture",
+    },
   })
-    .select("+feedback") // Force select feedback nếu field này bị ẩn trong model
-    .populate({
-      path: "regId",
-      populate: { path: "userId", select: "userName userEmail profilePicture" },
-    })
-    .sort({ "feedback.submittedAt": -1 }); // Sắp xếp mới nhất lên đầu
+  .sort({ "feedback.submittedAt": -1 });
+
 
   res.json({
     message: "Danh sách phản hồi của sự kiện",

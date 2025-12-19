@@ -33,9 +33,16 @@ import { EventMediaGallery } from "../components/socials/EventMediaGallery.jsx";
 const EventDetailView = ({ event, user, onBack }) => {
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("discussion");
-  const [scannedToken, setScannedToken] = useState(null);
   const [scanError, setScanError] = useState(null);
 
+  const {
+  checkOutMessage,
+  checkOutError,
+  checkOutLoading,
+} = useSelector((state) => state.registration);
+
+
+  const { myQrToken, qrLoading } = useSelector((state) => state.registration);
   const [scrollToPostId, setScrollToPostId] = useState(null);
 
   const currentChannel = useSelector(
@@ -56,23 +63,29 @@ const EventDetailView = ({ event, user, onBack }) => {
   }, [dispatch, event._id]);
 
   const handleScanSuccess = useCallback(
-    (token) => {
-      console.log("📤 check-in QR:", token);
-      setScannedToken(token);
+  (token) => {
+    dispatch(checkOutByQr({ qrToken: token }));
+  },
+  [dispatch]
+);
 
-      dispatch(
-        checkOutByQr({
-          qrToken: token,
-        })
-      );
-    },
-    [dispatch]
-  );
 
   const handleScanError = useCallback((err) => {
     console.error("❌ Scan error:", err);
     setScanError(err);
   }, []);
+
+  const attendances = currentChannel?.attendances || [];
+
+  const attendanceRegistrations = attendances.map((att) => ({
+    _id: att._id,
+    userId: att.regId?.userId,
+    status: att.status,
+    registeredAt: att.regId?.registeredAt,
+    checkOut: att.checkOut,
+    feedback: att.feedback,
+  }));
+
 
   return (
     <div className="flex-1 bg-surface-50 min-h-screen">
@@ -119,8 +132,18 @@ const EventDetailView = ({ event, user, onBack }) => {
             <EventReviews user={user} eventId={event._id} />
           )}
           {activeTab === "members" && (
-            <VolunteersList eventId={event._id} user={user} />
-          )}
+  <div className="card p-6">
+    <VolunteersList
+      registrations={attendanceRegistrations}
+      compact={false}
+      canView={true}
+      onUserClick={(user) => {
+        console.log("Click user:", user);
+      }}
+    />
+  </div>
+)}
+
 
           {activeTab === "about" && (
             <div className='card p-6'>
@@ -175,11 +198,24 @@ const EventDetailView = ({ event, user, onBack }) => {
                     onScanError={handleScanError}
                   />
 
-                  {scannedToken && (
-                    <p className='mt-4 text-green-600 font-medium break-all'>
-                      ✔ Đã quét: {scannedToken}
-                    </p>
-                  )}
+                  {checkOutLoading && (
+  <p className="mt-4 text-blue-500 font-medium">
+    ⏳ Đang xử lý check-out...
+  </p>
+)}
+
+{checkOutMessage && (
+  <p className="mt-4 text-green-600 font-semibold">
+    ✔ {checkOutMessage}
+  </p>
+)}
+
+{checkOutError && (
+  <p className="mt-4 text-red-500 font-medium">
+    ❌ {checkOutError}
+  </p>
+)}
+
 
                   {scanError && (
                     <p className='mt-4 text-red-500 text-sm'>{scanError}</p>

@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { Star, ThumbsUp, Send } from "lucide-react";
-
+import WriteReview from "./WriteReview";
 /* ======================
    Helper hiển thị sao
 ====================== */
@@ -24,6 +24,15 @@ const StarRating = ({ rating, size = "w-4 h-4" }) => (
 
 const EventReviews = () => {
   const channel = useSelector((state) => state.channel.current);
+
+  const userId = useSelector((state) => state.auth.user._id);
+
+  const myAttendance = channel.attendances.find(
+    (a) => a.regId.userId._id === userId
+  );
+
+  console.log("🚀 ~ file: EventReviews.jsx:58 ~ EventReviews ~ channel:", channel);
+
 
   /* ======================
      Lấy reviews từ backend
@@ -84,6 +93,9 @@ const EventReviews = () => {
           </p>
         </div>
       </div>
+
+      {myAttendance && <WriteReview attendance={myAttendance} eventId={channel.event._id} />}
+
 
       {/* ======================
           DANH SÁCH REVIEWS

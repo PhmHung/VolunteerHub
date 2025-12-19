@@ -139,6 +139,11 @@ const registrationSlice = createSlice({
     qrLoading: false,
     qrError: null,
 
+    checkOutLoading: false,
+    checkOutMessage: null,
+    checkOutError: null,
+
+
 
     successMessage: null,
     error: null,
@@ -245,6 +250,21 @@ const registrationSlice = createSlice({
     .addCase(fetchMyQRCode.rejected, (state, action) => {
       state.qrLoading = false;
       state.qrError = action.payload;
+    });
+
+    builder
+    .addCase(checkOutByQr.pending, (state) => {
+      state.checkOutLoading = true;
+      state.checkOutMessage = null;
+      state.checkOutError = null;
+    })
+    .addCase(checkOutByQr.fulfilled, (state, action) => {
+      state.checkOutLoading = false;
+      state.checkOutMessage = action.payload.message; // 👈 MESSAGE TỪ API
+    })
+    .addCase(checkOutByQr.rejected, (state, action) => {
+      state.checkOutLoading = false;
+      state.checkOutError = action.payload;
     });
 
   },
