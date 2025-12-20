@@ -184,5 +184,5 @@ const attendanceSlice = createSlice({
   },
 });
 
-export const { clearAttendanceMessages } = attendanceSlice.actions;
+export const { clearAttendanceMessages, addFeedback } = attendanceSlice.actions;
 export default attendanceSlice.reducer;

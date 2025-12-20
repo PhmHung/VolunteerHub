@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { Star } from "lucide-react";
-import { addFeedback } from "../../features/attendance/attendanceSlice";
+import { submitFeedback } from "../../features/attendanceSlice";
+import { fetchEventFeedbacks } from "../../features/attendanceSlice";
 
 const WriteReview = ({ attendance, eventId }) => {
   const dispatch = useDispatch();
@@ -18,13 +19,17 @@ const WriteReview = ({ attendance, eventId }) => {
 
   const submitHandler = () => {
     dispatch(
-      addFeedback({
+      submitFeedback({
         attendanceId: attendance._id,
         rating,
         comment,
         eventId,
       })
     );
+    dispatch(fetchEventFeedbacks(eventId));
+    // Reset form
+    setRating(0);
+    setComment("");
   };
 
   return (

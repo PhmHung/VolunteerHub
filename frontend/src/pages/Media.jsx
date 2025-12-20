@@ -18,11 +18,13 @@ import { fetchMyEvents } from "../features/eventSlice";
 import { fetchChannelByEventId, clearChannel } from "../features/channelSlice";
 import { fetchMyQRCode } from "../features/registrationSlice";
 import { checkOutByQr } from "../features/registrationSlice";
+import { useRef } from "react";
+
 
 // components
 import EventFeed from "../components/socials/EventFeed";
 import EventTabs from "../components/events/EventTabs";
-import EventReviews from "../components/events/EventReview";
+import EventReviews from "../components/events/EventReviews.jsx";
 import VolunteersList from "../components/registrations/VolunteersList";
 import MyRegistrationStatus from "../components/registrations/MyRegistrationStatus";
 import { EventMediaGallery } from "../components/socials/EventMediaGallery.jsx";
@@ -62,12 +64,23 @@ const EventDetailView = ({ event, user, onBack }) => {
     return () => dispatch(clearChannel());
   }, [dispatch, event._id]);
 
+  const lastScannedTokenRef = useRef(null);
+
   const handleScanSuccess = useCallback(
-  (token) => {
-    dispatch(checkOutByQr({ qrToken: token }));
-  },
-  [dispatch]
-);
+    (token) => {
+      // ❌ Nếu trùng token lần trước → bỏ qua
+      if (lastScannedTokenRef.current === token) {
+        return;
+      }
+
+      // ✅ Lưu token mới
+      lastScannedTokenRef.current = token;
+
+      // ✅ Dispatch
+      dispatch(checkOutByQr({ qrToken: token }));
+    },
+    [dispatch]
+  );
 
 
   const handleScanError = useCallback((err) => {
