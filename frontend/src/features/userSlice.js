@@ -134,6 +134,9 @@ const userSlice = createSlice({
     profileLoading: false,
     profileError: null,
 
+    // ✅ THÊM FLAG NÀY
+    profileChecked: false,
+
     users: [],
     usersLoading: false,
     usersError: null,
@@ -163,6 +166,9 @@ const userSlice = createSlice({
       state.message = null;
       state.error = null;
       state.selectedUser = null;
+
+      // ✅ logout xong thì coi như “đã check xong và không có user”
+      state.profileChecked = true;
     },
     clearSelectedUser: (state) => {
       state.selectedUser = null;
@@ -176,14 +182,26 @@ const userSlice = createSlice({
       .addCase(fetchUserProfile.pending, (state) => {
         state.profileLoading = true;
         state.profileError = null;
+
+        // ✅ đang check
+        state.profileChecked = false;
       })
       .addCase(fetchUserProfile.fulfilled, (state, action) => {
         state.profileLoading = false;
         state.profile = action.payload;
+
+        // ✅ check xong
+        state.profileChecked = true;
       })
       .addCase(fetchUserProfile.rejected, (state, action) => {
         state.profileLoading = false;
         state.profileError = action.payload;
+
+        // ✅ quan trọng: fail thì cũng set profile về null rõ ràng
+        state.profile = null;
+
+        // ✅ check xong (dù fail)
+        state.profileChecked = true;
       })
 
       // Update Profile

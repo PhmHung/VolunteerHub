@@ -5,14 +5,19 @@ const pushSubscriptionSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: false, // nếu app có user
+      index: true,
+      required: true,
     },
-    endpoint: { type: String, required: true, unique: true },
+    endpoint: {
+      type: String,
+      required: true,
+      unique: true, // CHỐNG TRÙNG
+    },
     keys: {
       p256dh: { type: String, required: true },
       auth: { type: String, required: true },
     },
-    userAgent: String, // optional: nhận diện thiết bị
+    userAgent: String,
   },
   { timestamps: true }
 );

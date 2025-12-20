@@ -10,6 +10,9 @@ import {
   register,
   login,
 
+  forgotPassword,
+  resetPassword,
+  
   firebaseLogin,
 } from "../controllers/auth.controller.js";
 import { uploadPicture } from "../config/cloudinarystorage.js";
@@ -20,6 +23,8 @@ router.post("/verifyCode", verifyCode);
 router.post("/register", uploadPicture, register);
 router.post("/login", login);
 
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 router.post("/firebase-login", firebaseLogin);
 

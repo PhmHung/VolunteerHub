@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
 import api from "../../api.js"; // centralized API client
 import FirebaseLogin from "./FirebaseLogin.jsx"; // Component login bằng Firebase
+import ForgotPasswordModal from "./ForgotPasswordModal.jsx";
+
 
 export default function AuthModal({ mode, onClose, onSuccess }) {
 
@@ -24,6 +26,8 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
   // States cho UI
   const [loading, setLoading] = useState(false); // Trạng thái đang load
   const [show, setShow] = useState(false); // Show/hide password
+  const [showForgot, setShowForgot] = useState(false);
+
 
   // Local UI messages (AuthModal manages its own error/success state now)
   const [error, setError] = useState("");
@@ -278,9 +282,14 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
               <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                 <label className="block text-sm font-medium text-text-main">Password</label>
                 {mode === "login" && (
-                  <a href="#" className="text-xs sm:text-sm text-secondary-500 hover:text-secondary-600 hover:underline font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgot(true)}
+                    className="text-xs sm:text-sm text-secondary-500 hover:underline font-medium"
+                  >
                     Forgot password?
-                  </a>
+                  </button>
+
                 )}
               </div>
               <div className="relative">
@@ -442,6 +451,10 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
               Sign up
             </button>
           </div>
+        )}
+
+        {showForgot && (
+          <ForgotPasswordModal onClose={() => setShowForgot(false)} />
         )}
         </div>
       </div>
