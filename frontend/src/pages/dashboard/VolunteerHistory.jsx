@@ -19,26 +19,51 @@ import { motion } from "framer-motion";
 import { fetchMyRegistrations } from "../../features/registrationSlice";
 import { REGISTRATION_STATUS } from "../../types";
 
-// Trạng thái đăng ký
+// --- 1. SỬA LẠI MAP: Dùng key động từ REGISTRATION_STATUS ---
 const STATUS_MAP = {
-  pending: {
+  // Trạng thái chờ (Waitlisted/Pending)
+  [REGISTRATION_STATUS.WAITLISTED]: {
     label: "Chờ duyệt",
     color: "bg-yellow-100 text-yellow-700",
     icon: Hourglass,
   },
-  accepted: {
+  [REGISTRATION_STATUS.PENDING]: { // Fallback nếu backend dùng pending
+    label: "Đang xử lý",
+    color: "bg-yellow-100 text-yellow-700",
+    icon: Hourglass,
+  },
+  // Trạng thái đã duyệt (Registered/Accepted)
+  [REGISTRATION_STATUS.REGISTERED]: {
     label: "Đã duyệt",
     color: "bg-green-100 text-green-700",
     icon: CheckCircle2,
   },
-  rejected: {
+  [REGISTRATION_STATUS.ACCEPTED]: { // Fallback
+    label: "Đã duyệt",
+    color: "bg-green-100 text-green-700",
+    icon: CheckCircle2,
+  },
+  // Trạng thái bị từ chối/Hủy (Cancelled/Rejected)
+  [REGISTRATION_STATUS.CANCELLED]: {
+    label: "Đã hủy",
+    color: "bg-red-100 text-red-700",
+    icon: XCircle,
+  },
+  [REGISTRATION_STATUS.REJECTED]: { // Fallback
     label: "Bị từ chối",
     color: "bg-red-100 text-red-700",
     icon: XCircle,
   },
 };
 
-// Trạng thái hoàn thành
+// --- 2. SỬA LẠI FILTER: Dùng value chuẩn ---
+const STATUS_FILTERS = [
+  { label: "Tất cả", value: "all" },
+  { label: "Chờ duyệt", value: REGISTRATION_STATUS.WAITLISTED },
+  { label: "Đã duyệt", value: REGISTRATION_STATUS.REGISTERED },
+  { label: "Đã hủy/Từ chối", value: REGISTRATION_STATUS.CANCELLED },
+];
+
 const COMPLETION_MAP = {
   completed: {
     label: "Đã hoàn thành",
@@ -51,14 +76,6 @@ const COMPLETION_MAP = {
     icon: Clock,
   },
 };
-
-// Filter options
-const STATUS_FILTERS = [
-  { label: "Tất cả", value: "all" },
-  { label: "Chờ duyệt", value: "pending" },
-  { label: "Đã duyệt", value: "accepted" },
-  { label: "Bị từ chối", value: "rejected" },
-];
 
 const COMPLETION_FILTERS = [
   { label: "Tất cả", value: "all" },
@@ -76,28 +93,28 @@ export default function VolunteerHistory({ user }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [completionFilter, setCompletionFilter] = useState("all");
 
-  // Load registrations khi component mount
   useEffect(() => {
     if (user) {
       dispatch(fetchMyRegistrations());
     }
   }, [dispatch, user]);
 
-  // Map registrations from Redux state
+  // --- 3. LOGIC MAP: Giữ nguyên status gốc từ backend ---
   const registrations = useMemo(() => {
     return myRegistrations.map((reg) => ({
       ...reg,
       event: reg.eventId,
-      status: reg.status || "pending",
+      // Ưu tiên lấy status gốc, nếu không có mới fallback về WAITLISTED
+      status: reg.status || REGISTRATION_STATUS.WAITLISTED,
     }));
   }, [myRegistrations]);
+  
   const loading = myLoading;
 
-  // Tính toán thống kê
   const stats = useMemo(() => {
     const total = registrations.length;
 
-    // Đếm theo Enum chuẩn
+    // Sử dụng đúng Enum để so sánh
     const pending = registrations.filter(
       (r) => r.status === REGISTRATION_STATUS.WAITLISTED
     ).length;
@@ -107,14 +124,13 @@ export default function VolunteerHistory({ user }) {
     ).length;
 
     const rejected = registrations.filter(
-      (r) => r.status === REGISTRATION_STATUS.CANCELLED
+      (r) => r.status === REGISTRATION_STATUS.CANCELLED || r.status === REGISTRATION_STATUS.REJECTED
     ).length;
 
     const completed = registrations.filter(
       (r) => r.completionStatus === "completed"
     ).length;
 
-    // Tính giờ (logic cũ giữ nguyên, chỉ đảm bảo tính trên đơn đã xác nhận)
     const totalHours = registrations
       .filter((r) => r.completionStatus === "completed" && r.event)
       .reduce((sum, r) => {
@@ -135,20 +151,16 @@ export default function VolunteerHistory({ user }) {
     };
   }, [registrations]);
 
-  // Filter registrations
   const filteredRegistrations = useMemo(() => {
     return registrations.filter((reg) => {
-      // Search
       const matchesSearch =
         !searchQuery ||
         reg.event?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         reg.event?.location?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // Status filter
       const matchesStatus =
         statusFilter === "all" || reg.status === statusFilter;
 
-      // Completion filter
       const matchesCompletion =
         completionFilter === "all" ||
         (reg.completionStatus || "not-completed") === completionFilter;
@@ -157,7 +169,6 @@ export default function VolunteerHistory({ user }) {
     });
   }, [registrations, searchQuery, statusFilter, completionFilter]);
 
-  // Sort: mới nhất lên đầu
   const sortedRegistrations = useMemo(() => {
     return [...filteredRegistrations].sort(
       (a, b) => new Date(b.registeredAt) - new Date(a.registeredAt)
@@ -216,7 +227,7 @@ export default function VolunteerHistory({ user }) {
             color='bg-green-500'
           />
           <StatCard
-            label='Bị từ chối'
+            label='Đã hủy/Từ chối'
             value={stats.rejected}
             icon={<XCircle className='h-5 w-5' />}
             color='bg-red-500'
@@ -236,10 +247,9 @@ export default function VolunteerHistory({ user }) {
         </div>
 
         {/* Filters */}
-        {/* Filters */}
         <div className='bg-white rounded-xl shadow-sm p-4 border border-gray-100'>
           <div className='flex flex-col lg:flex-row gap-4 lg:items-end'>
-            {/* 1. Search Box */}
+            {/* Search Box */}
             <div className='flex-1'>
               <label className='block text-xs font-medium text-gray-500 mb-1 ml-1'>
                 Tìm kiếm
@@ -256,7 +266,7 @@ export default function VolunteerHistory({ user }) {
               </div>
             </div>
 
-            {/* 2. Filter: Trạng thái Đăng ký (Chờ duyệt/Đã duyệt...) */}
+            {/* Status Filter */}
             <div className='flex flex-col gap-1 min-w-[200px]'>
               <label className='text-xs font-medium text-gray-500 ml-1'>
                 Trạng thái đăng ký
@@ -275,24 +285,15 @@ export default function VolunteerHistory({ user }) {
                     </option>
                   ))}
                 </select>
-                {/* Mũi tên dropdown tùy chỉnh (optional) */}
                 <div className='absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none'>
-                  <svg
-                    className='h-4 w-4 text-gray-400'
-                    fill='none'
-                    stroke='currentColor'
-                    viewBox='0 0 24 24'>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      strokeWidth='2'
-                      d='M19 9l-7 7-7-7'></path>
+                  <svg className='h-4 w-4 text-gray-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M19 9l-7 7-7-7'></path>
                   </svg>
                 </div>
               </div>
             </div>
 
-            {/* 3. Filter: Trạng thái Hoàn thành (Đã xong/Chưa xong) */}
+            {/* Completion Filter */}
             <div className='flex flex-col gap-1 min-w-[200px]'>
               <label className='text-xs font-medium text-gray-500 ml-1'>
                 Kết quả tham gia
@@ -312,16 +313,8 @@ export default function VolunteerHistory({ user }) {
                   ))}
                 </select>
                 <div className='absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none'>
-                  <svg
-                    className='h-4 w-4 text-gray-400'
-                    fill='none'
-                    stroke='currentColor'
-                    viewBox='0 0 24 24'>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      strokeWidth='2'
-                      d='M19 9l-7 7-7-7'></path>
+                  <svg className='h-4 w-4 text-gray-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M19 9l-7 7-7-7'></path>
                   </svg>
                 </div>
               </div>
@@ -329,7 +322,7 @@ export default function VolunteerHistory({ user }) {
           </div>
         </div>
 
-        {/* Registration List */}
+        {/* List */}
         <div className='space-y-4'>
           {sortedRegistrations.length === 0 ? (
             <div className='bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100'>
@@ -358,7 +351,6 @@ export default function VolunteerHistory({ user }) {
   );
 }
 
-// Stat Card Component
 function StatCard({ label, value, icon, color }) {
   return (
     <motion.div
@@ -376,7 +368,6 @@ function StatCard({ label, value, icon, color }) {
   );
 }
 
-// Registration Card Component
 function RegistrationCard({ registration, index }) {
   const {
     event,
@@ -385,13 +376,18 @@ function RegistrationCard({ registration, index }) {
     registeredAt,
   } = registration;
 
-  const statusInfo = STATUS_MAP[status] || STATUS_MAP.pending;
+  // --- 4. SỬA HIỂN THỊ CARD: Lấy info từ Map mới ---
+  const statusInfo = STATUS_MAP[status] || {
+    label: "Không xác định",
+    color: "bg-gray-100 text-gray-600",
+    icon: Hourglass,
+  };
+
   const completionInfo =
     COMPLETION_MAP[completionStatus] || COMPLETION_MAP["not-completed"];
   const StatusIcon = statusInfo.icon;
   const CompletionIcon = completionInfo.icon;
 
-  // Tính số giờ
   const hours = useMemo(() => {
     if (!event?.startDate || !event?.endDate) return null;
     const start = new Date(event.startDate);
@@ -399,7 +395,6 @@ function RegistrationCard({ registration, index }) {
     return Math.max(0, Math.round((end - start) / (1000 * 60 * 60)));
   }, [event]);
 
-  // Format date
   const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
     return new Date(dateStr).toLocaleDateString("vi-VN", {
@@ -429,7 +424,6 @@ function RegistrationCard({ registration, index }) {
       transition={{ delay: index * 0.05 }}
       className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow'>
       <div className='flex flex-col sm:flex-row'>
-        {/* Event Image */}
         {event.imageUrl && (
           <div className='sm:w-48 h-32 sm:h-auto flex-shrink-0'>
             <img
@@ -440,22 +434,21 @@ function RegistrationCard({ registration, index }) {
           </div>
         )}
 
-        {/* Content */}
         <div className='flex-1 p-4 sm:p-5'>
-          {/* Title & Status Badges */}
           <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3'>
             <h3 className='text-lg font-semibold text-gray-900 line-clamp-2'>
               {event.title}
             </h3>
             <div className='flex flex-wrap gap-2'>
-              {/* Trạng thái đăng ký */}
+              {/* Hiển thị badge trạng thái chính xác */}
               <span
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
                 <StatusIcon className='h-3.5 w-3.5' />
                 {statusInfo.label}
               </span>
-              {/* Trạng thái hoàn thành (chỉ hiện khi đã được duyệt) */}
-              {status === "accepted" && (
+              
+              {/* Hiển thị badge hoàn thành nếu đã được duyệt */}
+              {(status === REGISTRATION_STATUS.REGISTERED || status === REGISTRATION_STATUS.ACCEPTED) && (
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${completionInfo.color}`}>
                   <CompletionIcon className='h-3.5 w-3.5' />
@@ -465,7 +458,6 @@ function RegistrationCard({ registration, index }) {
             </div>
           </div>
 
-          {/* Event Details */}
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600'>
             <div className='flex items-center gap-2'>
               <Calendar className='h-4 w-4 text-gray-400' />
@@ -486,7 +478,6 @@ function RegistrationCard({ registration, index }) {
             </div>
           </div>
 
-          {/* Tags */}
           {event.tags && event.tags.length > 0 && (
             <div className='flex flex-wrap gap-1.5 mt-3'>
               {event.tags.slice(0, 3).map((tag, i) => (
@@ -499,7 +490,6 @@ function RegistrationCard({ registration, index }) {
             </div>
           )}
 
-          {/* Registration Info */}
           <div className='mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500'>
             Đăng ký lúc: {new Date(registeredAt).toLocaleString("vi-VN")}
           </div>
