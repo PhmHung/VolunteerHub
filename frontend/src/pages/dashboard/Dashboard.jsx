@@ -35,6 +35,7 @@ import {
   radiusToZoomLevel,
   getCoordinatesFromLocation,
 } from "../../utils/mapHelpers";
+import { getEventTimeStatus } from "../../utils/eventHelpers";
 
 const FALLBACK_COORDINATE = { lat: 21.0285, lng: 105.8542 }; // Hanoi
 
@@ -146,15 +147,18 @@ const Dashboard = () => {
   }, [selectedDate, allEvents]);
 
   const upcomingEvents = useMemo(() => {
-    const now = new Date();
     return allEvents
-      .filter((e) => e.eventDate >= now)
+      .filter((e) => {
+        const timeStatus = getEventTimeStatus(e.startDate, e.endDate);
+        return timeStatus !== "EXPIRED";
+      })
       .sort((a, b) => a.eventDate - b.eventDate)
       .slice(0, 5);
   }, [allEvents]);
 
   const newlyAnnouncedEvents = useMemo(() => {
     return [...allEvents]
+      .filter((e) => getEventTimeStatus(e.startDate, e.endDate) !== "EXPIRED")
       .sort(
         (a, b) =>
           new Date(b.createdAt || b.startDate) -
@@ -164,20 +168,21 @@ const Dashboard = () => {
   }, [allEvents]);
 
   const trendingEvents = useMemo(() => {
-    const eventScores = allEvents.map((event) => {
-      const registrationCount = event.currentParticipants || 0;
-      const maxParticipants = event.maxParticipants || 1;
-      const fillRate = registrationCount / maxParticipants;
-      const score = registrationCount * 3 + fillRate * 50;
-      return {
-        ...event,
-        totalLikes: 0,
-        totalComments: 0,
-        registrationCount,
-        fillRate: Math.round(fillRate * 100),
-        trendingScore: score,
-      };
-    });
+    const eventScores = allEvents
+      .filter((e) => getEventTimeStatus(e.startDate, e.endDate) !== "EXPIRED") // Chỉ lấy sự kiện còn hạn
+      .map((event) => {
+        const registrationCount = event.currentParticipants || 0;
+        const maxParticipants = event.maxParticipants || 1;
+        const fillRate = registrationCount / maxParticipants;
+        const score = registrationCount * 3 + fillRate * 50;
+        return {
+          ...event,
+          registrationCount,
+          fillRate: Math.round(fillRate * 100),
+          trendingScore: score,
+        };
+      });
+
     return eventScores
       .filter((e) => e.registrationCount > 0)
       .sort((a, b) => b.trendingScore - a.trendingScore)

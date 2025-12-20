@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { getEventTimeStatus } from "../../utils/eventHelpers";
 import {
   ArrowLeft,
   Calendar,
@@ -21,7 +22,8 @@ import { useGeolocation } from "../../hooks/useGeolocation";
 
 // Import components
 import VolunteersList from "../../components/registrations/VolunteersList";
-import EventSingleMap from "../public/EventMap"; // Component Map đã tạo ở bước trước
+import EventSingleMap from "../public/EventMap";
+import Toast, { ToastContainer } from "../../components/common/Toast";
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -36,6 +38,24 @@ const EventDetail = () => {
   const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [toasts, setToasts] = useState([]);
+
+  const timeStatus = useMemo(() => {
+    if (!event) return null;
+    // Chuẩn hóa dữ liệu đầu vào để đảm bảo hàm chạy đúng
+    const start = event.startDate || `${event.date}T${event.startTime}`;
+    const end = event.endDate || `${event.date}T${event.endTime}`;
+    return getEventTimeStatus(start, end);
+  }, [event]);
+
+  const isExpired = timeStatus === "EXPIRED";
+
+  const addToast = (message, type = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+  const removeToast = (id) =>
+    setToasts((prev) => prev.filter((t) => t.id !== id));
 
   // 1. Lấy vị trí người dùng
   const { location: userLocation } = useGeolocation();
@@ -124,21 +144,31 @@ const EventDetail = () => {
                 <span className='px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full uppercase'>
                   {event.category || "Sự kiện"}
                 </span>
-                {isManagerOrAdmin && (
-                  <span
-                    className={`px-3 py-1 text-xs font-bold rounded-full uppercase border ${
-                      event.status === "approved"
-                        ? "bg-blue-50 text-blue-700 border-blue-100"
-                        : event.status === "pending"
-                        ? "bg-amber-50 text-amber-700 border-amber-100"
-                        : "bg-red-50 text-red-700 border-red-100"
-                    }`}>
-                    {event.status === "approved"
-                      ? "Đã duyệt"
-                      : event.status === "pending"
-                      ? "Chờ duyệt"
-                      : "Từ chối"}
+                {isExpired ? (
+                  <span className='px-3 py-1 text-xs font-bold rounded-full uppercase border bg-gray-100 text-gray-600 border-gray-200'>
+                    Đã kết thúc
                   </span>
+                ) : (
+                  (isManagerOrAdmin || event.status === "cancelled") && (
+                    <span
+                      className={`px-3 py-1 text-xs font-bold rounded-full uppercase border ${
+                        event.status === "approved"
+                          ? "bg-blue-50 text-blue-700 border-blue-100"
+                          : event.status === "pending"
+                          ? "bg-amber-50 text-amber-700 border-amber-100"
+                          : event.status === "cancelled"
+                          ? "bg-gray-100 text-gray-600 border-gray-200"
+                          : "bg-red-50 text-red-700 border-red-100"
+                      }`}>
+                      {event.status === "approved"
+                        ? "Đã duyệt"
+                        : event.status === "pending"
+                        ? "Chờ duyệt"
+                        : event.status === "cancelled"
+                        ? "Đã hủy"
+                        : "Từ chối"}
+                    </span>
+                  )
                 )}
               </div>
               <h1 className='text-3xl font-bold text-gray-900 mb-2'>
@@ -276,26 +306,87 @@ const EventDetail = () => {
 
             {/* Volunteer Action */}
             {!isManagerOrAdmin && (
-              <div className='bg-emerald-600 rounded-2xl p-6 text-white text-center shadow-lg shadow-emerald-200'>
-                <h4 className='text-xl font-bold mb-2'>Tham gia ngay!</h4>
-                <p className='text-emerald-100 text-sm mb-6'>
-                  Hãy chung tay đóng góp cho cộng đồng bằng cách tham gia sự
-                  kiện này.
-                </p>
-                <button
-                  onClick={() => {
-                    dispatch(registerForEvent(event._id || event.id));
-                    alert("Đã gửi yêu cầu đăng ký!");
-                    window.location.reload();
-                  }}
-                  className='w-full py-3 bg-white text-emerald-700 font-bold rounded-xl hover:bg-emerald-50 transition shadow-sm'>
-                  Đăng ký tham gia
-                </button>
+              <div
+                className={`${
+                  event.status === "cancelled" || isExpired
+                    ? "bg-gray-500 shadow-gray-200" // Chuyển màu xám nếu hủy HOẶC hết hạn
+                    : "bg-emerald-600 shadow-emerald-200"
+                } rounded-2xl p-6 text-white text-center shadow-lg transition-all duration-300`}>
+                {isExpired ? (
+                  /* TRƯỜNG HỢP 1: SỰ KIỆN ĐÃ KẾT THÚC */
+                  <>
+                    <h4 className='text-xl font-bold mb-2'>
+                      Sự kiện đã kết thúc
+                    </h4>
+                    <p className='text-gray-100 text-sm mb-6'>
+                      Hoạt động này đã hoàn thành thời gian tổ chức. Cảm ơn bạn
+                      đã quan tâm đến chương trình.
+                    </p>
+                    <button
+                      disabled
+                      className='w-full py-3 bg-gray-300 text-gray-500 font-bold rounded-xl cursor-not-allowed shadow-sm'>
+                      Sự kiện đã kết thúc
+                    </button>
+                  </>
+                ) : event.status === "cancelled" ? (
+                  /* TRƯỜNG HỢP 2: SỰ KIỆN BỊ HỦY */
+                  <>
+                    <h4 className='text-xl font-bold mb-2'>
+                      Sự kiện đã ngừng tiếp nhận
+                    </h4>
+                    <p className='text-gray-100 text-sm mb-6'>
+                      Rất tiếc, hoạt động này đã bị hủy bởi Ban tổ chức. Bạn
+                      không thể đăng ký tham gia vào lúc này.
+                    </p>
+                    <button
+                      disabled
+                      className='w-full py-3 bg-gray-300 text-gray-500 font-bold rounded-xl cursor-not-allowed shadow-sm'>
+                      Đã đóng đăng ký
+                    </button>
+                  </>
+                ) : (
+                  /* TRƯỜNG HỢP 3: CÒN HẠN VÀ ĐANG MỞ */
+                  <>
+                    <h4 className='text-xl font-bold mb-2'>Tham gia ngay!</h4>
+                    <p className='text-emerald-100 text-sm mb-6'>
+                      Hãy chung tay đóng góp cho cộng đồng bằng cách tham gia sự
+                      kiện này.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await dispatch(
+                            registerForEvent(event._id || event.id)
+                          ).unwrap();
+                          addToast(
+                            "Đã gửi yêu cầu đăng ký thành công!",
+                            "success"
+                          );
+
+                          const regRes = await api.get(
+                            `/api/events/${id}/registrations`
+                          );
+                          setRegistrations(
+                            regRes.data?.data || regRes.data || []
+                          );
+                        } catch (err) {
+                          addToast(
+                            err || "Lỗi khi gửi yêu cầu đăng ký",
+                            "error"
+                          );
+                        }
+                      }}
+                      className='w-full py-3 bg-white text-emerald-700 font-bold rounded-xl hover:bg-emerald-50 transition shadow-sm'>
+                      Đăng ký tham gia
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };
