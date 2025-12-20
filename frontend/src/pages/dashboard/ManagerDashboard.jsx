@@ -310,11 +310,6 @@ export default function ManagerDashboard({ user }) {
                 {pendingRegCount > 0 && <span className='ml-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full font-bold'>{pendingRegCount}</span>}
                 {activeTab === "registrations" && <div className='absolute bottom-0 left-0 right-0 h-1 bg-primary-600 rounded-t-full' />}
               </button>
-
-              <button onClick={() => handleTabChange("users_management")} className={`pb-4 text-sm font-bold relative flex items-center gap-2 whitespace-nowrap ${activeTab === "users_management" ? "text-primary-600" : "text-gray-500 hover:text-gray-700"}`}>
-                <UserCog className='w-4 h-4' /> Cộng tác viên
-                {activeTab === "users_management" && <div className='absolute bottom-0 left-0 right-0 h-1 bg-primary-600 rounded-t-full' />}
-              </button>
             </div>
           </div>
 
