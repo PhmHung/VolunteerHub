@@ -1,6 +1,7 @@
 /** @format */
 
 import React, { useState } from "react";
+import { getEventTimeStatus } from "../../utils/eventHelpers";
 import {
   Search,
   Eye,
@@ -17,6 +18,7 @@ import {
   Ban,
   AlertTriangle,
   Edit,
+  Star,
 } from "lucide-react";
 
 const EventManagementTable = ({
@@ -237,6 +239,11 @@ const EventManagementTable = ({
             </thead>
             <tbody className='divide-y divide-gray-100'>
               {filteredEvents.map((event) => {
+                const timeStatus = getEventTimeStatus(
+                  event.startDate,
+                  event.endDate
+                );
+                const isExpired = timeStatus === "EXPIRED";
                 const statusInfo = getStatusConfig(event.status);
                 const StatusIcon = statusInfo.icon;
 
@@ -247,10 +254,19 @@ const EventManagementTable = ({
                 const max = event.maxParticipants || 1;
                 const percent = Math.min((registered / max) * 100, 100);
                 const isFull = registered >= max;
-
                 const isCancelPending = event.status === "cancel_pending";
                 const isPending = event.status === "pending";
                 const isHighlighted = event._id === highlightedId;
+
+                const displayStatus =
+                  isExpired && event.status === "approved"
+                    ? {
+                        label: "Hoàn thành",
+                        bg: "bg-gray-100",
+                        text: "text-gray-600",
+                        icon: CheckCircle,
+                      }
+                    : statusInfo;
                 return (
                   <tr
                     key={event._id}
@@ -353,9 +369,9 @@ const EventManagementTable = ({
                     {/* Cột 4: Trạng thái */}
                     <td className='px-6 py-4 text-center align-top'>
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.text}`}>
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${displayStatus.bg} ${displayStatus.text}`}>
                         <StatusIcon className='w-3.5 h-3.5' />
-                        {statusInfo.label}
+                        {displayStatus.label}
                       </span>
                     </td>
 
@@ -371,6 +387,7 @@ const EventManagementTable = ({
 
                         {!onApprove &&
                           onEditEvent &&
+                          !isExpired &&
                           event.status !== "cancelled" &&
                           event.status !== "cancel_pending" && (
                             <button
@@ -381,7 +398,7 @@ const EventManagementTable = ({
                             </button>
                           )}
 
-                        {onApprove && isPending && (
+                        {onApprove && isPending && !isExpired && (
                           <button
                             onClick={() => onApprove(event)}
                             className='p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition'
@@ -399,14 +416,18 @@ const EventManagementTable = ({
                           </button>
                         )}
 
-                        {event.status === "approved" && onCancelEvent && (
-                          <button
-                            onClick={() => onCancelEvent(event)}
-                            className='p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition'
-                            title={onApprove ? "Hủy khẩn cấp" : "Yêu cầu hủy"}>
-                            <Ban className='w-4.5 h-4.5' />
-                          </button>
-                        )}
+                        {event.status === "approved" &&
+                          onCancelEvent &&
+                          !isExpired && (
+                            <button
+                              onClick={() => onCancelEvent(event)}
+                              className='p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition'
+                              title={
+                                onApprove ? "Hủy khẩn cấp" : "Yêu cầu hủy"
+                              }>
+                              <Ban className='w-4.5 h-4.5' />
+                            </button>
+                          )}
 
                         {event.status === "cancel_pending" && !onApprove && (
                           <button
@@ -428,6 +449,14 @@ const EventManagementTable = ({
                               <Trash2 className='w-4.5 h-4.5' />
                             </button>
                           )}
+                        {isExpired && event.status === "approved" && (
+                          <button
+                            className='p-2 text-yellow-500 hover:bg-yellow-50 rounded-lg'
+                            title='Xem đánh giá'
+                            onClick={() => onViewEvent(event, "reviews")}>
+                            <Star className='w-4.5 h-4.5' />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

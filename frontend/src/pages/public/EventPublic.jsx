@@ -2,7 +2,9 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom"; // 1. Import useNavigate
+import { useNavigate } from "react-router-dom";
+import ConfirmModal from "../../components/common/ConfirmModal";
+import Toast, { ToastContainer } from "../../components/common/Toast";
 import {
   Calendar,
   MapPin,
@@ -11,11 +13,10 @@ import {
   Search,
   Filter,
   Plus,
-  CheckCircle,
   XCircle,
-  Eye, // Icon Xem chi tiết
+  Eye,
 } from "lucide-react";
-import { EVENT_CATEGORIES, EVENT_STATUS } from "../../utils/constants";
+import { EVENT_STATUS } from "../../utils/constants";
 import { motion } from "framer-motion";
 import { fetchEvents } from "../../features/eventSlice";
 import {
@@ -24,15 +25,16 @@ import {
   cancelRegistration,
   clearRegistrationMessages,
 } from "../../features/registrationSlice";
-
+import { extractAllTags } from "../../utils/tagHelpers";
+import TagBubbleModal from "./TagBubbleModal";
+import { getEventTimeStatus } from "../../utils/eventHelpers";
 const TIME_FILTERS = [
   { label: "Tất cả", value: "all" },
   { label: "Đang diễn ra", value: "ongoing" },
   { label: "Sắp diễn ra", value: "upcoming" },
   { label: "Đã diễn ra", value: "past" },
 ];
-import { extractAllTags } from "../../utils/tagHelpers";
-import TagBubbleModal from "./TagBubbleModal";
+
 export default function EventsPage({ user, openAuth }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -45,23 +47,39 @@ export default function EventsPage({ user, openAuth }) {
   } = useSelector((state) => state.registration);
 
   const [searchQuery, setSearchQuery] = useState("");
-  //onst [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [selectedTag, setSelectedTag] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [toast, setToast] = useState(null);
-  const allTags = useMemo(() => extractAllTags(eventsData), [eventsData]);
-  // Convert myRegistrations array to map
+  const [toastList, setToastList] = useState([]);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+
+  const allTags = useMemo(() => extractAllTags(eventsData), [eventsData]);
+
   const userRegistrations = useMemo(() => {
     const regMap = {};
     const registrations = Array.isArray(myRegistrations) ? myRegistrations : [];
     registrations.forEach((reg) => {
-      regMap[reg.eventId?._id || reg.eventId] = reg;
+      if (reg.status !== "cancelled") {
+        regMap[reg.eventId?._id || reg.eventId] = reg;
+      }
     });
     return regMap;
   }, [myRegistrations]);
+
+  //Confirm modal state
+  const [cancelModal, setCancelModal] = useState({
+    isOpen: false,
+    registrationId: null,
+    eventTitle: "",
+  });
+  const addToast = (message, type = "success") => {
+    const id = Date.now();
+    setToastList((prev) => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id) =>
+    setToastList((prev) => prev.filter((t) => t.id !== id));
 
   useEffect(() => {
     dispatch(fetchEvents());
@@ -72,44 +90,32 @@ export default function EventsPage({ user, openAuth }) {
 
   useEffect(() => {
     if (successMessage) {
-      setToast({ type: "success", message: successMessage });
+      addToast(successMessage, "success");
       dispatch(clearRegistrationMessages());
       dispatch(fetchEvents());
     }
     if (registrationError) {
-      setToast({ type: "error", message: registrationError });
+      addToast(registrationError, "error");
       dispatch(clearRegistrationMessages());
     }
   }, [successMessage, registrationError, dispatch]);
 
-  useEffect(() => {
-    if (!toast) return undefined;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  //const isVolunteer = user?.role === "volunteer";
   const isManager = user?.role === "manager";
   const isAdmin = user?.role === "admin";
 
-  // Lọc sự kiện: Thêm điều kiện isPubliclyVisible ở đây
   const filteredEvents = useMemo(() => {
-    return eventsData.filter((event) => {
+    // 1. Lọc danh sách (Giữ nguyên logic filter của bạn)
+    const filtered = eventsData.filter((event) => {
       const matchesSearch =
         event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // --- LOGIC LỌC TAG MỚI ---
       const eventCat = event.category?.toLowerCase().trim() || "";
       const eventTags = (event.tags || []).map((t) => t.toLowerCase().trim());
-
-      // Nếu chọn 'all' thì luôn đúng.
-      // Nếu chọn tag cụ thể: Kiểm tra xem tag đó có nằm trong mảng tags của event HOẶC trùng với category không
       const matchesTag =
         selectedTag === "all" ||
         eventCat === selectedTag ||
         eventTags.includes(selectedTag);
-      // -------------------------
 
       const matchesStatusFilter =
         statusFilter === "all" || event.status === statusFilter;
@@ -117,12 +123,11 @@ export default function EventsPage({ user, openAuth }) {
         isAdmin || isManager || event.status === "approved";
 
       const now = new Date();
-      const eventStart = new Date(
-        event.startDate || `${event.date}T${event.startTime}`
-      );
-      const eventEnd = new Date(
-        event.endDate || `${event.date}T${event.endTime}`
-      );
+      // Chuẩn hóa ngày để so sánh
+      const start = event.startDate || `${event.date}T${event.startTime}`;
+      const end = event.endDate || `${event.date}T${event.endTime}`;
+      const eventStart = new Date(start);
+      const eventEnd = new Date(end);
 
       const matchesTime =
         timeFilter === "all" ||
@@ -137,224 +142,185 @@ export default function EventsPage({ user, openAuth }) {
 
       return (
         matchesSearch &&
-        matchesTag && // Sử dụng biến mới
+        matchesTag &&
         matchesStatusFilter &&
         matchesTime &&
         matchesDate &&
         isPubliclyVisible
       );
     });
+
+    // 2. Logic Sắp xếp Ưu tiên (Xếp ngang: 0 -> 1 -> 2...)
+    return filtered.sort((a, b) => {
+      const startA = a.startDate || `${a.date}T${a.startTime}`;
+      const endA = a.endDate || `${a.date}T${a.endTime}`;
+      const startB = b.startDate || `${b.date}T${b.startTime}`;
+      const endB = b.endDate || `${b.date}T${b.endTime}`;
+
+      const timeStatusA = getEventTimeStatus(startA, endA);
+      const timeStatusB = getEventTimeStatus(startB, endB);
+      const regA = userRegistrations[a._id || a.id];
+      const regB = userRegistrations[b._id || b.id];
+
+      const getPriority = (ts, reg) => {
+        if (ts === "EXPIRED") return 4; // Hết hạn xuống cuối
+        if (reg) return 1; // Đã đăng ký lên đầu
+        if (ts === "ONGOING") return 2; // Đang diễn ra thứ 2
+        return 3; // Sắp tới thứ 3
+      };
+
+      const pA = getPriority(timeStatusA, regA);
+      const pB = getPriority(timeStatusB, regB);
+
+      return pA !== pB ? pA - pB : new Date(startA) - new Date(startB);
+    });
   }, [
     searchQuery,
-    selectedTag, // Dependency mới
+    selectedTag,
     statusFilter,
     timeFilter,
     selectedDate,
     eventsData,
+    userRegistrations, // Dependency quan trọng để sort lại khi nhấn đăng ký/hủy
     isAdmin,
     isManager,
   ]);
-
-  // --- HÀM XỬ LÝ CHUYỂN TRANG CHI TIẾT (Phân quyền) ---
-  const handleViewDetail = (eventId) => {
-    navigate(`/events/${eventId}`);
-  };
 
   const handleRegister = async (eventId) => {
     if (!user) {
       openAuth?.("login");
       return;
     }
-    const event = eventsData.find(
-      (item) => item._id === eventId || item.id === eventId
-    );
-    if (!event) {
-      setToast({ type: "error", message: "Không tìm thấy sự kiện." });
-      return;
-    }
+
+    // THÔNG BÁO NẾU ĐÃ ĐĂNG KÝ
     if (userRegistrations[eventId]) {
-      setToast({ type: "info", message: "Bạn đã đăng ký sự kiện này rồi." });
+      addToast("Bạn đã đăng ký tham gia sự kiện này rồi.", "info");
       return;
     }
+
     try {
       await dispatch(registerForEvent(eventId)).unwrap();
       dispatch(fetchMyRegistrations());
     } catch (error) {
-      setToast({
-        type: "error",
-        message: error || "Có lỗi xảy ra khi đăng ký.",
-      });
+      addToast(error || "Có lỗi xảy ra khi đăng ký.", "error");
     }
   };
 
-  const handleCancelRegistration = async (eventId) => {
-    if (!user) {
-      openAuth?.("login");
-      return;
-    }
+  const handleCancelRegistration = (eventId) => {
     const registration = userRegistrations[eventId];
-    if (!registration) {
-      setToast({ type: "info", message: "Bạn chưa đăng ký sự kiện này." });
+    const event = eventsData.find((item) => (item._id || item.id) === eventId);
+
+    if (!registration || !registration._id) {
+      addToast("Không tìm thấy thông tin đăng ký.", "error");
       return;
     }
-    if (registration.status === "rejected") {
-      setToast({
-        type: "error",
-        message: "Không thể hủy đăng ký đã bị từ chối.",
-      });
-      return;
-    }
-    const event = eventsData.find(
-      (item) => item._id === eventId || item.id === eventId
-    );
-    if (!event) return;
-    if (
-      !window.confirm(
-        `Bạn có chắc chắn muốn hủy đăng ký sự kiện "${event.title}" không?`
-      )
-    ) {
-      return;
-    }
-    try {
-      await dispatch(cancelRegistration(registration._id)).unwrap();
-      dispatch(fetchMyRegistrations());
-    } catch (error) {
-      setToast({ type: "error", message: error || "Lỗi khi hủy đăng ký" });
-    }
+
+    // Mở ConfirmModal thay vì window.confirm
+    setCancelModal({
+      isOpen: true,
+      registrationId: registration._id,
+      eventTitle: event?.title || "sự kiện này",
+    });
   };
 
+  const handleConfirmCancel = async () => {
+    const { registrationId } = cancelModal;
+
+    try {
+      // Dùng .unwrap() để await có hiệu lực và bắt lỗi chính xác
+      const result = await dispatch(
+        cancelRegistration(registrationId)
+      ).unwrap();
+      addToast(result.message || "Hủy đăng ký thành công", "success");
+    } catch (error) {
+      // Đưa lỗi 400 hoặc lỗi server vào Toast chuyên nghiệp
+      addToast(error || "Không thể hủy đơn đăng ký", "error");
+    } finally {
+      // Tải lại dữ liệu để cập nhật số lượng người tham gia và trạng thái nút
+      await dispatch(fetchMyRegistrations()).unwrap();
+      await dispatch(fetchEvents()).unwrap();
+
+      setCancelModal({ ...cancelModal, isOpen: false });
+    }
+  };
   return (
     <div className='w-full min-h-screen bg-surface-muted px-6 py-10'>
       <div className='max-w-7xl mx-auto space-y-8'>
-        {/* Header */}
-        <header className='space-y-3'>
-          <div className='flex items-center justify-between flex-wrap gap-4'>
-            <div>
-              <h1 className='heading-1'>Sự kiện tình nguyện</h1>
-              <p className='text-body mt-1'>
-                Khám phá và tham gia các hoạt động ý nghĩa trong cộng đồng
-              </p>
-            </div>
-            {isAdmin && (
-              <button
-                onClick={() =>
-                  alert("Tạo sự kiện mới - Tính năng đang phát triển")
-                }
-                className='btn btn-primary'>
-                <Plus className='h-4 w-4' />
-                Tạo sự kiện mới
-              </button>
-            )}
+        <header className='flex items-center justify-between flex-wrap gap-4'>
+          <div>
+            <h1 className='heading-1'>Sự kiện tình nguyện</h1>
+            <p className='text-body mt-1'>
+              Tham gia các hoạt động ý nghĩa trong cộng đồng
+            </p>
           </div>
+          {isAdmin && (
+            <button className='btn btn-primary'>
+              <Plus className='h-4 w-4' /> Tạo sự kiện mới
+            </button>
+          )}
         </header>
 
-        {toast && (
-          <div
-            className={`rounded-lg border px-4 py-3 text-sm font-medium shadow-sm transition ${
-              toast.type === "success"
-                ? "badge-success"
-                : toast.type === "warning"
-                ? "badge-warning"
-                : toast.type === "info"
-                ? "badge-info"
-                : "badge-error"
-            }`}>
-            {toast.message}
-          </div>
-        )}
-
-        {/* Filters */}
+        {/* Filters - Đã khôi phục đầy đủ để dùng setStatusFilter */}
         <section className='card p-5'>
-          {/* Chia thành 2 cột lớn: Cột Trái (Search & Tag) - Cột Phải (Time & Date) */}
           <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-            {/* --- CỘT 1: TÌM KIẾM & CHỌN TAG --- */}
             <div className='flex flex-col gap-3'>
-              {/* 1. Ô tìm kiếm */}
               <div className='relative w-full'>
                 <Search className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted' />
                 <input
                   type='text'
-                  placeholder='Tìm kiếm sự kiện...'
+                  placeholder='Tìm kiếm...'
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className='input-field pl-10 w-full'
                 />
               </div>
-
-              {/* 2. Nút chọn Tag & Modal */}
-              <div>
-                <button
-                  onClick={() => setIsTagModalOpen(true)}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg font-medium transition-all border ${
-                    selectedTag !== "all"
-                      ? "bg-primary-50 border-primary-200 text-primary-700"
-                      : "bg-white border-gray-200 text-text-secondary hover:bg-gray-50"
-                  }`}>
-                  <div className='flex items-center gap-2'>
-                    <Filter className='w-4 h-4' />
-                    <span>
-                      {selectedTag === "all"
-                        ? "Lọc theo chủ đề"
-                        : `Chủ đề: ${
-                            allTags.find((t) => t.id === selectedTag)?.text ||
-                            selectedTag
-                          }`}
-                    </span>
-                  </div>
-                  {/* Hiển thị mũi tên nhỏ hoặc số lượng tag nếu cần */}
-                </button>
-
-                {/* Modal ẩn (chỉ hiện khi bấm nút trên) */}
-                <TagBubbleModal
-                  isOpen={isTagModalOpen}
-                  onClose={() => setIsTagModalOpen(false)}
-                  tags={allTags}
-                  selectedTag={selectedTag}
-                  onSelectTag={(tag) => setSelectedTag(tag)}
-                />
-              </div>
+              <button
+                onClick={() => setIsTagModalOpen(true)}
+                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg border ${
+                  selectedTag !== "all"
+                    ? "bg-primary-50 border-primary-200 text-primary-700"
+                    : "bg-white border-gray-200 text-text-secondary"
+                }`}>
+                <div className='flex items-center gap-2'>
+                  <Filter className='w-4 h-4' />
+                  <span>
+                    {selectedTag === "all"
+                      ? "Lọc theo chủ đề"
+                      : `Chủ đề: ${selectedTag}`}
+                  </span>
+                </div>
+              </button>
             </div>
 
-            {/* --- CỘT 2: THỜI GIAN & NGÀY --- */}
             <div className='flex flex-col gap-3 justify-center'>
-              {/* 1. Các nút lọc thời gian */}
               <div className='flex flex-wrap items-center gap-2'>
                 <Clock className='h-5 w-5 text-text-muted mr-1' />
                 {TIME_FILTERS.map(({ value, label }) => (
                   <button
                     key={value}
                     onClick={() => setTimeFilter(value)}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                       timeFilter === value
                         ? "bg-primary-100 text-primary-700"
-                        : "bg-surface-muted text-text-secondary hover:bg-gray-200"
+                        : "bg-surface-muted"
                     }`}>
                     {label}
                   </button>
                 ))}
               </div>
-
-              {/* 2. Chọn ngày cụ thể */}
               <div className='flex items-center gap-2 pt-2 border-t border-gray-100'>
                 <Calendar className='h-5 w-5 text-text-muted mr-1' />
                 <input
                   type='date'
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className='input-field py-1.5 text-text-secondary w-full'
+                  className='input-field py-1.5 w-full'
                 />
-                {selectedDate && (
-                  <button
-                    onClick={() => setSelectedDate("")}
-                    className='text-sm text-red-500 hover:text-red-700 whitespace-nowrap px-2'>
-                    Xóa
-                  </button>
-                )}
               </div>
             </div>
           </div>
 
-          {/* Phần lọc trạng thái (Admin/Manager) - Nằm riêng bên dưới */}
+          {/* SỬA LỖI LINT: Khôi phục logic sử dụng setStatusFilter */}
           {(isAdmin || isManager) && (
             <div className='mt-4 flex items-center gap-2 pt-4 border-t border-gray-200'>
               <span className='text-sm font-medium text-text-secondary'>
@@ -378,212 +344,135 @@ export default function EventsPage({ user, openAuth }) {
 
         {/* Events Grid */}
         <section className='grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
-          {filteredEvents.length === 0 ? (
-            <div className='col-span-full text-center py-12'>
-              <p className='text-text-muted text-lg'>
-                Không tìm thấy sự kiện nào phù hợp
-              </p>
-            </div>
-          ) : (
-            filteredEvents.map((event, idx) => {
-              const eventId = event._id || event.id;
-              const registration = userRegistrations[eventId];
-              const isFull =
-                (event.currentParticipants ?? event.registered ?? 0) >=
-                (event.maxParticipants ?? event.slots ?? 0);
-              const isApproved = event.status === "approved" || !event.status;
+          {filteredEvents.map((event, idx) => {
+            const eventId = event._id || event.id;
+            const reg = userRegistrations[eventId];
+            const timeStatus = getEventTimeStatus(
+              event.startDate,
+              event.endDate
+            );
+            const isExpired = timeStatus === "EXPIRED";
+            const isFull =
+              (event.currentParticipants ?? 0) >= (event.maxParticipants ?? 0);
+            const isApproved = event.status === "approved" || !event.status;
 
-              let buttonState = "register";
-              if (registration) {
-                buttonState = registration.status;
-              } else if (isFull) {
-                buttonState = "full";
-              }
+            return (
+              <motion.article
+                key={eventId}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className='card flex flex-col overflow-hidden hover:shadow-lg transition-shadow'>
+                <div className='relative h-48'>
+                  <img
+                    src={event.image}
+                    alt={event.title}
+                    className='h-full w-full object-cover'
+                  />
+                  <div
+                    className={`absolute top-3 right-3 rounded-full px-3 py-1 text-xs font-semibold ${
+                      isExpired
+                        ? "bg-gray-100 text-gray-600 border border-gray-200"
+                        : event.status === "approved"
+                        ? "badge-success"
+                        : "badge-warning"
+                    }`}>
+                    {isExpired
+                      ? "Đã kết thúc"
+                      : EVENT_STATUS[event.status]?.label || "Công khai"}
+                  </div>
+                </div>
 
-              return (
-                <motion.article
-                  key={eventId}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className='card flex flex-col overflow-hidden hover:shadow-lg transition-shadow'>
-                  {/* Event Image */}
-                  <div className='relative h-48 bg-surface-muted'>
-                    <img
-                      src={event.image}
-                      alt={event.title}
-                      className='h-full w-full object-cover'
-                    />
-                    <div
-                      className={`absolute top-3 right-3 rounded-full px-3 py-1 text-xs font-semibold ${
-                        event.status === "approved"
-                          ? "badge-success"
-                          : event.status === "pending"
-                          ? "badge-warning"
-                          : "badge-error"
-                      }`}>
-                      {EVENT_STATUS[event.status]?.label}
-                    </div>
+                <div className='flex flex-col flex-1 p-5 space-y-3'>
+                  <h3 className='text-lg font-semibold text-text-main line-clamp-2'>
+                    {event.title}
+                  </h3>
+                  <div className='flex items-center gap-2 text-sm text-text-secondary'>
+                    <Users className='h-4 w-4 text-text-muted' />
+                    <span>
+                      {event.currentParticipants}/{event.maxParticipants} người
+                    </span>
                   </div>
 
-                  {/* Event Content */}
-                  <div className='flex flex-col flex-1 p-5 space-y-3'>
-                    <div>
-                      <span className='inline-block rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700'>
-                        {event.category}
-                      </span>
-                      <h3 className='mt-2 text-lg font-semibold text-text-main line-clamp-2'>
-                        {event.title}
-                      </h3>
-                      <p className='mt-1 text-sm text-text-secondary line-clamp-2'>
-                        {event.description}
-                      </p>
-                    </div>
-
-                    <div className='space-y-2 text-sm text-text-secondary'>
-                      <div className='flex items-center gap-2'>
-                        <Calendar className='h-4 w-4 text-text-muted' />
-                        <span>
-                          {new Date(
-                            event.startDate ||
-                              `${event.date}T${event.startTime}`
-                          ).toLocaleDateString("vi-VN")}
-                        </span>
-                      </div>
-                      <div className='flex items-center gap-2'>
-                        <MapPin className='h-4 w-4 text-text-muted' />
-                        <span className='line-clamp-1'>{event.location}</span>
-                      </div>
-                      <div className='flex items-center gap-2'>
-                        <Users className='h-4 w-4 text-text-muted' />
-                        <span>
-                          {event.currentParticipants ?? event.registered}/
-                          {event.maxParticipants ?? event.slots} người đã đăng
-                          ký
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className='flex flex-wrap gap-1.5'>
-                      {event.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className='rounded-md bg-surface-muted px-2 py-0.5 text-xs text-text-secondary'>
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Actions */}
-                    <div className='flex flex-wrap gap-2 pt-3 border-t border-gray-200'>
-                      {/* Logic hiển thị nút Đăng ký/Hủy/Đã tham gia (Chỉ hiển thị nếu KHÔNG phải Admin và sự kiện đã được duyệt) */}
-                      {!isAdmin && !isManager && isApproved && (
-                        <>
-                          {buttonState === "pending" ? (
-                            <div className='flex-1 flex gap-2'>
-                              <button
-                                disabled
-                                className='flex-1 rounded-lg bg-warning-100 px-3 py-2 text-sm font-semibold text-warning-700 cursor-default'>
-                                Đang chờ duyệt
-                              </button>
-                              <button
-                                onClick={() =>
-                                  handleCancelRegistration(eventId)
-                                }
-                                className='rounded-lg border border-error-200 px-3 py-2 text-sm font-semibold text-error-600 hover:bg-error-50'>
-                                <XCircle className='h-4 w-4' />
-                              </button>
-                            </div>
-                          ) : buttonState === "accepted" ? (
-                            <div className='flex-1 flex gap-2'>
-                              <button
-                                disabled
-                                className='flex-1 rounded-lg bg-success-100 px-3 py-2 text-sm font-semibold text-success-700 cursor-default'>
-                                Đã tham gia
-                              </button>
-                              <button
-                                onClick={() =>
-                                  handleCancelRegistration(eventId)
-                                }
-                                className='rounded-lg border border-error-200 px-3 py-2 text-sm font-semibold text-error-600 hover:bg-error-50'>
-                                <XCircle className='h-4 w-4' />
-                              </button>
-                            </div>
-                          ) : buttonState === "rejected" ? (
+                  <div className='flex flex-wrap gap-2 pt-3 border-t'>
+                    {!isAdmin && !isManager && isApproved && (
+                      <div className='flex-1'>
+                        {isExpired ? (
+                          <button
+                            disabled
+                            className='w-full py-2 rounded-lg font-semibold bg-gray-100 text-gray-400 cursor-not-allowed'>
+                            Sự kiện đã kết thúc
+                          </button>
+                        ) : reg ? (
+                          <div className='flex gap-2 w-full'>
                             <button
-                              disabled
-                              className='flex-1 rounded-lg bg-error-100 px-3 py-2 text-sm font-semibold text-error-700 cursor-not-allowed'>
-                              Bị từ chối
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleRegister(eventId)}
-                              disabled={isFull}
-                              className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                                isFull
-                                  ? "bg-surface-muted text-text-muted cursor-not-allowed"
-                                  : "btn-primary"
+                              className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${
+                                ["accepted", "approved", "registered"].includes(
+                                  reg.status
+                                )
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-amber-100 text-amber-700"
                               }`}>
-                              {isFull ? "Đã hết chỗ" : "Đăng ký"}
+                              {["accepted", "approved", "registered"].includes(
+                                reg.status
+                              )
+                                ? "Đã đăng ký"
+                                : "Đang chờ duyệt"}
                             </button>
-                          )}
-                        </>
-                      )}
-
-                      {/* Admin actions (Chỉ hiển thị thông báo nếu event pending) */}
-                      {isAdmin && (
-                        <>
-                          {event.status === "pending" && (
-                            <div className='flex gap-2 w-full'>
-                              <span className='text-sm text-warning-600 bg-warning-50 px-3 py-2 rounded-lg flex-1 text-center font-medium'>
-                                Cần duyệt trong Dashboard
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-
-                      {/* --- NÚT XEM CHI TIẾT CHUNG (UNIVERSAL) --- */}
-                      <button
-                        onClick={() => handleViewDetail(eventId)}
-                        // Đảm bảo nút này có flex-shrink-0 để không bị ép quá nhỏ khi có nút khác
-                        className='rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-text-secondary hover:bg-surface-muted flex items-center gap-1 shrink-0'>
-                        <Eye className='h-4 w-4' />
-                        Xem chi tiết
-                      </button>
-                    </div>
+                            <button
+                              onClick={() => handleCancelRegistration(eventId)}
+                              className='p-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50'>
+                              <XCircle className='h-5 w-5' />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleRegister(eventId)}
+                            disabled={isFull}
+                            className={`w-full py-2 rounded-lg font-semibold ${
+                              isFull
+                                ? "bg-gray-100 text-gray-400"
+                                : "btn-primary"
+                            }`}>
+                            {isFull ? "Hết chỗ" : "Đăng ký ngay"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => navigate(`/events/${eventId}`)}
+                      className='rounded-lg border px-3 py-2 text-sm font-semibold text-text-secondary hover:bg-gray-50 flex items-center gap-1 shrink-0'>
+                      <Eye className='h-4 w-4' /> Chi tiết
+                    </button>
                   </div>
-                </motion.article>
-              );
-            })
-          )}
+                </div>
+              </motion.article>
+            );
+          })}
         </section>
-
-        {!user && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className='rounded-xl bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-100 p-6 text-center'>
-            <h3 className='text-lg font-semibold text-text-main'>
-              Đăng nhập để đăng ký sự kiện
-            </h3>
-            <p className='mt-2 text-sm text-text-secondary'>
-              Tạo tài khoản miễn phí để tham gia các hoạt động tình nguyện
+        <ConfirmModal
+          isOpen={cancelModal.isOpen}
+          type='danger' // Hiện icon cảnh báo đỏ
+          title='Xác nhận hủy đăng ký'
+          message={
+            <p>
+              Bạn có chắc muốn hủy đăng ký tham gia sự kiện
+              <span className='font-bold'> "{cancelModal.eventTitle}"</span>?
             </p>
-            <div className='mt-4 flex justify-center gap-3'>
-              <button
-                onClick={() => openAuth?.("login")}
-                className='btn btn-primary'>
-                Đăng nhập
-              </button>
-              <button
-                onClick={() => openAuth?.("register")}
-                className='rounded-lg border border-primary-200 bg-white px-5 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50'>
-                Đăng ký tài khoản
-              </button>
-            </div>
-          </motion.div>
-        )}
+          }
+          confirmText='Xác nhận hủy'
+          cancelText='Quay lại'
+          onClose={() => setCancelModal({ ...cancelModal, isOpen: false })}
+          onConfirm={handleConfirmCancel}
+        />
+        <TagBubbleModal
+          isOpen={isTagModalOpen}
+          onClose={() => setIsTagModalOpen(false)}
+          tags={allTags}
+          selectedTag={selectedTag}
+          onSelectTag={(tag) => setSelectedTag(tag)}
+        />
+        <ToastContainer toasts={toastList} removeToast={removeToast} />
       </div>
     </div>
   );
