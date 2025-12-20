@@ -253,6 +253,101 @@ const firebaseLogin = asyncHandler(async (req, res) => {
   res.status(201).json(payload);  
 });
 
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      message: "Email là bắt buộc",
+    });
+  }
+
+  const user = await User.findOne({ userEmail: email });
+  if (!user) {
+    return res.status(404).json({
+      message: "Email không tồn tại",
+    });
+  }
+
+  // Tạo code 6 số
+  const code = Math.floor(100000 + Math.random() * 900000);
+
+  // Lưu code vào Redis (5 phút)
+  await saveCode(email, code);
+
+  // Gửi email
+  await sendPasswordChangeEmail(email, code);
+
+  // Tạo token chứa email
+  const resetToken = jwt.sign(
+    { email },
+    process.env.JWT_SECRET,
+    { expiresIn: "10m" }
+  );
+
+  return res.json({
+    message: "Mã xác nhận đã được gửi",
+    resetToken,
+  });
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { resetToken, code, newPassword } = req.body;
+
+  if (!resetToken || !code || !newPassword) {
+    return res.status(400).json({
+      message: "Thiếu thông tin",
+    });
+  }
+
+  let email;
+  try {
+    const decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+    email = decoded.email;
+  } catch {
+    return res.status(400).json({
+      message: "Token không hợp lệ hoặc đã hết hạn",
+    });
+  }
+
+  // Kiểm tra code
+  const isValid = await checkCode(email, String(code));
+  if (!isValid) {
+    return res.status(400).json({
+      message: "Mã xác nhận không đúng hoặc đã hết hạn",
+    });
+  }
+
+  const user = await User.findOne({ userEmail: email });
+  if (!user) {
+    return res.status(404).json({
+      message: "User không tồn tại",
+    });
+  }
+
+  // Update password (pre-save sẽ hash)
+  user.password = newPassword;
+  await user.save();
+
+  // Login luôn
+  const payload = {
+    _id: user._id,
+    userName: user.userName,
+    userEmail: user.userEmail,
+    role: user.role,
+    phoneNumber: user.phoneNumber,
+    biography: user.biography,
+    profilePicture: user.profilePicture,
+    token: generateToken(user._id),
+  };
+
+  return res.json({
+    message: "Đổi mật khẩu thành công",
+    user: payload,
+  });
+});
+
+
 export {
   saveCode,
   checkCode,
@@ -262,4 +357,7 @@ export {
   // loginUser,
   login,
   firebaseLogin,
+
+  forgotPassword,
+  resetPassword,
 };

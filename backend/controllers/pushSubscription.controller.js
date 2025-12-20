@@ -1,106 +1,126 @@
 import PushSubscription from "../models/pushSubscriptionModel.js";
 import webpush from "web-push";
 
+/**
+ * POST /api/push/subscribe
+ * Lưu hoặc update subscription
+ */
 export const saveSubscription = async (req, res) => {
   try {
-    const { subscription, token } = req.body;
-    const userId = req.user?._id; // nếu bạn có hệ thống auth
+    const { subscription } = req.body;
+    const userId = req.user?._id;
 
     if (!subscription || !subscription.endpoint) {
       return res.status(400).json({ message: "Invalid subscription" });
     }
 
-    // nếu cùng endpoint thì không tạo mới
-    let existing = await PushSubscription.findOne({
-      endpoint: subscription.endpoint,
-    });
+    const { endpoint, keys } = subscription;
 
+    let existing = await PushSubscription.findOne({ endpoint });
+
+    // 🔁 Endpoint đã tồn tại → update userId
     if (existing) {
-      return res.json({ message: "Subscription already exists" });
+      existing.userId = userId;
+      existing.keys = keys;
+      existing.userAgent = req.headers["user-agent"];
+      await existing.save();
+
+      return res.json({
+        message: "Subscription updated",
+        data: existing,
+      });
     }
 
-    // tạo mới
+    // ➕ Tạo mới
     const newSub = await PushSubscription.create({
       userId,
-      endpoint: subscription.endpoint,
-      keys: subscription.keys,
+      endpoint,
+      keys,
       userAgent: req.headers["user-agent"],
     });
 
-    res.json({ message: "Subscription saved", data: newSub });
+    res.json({
+      message: "Subscription saved",
+      data: newSub,
+    });
   } catch (error) {
+    console.error("SAVE SUB ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
+/**
+ * POST /api/push/unsubscribe
+ */
 export const deleteSubscription = async (req, res) => {
   try {
     const { endpoint } = req.body;
 
-    await PushSubscription.findOneAndDelete({ endpoint });
+    if (!endpoint) {
+      return res.status(400).json({ message: "Missing endpoint" });
+    }
+
+    await PushSubscription.deleteOne({ endpoint });
 
     res.json({ message: "Subscription removed" });
   } catch (error) {
+    console.error("DELETE SUB ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
+/**
+ * POST /api/push/send-to-user
+ */
 export const sendNotificationToUser = async (req, res) => {
   try {
     const { userId, title, body } = req.body;
 
-    if (!userId) return res.status(400).json({ message: "Missing userId" });
+    if (!userId) {
+      return res.status(400).json({ message: "Missing userId" });
+    }
 
     const subs = await PushSubscription.find({ userId });
 
-    if (!subs || subs.length === 0) {
+    if (!subs.length) {
       return res.status(404).json({ message: "User has no subscriptions" });
     }
 
     const payload = JSON.stringify({ title, body });
 
-    let successCount = 0;
-    let failedCount = 0;
+    let success = 0;
+    let failed = 0;
 
     for (const sub of subs) {
-      const pushObject = {
-        endpoint: sub.endpoint,
-        keys: {
-          p256dh: sub.keys.p256dh,
-          auth: sub.keys.auth,
-        },
-      };
-
       try {
-        await webpush.sendNotification(pushObject, payload);
-        successCount++;
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: sub.keys,
+          },
+          payload
+        );
+        success++;
       } catch (err) {
-        failedCount++;
+        failed++;
 
-        console.error("PUSH ERROR");
-        console.error("User:", userId);
-        console.error("Endpoint:", sub.endpoint);
+        console.error("PUSH ERROR:", err.statusCode, sub.endpoint);
 
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          console.log("→ Subscription expired. Removing from DB...");
+        // 🔥 Subscription hết hạn → xoá
+        if (err.statusCode === 404 || err.statusCode === 410) {
           await PushSubscription.deleteOne({ _id: sub._id });
         }
-
-        console.error("Error detail:", err);
       }
     }
 
     res.json({
-      message: "Done sending notifications",
+      message: "Push notification sent",
       total: subs.length,
-      success: successCount,
-      failed: failedCount,
+      success,
+      failed,
     });
-
   } catch (error) {
-    console.error("Unexpected Error:", error);
+    console.error("SEND PUSH ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };
-
-

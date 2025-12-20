@@ -4,19 +4,20 @@ import Post from "../models/postModel.js";
 import Channel from "../models/channelModel.js";
 import Event from "../models/eventModel.js";
 import User from "../models/userModel.js";
+import { pushToUsers } from "../utils/pushHelper.js";
 
 // ================================
 // CREATE POST
 // ================================
+
 export const createPost = asyncHandler(async (req, res) => {
   const { content, channel: channelId } = req.body;
-  const image = req.file?.path || null; // nếu upload ảnh
+  const image = req.file?.path || null;
 
   if (!content && !image) {
     return res.status(400).json({ message: "Post content or image required" });
   }
 
-  // Lấy thông tin channel và event liên quan
   const channel = await Channel.findById(channelId).populate("event");
   if (!channel) {
     return res.status(404).json({ message: "Channel not found" });
@@ -27,18 +28,20 @@ export const createPost = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Event not found" });
   }
 
-  // Kiểm tra quyền: admin hoặc thuộc event
   const userId = req.user._id.toString();
   const isAdmin = req.user.role === "admin";
+
   const isEventMember =
     event.managers.map(id => id.toString()).includes(userId) ||
     event.volunteers.map(id => id.toString()).includes(userId);
 
   if (!isAdmin && !isEventMember) {
-    return res.status(403).json({ message: "You are not allowed to post in this channel" });
+    return res.status(403).json({
+      message: "You are not allowed to post in this channel",
+    });
   }
 
-  // Tạo post
+  // 👉 tạo post
   const post = await Post.create({
     content,
     image,
@@ -48,6 +51,59 @@ export const createPost = asyncHandler(async (req, res) => {
 
   channel.posts.push(post._id);
   await channel.save();
+
+  // ===============================
+  // 🔔 PUSH NOTIFICATION
+  // ===============================
+
+
+  const memberIds = [
+  ...event.managers.map(id => id.toString()),
+  ...event.volunteers.map(id => id.toString()),
+];
+
+console.log("🧩 [PUSH] Raw memberIds:", memberIds);
+
+const uniqueMemberIds = [...new Set(memberIds)];
+console.log("🧩 [PUSH] Unique memberIds:", uniqueMemberIds);
+
+console.log("🧩 [PUSH] Author userId:", userId);
+
+// loại bỏ người đăng
+// const notifyUserIds = uniqueMemberIds.filter(id => id !== userId);
+const notifyUserIds = uniqueMemberIds;
+
+console.log("🧩 [PUSH] notifyUserIds (after exclude author):", notifyUserIds);
+
+if (notifyUserIds.length === 0) {
+  console.warn("⚠️ [PUSH] No users to notify. Skip push.");
+} else {
+  console.log(
+    `🚀 [PUSH] Sending push to ${notifyUserIds.length} user(s)`
+  );
+}
+
+// gửi push (KHÔNG block response)
+pushToUsers({
+  userIds: notifyUserIds,
+  title: "Bài viết mới",
+  body: `${req.user.userName} vừa đăng bài trong ${channel.name}`,
+  data: {
+    postId: post._id.toString(),
+    channelId: channelId.toString(),
+    eventId: event._id.toString(),
+  },
+})
+  .then(result => {
+    console.log("✅ [PUSH] Push finished");
+    console.log("📊 [PUSH] Result summary:", result);
+  })
+  .catch(err => {
+    console.error("❌ [PUSH] Push failed");
+    console.error(err);
+  });
+
+  // ===============================
 
   res.status(201).json(post);
 });

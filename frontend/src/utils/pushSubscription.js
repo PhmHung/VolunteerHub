@@ -1,3 +1,9 @@
+const requestPermission = async () => {
+  const permission = await Notification.requestPermission();
+  console.log("Notification permission:", permission);
+};
+
+
 export async function registerPush() {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     alert("Trình duyệt không hỗ trợ Web Push!");
@@ -31,6 +37,8 @@ export async function registerPush() {
     });
 
   alert("Đăng ký thông báo thành công!");
+  requestPermission();
+
 }
 
 function urlBase64ToUint8Array(base64String) { const padding = "=".repeat((4 - (base64String.length % 4)) % 4); const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/"); const rawData = atob(base64); const Uint8ArrayData = new Uint8Array(rawData.length); for (let i = 0; i < rawData.length; ++i) { Uint8ArrayData[i] = rawData.charCodeAt(i); } return Uint8ArrayData; }

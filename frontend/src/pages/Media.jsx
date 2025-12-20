@@ -22,12 +22,15 @@ import ManagerQrScanner from "../components/socials/ManagerQrScanner.jsx";
 // Redux Actions
 import { fetchMyEvents } from "../features/eventSlice";
 import { fetchChannelByEventId, clearChannel } from "../features/channelSlice";
-import { fetchMyQRCode, checkOutByQr } from "../features/registrationSlice";
+import { fetchMyQRCode } from "../features/registrationSlice";
+import { checkOutByQr } from "../features/registrationSlice";
+import { useRef } from "react";
+
 
 // Event Components
 import EventFeed from "../components/socials/EventFeed";
 import EventTabs from "../components/events/EventTabs";
-import EventReviews from "../components/events/EventReview";
+import EventReviews from "../components/events/EventReviews.jsx";
 import VolunteersList from "../components/registrations/VolunteersList";
 import MyRegistrationStatus from "../components/registrations/MyRegistrationStatus";
 import { EventMediaGallery } from "../components/socials/EventMediaGallery.jsx";
@@ -55,10 +58,24 @@ const EventDetailView = ({ event, user, onBack }) => {
     return () => dispatch(clearChannel());
   }, [dispatch, event._id]);
 
-  const handleScanSuccess = useCallback((token) => {
-    setScanError(null); // Reset lỗi khi scan mới
-    dispatch(checkOutByQr({ qrToken: token }));
-  }, [dispatch]);
+  const lastScannedTokenRef = useRef(null);
+
+  const handleScanSuccess = useCallback(
+    (token) => {
+      // ❌ Nếu trùng token lần trước → bỏ qua
+      if (lastScannedTokenRef.current === token) {
+        return;
+      }
+
+      // ✅ Lưu token mới
+      lastScannedTokenRef.current = token;
+
+      // ✅ Dispatch
+      dispatch(checkOutByQr({ qrToken: token }));
+    },
+    [dispatch]
+  );
+
 
   const handleScanError = useCallback((err) => {
     setScanError(err); // Cập nhật lỗi để hiển thị (Sửa lỗi unused-vars)

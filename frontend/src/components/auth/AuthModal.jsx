@@ -1,74 +1,9 @@
-import { useState, useEffect, memo } from "react";
-import { 
-  Eye, EyeOff, X, ArrowLeft, Mail, Shield, User, 
-  Upload, CheckCircle2, AlertCircle, Loader2, 
-  Heart, Globe, Users, FileText
-} from "lucide-react"; 
-import api from "../../api.js"; 
-import FirebaseLogin from "./FirebaseLogin.jsx"; 
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
+import api from "../../api.js"; // centralized API client
+import FirebaseLogin from "./FirebaseLogin.jsx"; // Component login bằng Firebase
+import ForgotPasswordModal from "./ForgotPasswordModal.jsx";
 
-const SIDE_IMAGE_URL = "https://images.unsplash.com/photo-1531206715517-5c0ba140b2b8?q=80&w=2070&auto=format&fit=crop";
-
-// --- CSS STYLES ---
-const GLOBAL_STYLES = `
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  .animate-fade-in-up {
-    animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 20px; }
-`;
-
-// --- COMPONENT: SIDEBAR (Giữ nguyên để tránh giật) ---
-const InspirationalSidebar = memo(({ mode }) => (
-  <div className="hidden md:flex md:w-5/12 bg-blue-700 relative overflow-hidden flex-col justify-between text-white p-10 select-none">
-    <div className="absolute inset-0 z-0 pointer-events-none">
-      <img src={SIDE_IMAGE_URL} alt="Volunteers" className="w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-t from-gray-900/95 via-blue-900/70 to-gray-900/40 mix-blend-multiply" />
-    </div>
-
-    <div className="relative z-10 h-full flex flex-col justify-between pointer-events-none">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg transform -rotate-3">
-          <Heart className="w-6 h-6 text-red-500 fill-current" />
-        </div>
-        <span className="font-extrabold text-2xl tracking-tight text-white drop-shadow-lg">
-          VolunteerHub
-        </span>
-      </div>
-
-      <div key={mode} className="space-y-4 animate-fade-in-up">
-        <h1 className="text-3xl lg:text-4xl font-extrabold leading-tight text-white drop-shadow-md">
-          {mode === "login" 
-            ? "Kết nối trái tim, lan tỏa yêu thương." 
-            : "Đâu cần thanh niên có, đâu khó có thanh niên."}
-        </h1>
-        <p className="text-gray-100 text-base lg:text-lg font-medium italic opacity-90 drop-shadow">
-          {mode === "login"
-            ? "\"Hạnh phúc không phải là nhận lại, mà là cho đi.\""
-            : "Cùng nhau, chúng ta kiến tạo một Việt Nam nhân ái."}
-        </p>
-      </div>
-
-      <div className="flex gap-4 text-xs font-bold text-white uppercase tracking-wider">
-        <div className="flex items-center gap-2 bg-white/20 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-sm">
-          <Globe className="w-3 h-3" /> 63 Tỉnh thành
-        </div>
-        <div className="flex items-center gap-2 bg-white/20 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-sm">
-          <Users className="w-3 h-3" /> Cộng đồng trẻ
-        </div>
-      </div>
-    </div>
-  </div>
-));
 
 export default function AuthModal({ mode, onClose, onSuccess }) {
   const [activeMode, setActiveMode] = useState(mode); 
@@ -106,13 +41,11 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     setStep(newMode === "login" ? 1 : 0);
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setRegisteredPicture(file);
-      setPreviewAvatar(URL.createObjectURL(file));
-    }
-  };
+  // States cho UI
+  const [loading, setLoading] = useState(false); // Trạng thái đang load
+  const [show, setShow] = useState(false); // Show/hide password
+  const [showForgot, setShowForgot] = useState(false);
+
 
   const handleBack = () => {
     setError(""); setSuccess("");
@@ -221,13 +154,18 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                 </p>
               </div>
 
-              <div className="space-y-5">
-                
-                {/* Alerts */}
-                {error && (
-                  <div className="p-4 rounded-xl bg-red-50 text-red-700 text-sm flex items-start gap-3 border border-red-100 font-medium animate-[fadeIn_0.2s]">
-                    <AlertCircle className="w-5 h-5 flex-shrink-0" /> {error}
-                  </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                <label className="block text-sm font-medium text-text-main">Password</label>
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    onClick={() => setShowForgot(true)}
+                    className="text-xs sm:text-sm text-secondary-500 hover:underline font-medium"
+                  >
+                    Forgot password?
+                  </button>
+
                 )}
                 {success && (
                   <div className="p-4 rounded-xl bg-green-50 text-green-700 text-sm flex items-start gap-3 border border-green-100 font-medium animate-[fadeIn_0.2s]">
@@ -411,6 +349,32 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
               </div>
             </div>
           </div>
+        )}
+        
+        {error && (
+          <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-error-50 border border-error-200 text-error-700 rounded-xl text-xs sm:text-sm flex items-start gap-2">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            {error}
+          </div>
+        )}
+
+        {mode === "login" && (
+          <div className="mt-5 sm:mt-6 text-center text-xs sm:text-sm text-text-secondary">
+            Don't have an account?{" "}
+            <button 
+              onClick={() => window.location.reload()} 
+              className="text-secondary-500 font-semibold hover:text-secondary-600 hover:underline"
+            >
+              Sign up
+            </button>
+          </div>
+        )}
+
+        {showForgot && (
+          <ForgotPasswordModal onClose={() => setShowForgot(false)} />
+        )}
         </div>
       </div>
     </>

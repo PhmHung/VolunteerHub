@@ -83,11 +83,11 @@ if (status === "completed") {
   attendanceData.checkOut =
     now > endDate ? endDate : now;
 
-  attendanceData.feedback = {
-    rating,
-    comment: randomComment(rating),
-    submittedAt: now > endDate ? endDate : now,
-  };
+  // attendanceData.feedback = {
+  //   rating,
+  //   comment: randomComment(rating),
+  //   submittedAt: now > endDate ? endDate : now,
+  // };
 }
 
 

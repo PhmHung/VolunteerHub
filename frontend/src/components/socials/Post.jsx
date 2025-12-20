@@ -15,6 +15,10 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
   const canEdit = isAuthor;
   const canDelete = isAuthor || isManager;
 
+    const isLiked = post.reactions?.some(
+      (r) => r.user?._id === currentUser._id
+    );
+
   // Hàm helper để ngăn chặn sự kiện nổi bọt khi click vào các nút chức năng
   const handleAction = (e, callback) => {
     e.stopPropagation();
@@ -238,17 +242,26 @@ const Post = ({ post, eventId, onLike, onComment, onApprove, onReject, onEdit, o
 
       {/* Actions - Facebook style */}
       <div className="px-2 py-1 flex items-center">
-        <button 
-            onClick={(e) => handleAction(e, () => onLike(post.id))}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                post.isLiked 
-                    ? 'text-blue-600' 
-                    : 'text-gray-600 hover:bg-gray-100'
-            }`}
-        >
-            <ThumbsUp className={`w-5 h-5 transition-transform duration-200 ${post.isLiked ? 'fill-current scale-110' : ''}`} />
-            <span>Thích</span>
-        </button>
+<button
+  onClick={(e) =>
+    handleAction(e, () => onLike(post._id || post.id))
+  }
+  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+    isLiked || post.isLiked
+      ? "text-blue-600"
+      : "text-gray-600 hover:bg-gray-100"
+  }`}
+>
+  <ThumbsUp
+    className={`w-5 h-5 transition-transform duration-200 ${
+      isLiked || post.isLiked
+        ? "fill-current scale-110"
+        : ""
+    }`}
+  />
+  <span>Thích</span>
+</button>
+
         <button 
             onClick={(e) => handleAction(e, () => setShowComments(!showComments))}
             className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
