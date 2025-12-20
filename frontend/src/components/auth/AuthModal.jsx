@@ -1,9 +1,10 @@
 /** @format */
 
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
-import api from "../../api.js"; // centralized API client
-import FirebaseLogin from "./FirebaseLogin.jsx"; // Component login bằng Firebase
+import { Eye, EyeOff } from "lucide-react";
+import api from "../../api.js";
+import FirebaseLogin from "./FirebaseLogin.jsx";
+import { ToastContainer } from "../../components/common/Toast";
 
 export default function AuthModal({ mode, onClose, onSuccess }) {
   // States cho form fields
@@ -13,23 +14,25 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
   const [role, setRole] = useState("volunteer");
   const [biography, setBiography] = useState("");
   const [registeredPicture, setRegisteredPicture] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
-  // States cho flow đăng ký (3 bước)
-  // Step 0: Nhập email → Gửi mã xác thực
-  // Step 1: Nhập mã xác thực → Verify
-  // Step 2: Hoàn tất thông tin (password, name, etc.)
-  const [code, setCode] = useState(""); // Mã xác thực 6 số
-  const [step, setStep] = useState(mode === "login" ? 1 : 0); // Login bỏ qua step 0,1
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState(mode === "login" ? 1 : 0);
 
-  // States cho UI
-  const [loading, setLoading] = useState(false); // Trạng thái đang load
-  const [show, setShow] = useState(false); // Show/hide password
+  const [loading, setLoading] = useState(false);
+  const [show, setShow] = useState(false);
 
-  // Local UI messages (AuthModal manages its own error/success state now)
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ========== FUNCTION: GỬI MÃ XÁC THỰC ==========
+  const addToast = (message, type = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id) =>
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+
   const sendVerificationCode = async () => {
     setLoading(true);
     setError("");
@@ -86,7 +89,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     if (!role) missingFields.push("Role");
 
     if (missingFields.length > 0) {
-      setError("Please fill in: " + missingFields.join(", "));
+      addToast("Vui lòng điền: " + missingFields.join(", "), "warning");
       setLoading(false);
       return;
     }
@@ -131,7 +134,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         role === "admin" || role === "manager" ? 4000 : 3000
       );
     } catch (err) {
-      setError(err.response?.data?.message || "Register failed");
+      addToast(err.response?.data?.message || "Đăng ký thất bại", "error");
       setSuccess(""); // Clear success message khi có lỗi
     } finally {
       setLoading(false);
@@ -507,6 +510,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
           )}
         </div>
       </div>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 }

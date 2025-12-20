@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { ToastContainer } from "../components/common/Toast";
 import {
   Eye,
   EyeOff,
@@ -12,16 +13,14 @@ import {
   Phone,
 } from "lucide-react";
 
-// 1. Import các Thunk từ slice
 import {
   fetchUserProfile,
-  updateUserProfile, // <-- Dùng cái này thay cho api.put
-  deleteUser, // <-- Dùng cái này thay cho api.delete
+  updateUserProfile,
+  deleteUser,
   changeUserPassword,
   clearMessages,
 } from "../features/userSlice.js";
 
-// 2. Import ảnh mặc định (để tránh lỗi ReferenceError)
 import defaultAvatar from "../assets/defaultAvatar.jpeg";
 import { registerPush } from "../utils/pushSubscription.js";
 
@@ -46,6 +45,7 @@ export default function Information({ onProfileUpdate }) {
   const [passwordModal, setPasswordModal] = useState(false);
   const [pictureFile, setPictureFile] = useState(null);
   const [picturePreview, setPicturePreview] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
   // Password state
   const [oldPassword, setOldPassword] = useState("");
@@ -54,6 +54,14 @@ export default function Information({ onProfileUpdate }) {
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const addToast = (message, type = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id) =>
+    setToasts((prev) => prev.filter((t) => t.id !== id));
 
   useEffect(() => {
     if (reduxUser) {
@@ -71,11 +79,11 @@ export default function Information({ onProfileUpdate }) {
   // 3. Handle messages/errors toàn cục từ Redux
   useEffect(() => {
     if (message) {
-      window.alert(message);
+      addToast(message, "success");
       dispatch(clearMessages());
     }
     if (error) {
-      window.alert(error);
+      addToast(error, "error");
       dispatch(clearMessages());
     }
   }, [message, error, dispatch]);
@@ -146,10 +154,10 @@ export default function Information({ onProfileUpdate }) {
       }
       setPictureFile(null);
     } catch (err) {
-      // Nếu lỗi, Redux sẽ bắt và đưa vào state.error, useEffect ở trên sẽ alert ra.
-      // Nhưng ta vẫn log ra console để debug
-      console.error("Update failed via Slice:", err);
-      // Reset ảnh preview nếu lỗi
+      addToast(
+        err.response?.data?.message || "Cập nhật hồ sơ thất bại",
+        "error"
+      );
       setPictureFile(null);
       if (picturePreview) {
         URL.revokeObjectURL(picturePreview);
@@ -178,18 +186,21 @@ export default function Information({ onProfileUpdate }) {
       localStorage.removeItem("refreshToken");
       window.location.href = "/"; // Quay về trang chủ
     } catch (err) {
-      console.error("Delete failed:", err);
+      addToast(
+        err.response?.data?.message || "Xóa tài khoản thất bại",
+        "error"
+      );
     }
   };
 
   // --- XỬ LÝ ĐỔI MẬT KHẨU DÙNG SLICE ---
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
-      window.alert("Vui lòng điền đầy đủ các trường mật khẩu");
+      addToast("Vui lòng điền đầy đủ các trường mật khẩu", "warning");
       return;
     }
     if (newPassword !== confirmPassword) {
-      window.alert("Mật khẩu mới và xác nhận không khớp");
+      addToast("Mật khẩu mới và xác nhận không khớp", "error");
       return;
     }
 
@@ -199,13 +210,14 @@ export default function Information({ onProfileUpdate }) {
       ).unwrap();
 
       // Thành công
+      addToast("Đổi mật khẩu thành công!", "success");
       setPasswordModal(false);
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err) {
       // Lỗi đã được handle bởi useEffect global
-      console.error("Change password failed:", err);
+      addToast(err || "Đổi mật khẩu thất bại", "error");
     }
   };
 
@@ -325,10 +337,9 @@ export default function Information({ onProfileUpdate }) {
             </button>
 
             <button
-              type="button"
+              type='button'
               onClick={registerPush}
-              className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-green-700"
-            >
+              className='inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-green-700'>
               Đăng ký thông báo
             </button>
 
@@ -606,6 +617,7 @@ export default function Information({ onProfileUpdate }) {
           </div>
         </div>
       )}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 }
