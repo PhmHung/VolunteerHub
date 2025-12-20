@@ -56,11 +56,18 @@ export default function EventsPage({ user, openAuth }) {
 
   const allTags = useMemo(() => extractAllTags(eventsData), [eventsData]);
 
+  const statusCounts = useMemo(() => {
+    return {
+      all: eventsData.length,
+      approved: eventsData.filter((e) => e.status === "approved" || !e.status)
+        .length,
+      pending: eventsData.filter((e) => e.status === "pending").length,
+    };
+  }, [eventsData]);
+
   const userRegistrations = useMemo(() => {
     const regMap = {};
-    const registrations = Array.isArray(myRegistrations)
-      ? myRegistrations
-      : [];
+    const registrations = Array.isArray(myRegistrations) ? myRegistrations : [];
     registrations.forEach((reg) => {
       if (reg.status !== "cancelled") {
         regMap[reg.eventId?._id || reg.eventId] = reg;
@@ -107,6 +114,7 @@ export default function EventsPage({ user, openAuth }) {
 
   const filteredEvents = useMemo(() => {
     // 1. Lọc danh sách (Giữ nguyên logic filter của bạn)
+
     const filtered = eventsData.filter((event) => {
       const matchesSearch =
         event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -274,7 +282,7 @@ export default function EventsPage({ user, openAuth }) {
                   placeholder='Tìm kiếm...'
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-700"
+                  className='w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-700'
                 />
               </div>
               <button
@@ -325,23 +333,35 @@ export default function EventsPage({ user, openAuth }) {
 
           {/* SỬA LỖI LINT: Khôi phục logic sử dụng setStatusFilter */}
           {(isAdmin || isManager) && (
-            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-3 overflow-x-auto">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+            <div className='mt-6 pt-4 border-t border-gray-100 flex items-center gap-3 overflow-x-auto'>
+              <span className='text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap'>
                 Trạng thái duyệt:
               </span>
               {["all", "approved", "pending"].map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                  // Thay đổi style để làm nổi bật nút đang chọn và thêm Badge
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-2 ${
                     statusFilter === status
-                      ? "bg-blue-100 text-blue-700"
+                      ? "bg-blue-600 text-white shadow-sm" // Màu đậm hơn khi được chọn
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  {status === "all"
-                    ? "Tất cả"
-                    : EVENT_STATUS[status]?.label || status}
+                  }`}>
+                  <span>
+                    {status === "all"
+                      ? "Tất cả"
+                      : EVENT_STATUS[status]?.label || status}
+                  </span>
+
+                  {/* Badge hiển thị số lượng thực tế */}
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      statusFilter === status
+                        ? "bg-white/20 text-white"
+                        : "bg-gray-200 text-gray-500"
+                    }`}>
+                    {statusCounts[status]}
+                  </span>
                 </button>
               ))}
             </div>

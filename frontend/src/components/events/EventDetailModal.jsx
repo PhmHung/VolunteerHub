@@ -29,6 +29,8 @@ const EventDetailModal = ({
   onApprove,
   onReject,
   onUserClick,
+  userRole,
+  addToast,
   showApprovalActions = false,
   showRegistrationsList = true,
 }) => {
@@ -163,6 +165,8 @@ const EventDetailModal = ({
                     registrations={eventRegistrations}
                     users={users}
                     onUserClick={onUserClick}
+                    userRole={userRole}
+                    addToast={addToast}
                   />
                 </div>
               )}

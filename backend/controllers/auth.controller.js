@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import Redis from "ioredis";
 import generateToken from "../utils/generateToken.js";
+import ApprovalRequest from "../models/approvalRequestModel.js";
 import {
   sendVerificationEmail,
   sendPasswordChangeEmail,
@@ -92,8 +93,17 @@ const verifyCode = async (req, res, next) => {
 // @route  POST /api/auth/register
 // @access Public
 const register = asyncHandler(async (req, res) => {
-  const { userName, verifyToken, password, role, biology, phoneNumber } =
-    req.body;
+  // 1. Lấy thêm adminRequest từ body (Frontend đã gửi qua formData)
+  const {
+    userName,
+    verifyToken,
+    password,
+    role,
+    biology,
+    phoneNumber,
+    adminRequest,
+  } = req.body;
+
   if (!userName || !password || !role) {
     res.status(400);
     throw new Error("Vui lòng điền đầy đủ tất cả các trường bắt buộc.");
@@ -104,7 +114,6 @@ const register = asyncHandler(async (req, res) => {
     throw new Error("Vui lòng xác minh email trước khi đăng ký.");
   }
 
-  // Giải mã token để lấy email
   let userEmail;
   try {
     const decoded = jwt.verify(verifyToken, process.env.JWT_SECRET);
@@ -114,14 +123,14 @@ const register = asyncHandler(async (req, res) => {
     throw new Error("Token không hợp lệ hoặc đã hết hạn.");
   }
 
-  // Kiểm tra email đã tồn tại chưa
+  // Kiểm tra email đã tồn tại
   const userExists = await User.findOne({ userEmail });
-
   if (userExists) {
     res.status(400);
     throw new Error("Địa chỉ email này đã được sử dụng.");
   }
 
+  // 2. Tạo User với role mặc định luôn là "volunteer" để chờ duyệt
   const user = await User.create({
     userName,
     userEmail,
@@ -129,22 +138,36 @@ const register = asyncHandler(async (req, res) => {
     phoneNumber,
     biology,
     profilePicture: req.file ? req.file.path : null,
-    role: role,
+    role: "volunteer",
   });
 
   if (user) {
+    // 3. LOGIC QUAN TRỌNG: Nếu người dùng muốn làm Manager/Admin -> Tạo yêu cầu duyệt
+    if (adminRequest === "true" && (role === "manager" || role === "admin")) {
+      await ApprovalRequest.create({
+        requestedBy: user._id,
+        type: "manager_promotion", // Loại yêu cầu mà AdminDashboard đang lọc
+        reason: `Người dùng đăng ký và yêu cầu quyền: ${role}`,
+        status: "pending",
+      });
+
+      // (Tùy chọn) Nếu bạn đã cài đặt Socket, thông báo cho Admin ngay
+      if (req.io) {
+        req.io("admin", "NOTIFICATION", {
+          title: "Yêu cầu thăng cấp mới",
+          message: `Người dùng ${userName} vừa đăng ký và chờ duyệt quyền ${role}.`,
+        });
+      }
+    }
+
     const payload = {
       _id: user._id,
       userName: user.userName,
       userEmail: user.userEmail,
-      role: user.role,
-      phoneNumber: user.phoneNumber,
-      biology: user.biology,
-      profilePicture: user.profilePicture,
+      role: user.role, // Trả về "volunteer"
       token: generateToken(user._id),
+      // ... các thông tin khác
     };
-
-    console.log("Login information:", payload);
 
     res.status(201).json(payload);
   } else {
@@ -248,9 +271,9 @@ const firebaseLogin = asyncHandler(async (req, res) => {
     token: generateToken(user._id),
   };
 
-  console.log("Login information:", payload);  
+  console.log("Login information:", payload);
 
-  res.status(201).json(payload);  
+  res.status(201).json(payload);
 });
 
 export {

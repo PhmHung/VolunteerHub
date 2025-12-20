@@ -1,6 +1,6 @@
 /** @format */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   X,
@@ -14,6 +14,8 @@ import {
   Trash2,
   History,
   UserCheck,
+  Briefcase,
+  TrendingUp,
 } from "lucide-react";
 
 // Import actions
@@ -25,7 +27,7 @@ import {
   deleteUser,
 } from "../../features/userSlice";
 const UserDetailModal = ({
-  viewingUser, // User object từ danh sách
+  viewingUser,
   onClose,
   addToast,
   setConfirmModal,
@@ -39,8 +41,8 @@ const UserDetailModal = ({
   );
   const { profile } = useSelector((state) => state.user);
   const isAdmin = profile?.role === "admin";
-
-  // 👇 FIX QUAN TRỌNG: Tách ID ra biến nguyên thủy để tránh vòng lặp useEffect
+  const displayUser = selectedUser || viewingUser;
+  const isLoading = selectedUserLoading;
   const userId = viewingUser?._id;
 
   // 1. Fetch dữ liệu chi tiết khi mở modal
@@ -56,11 +58,35 @@ const UserDetailModal = ({
     };
   }, [dispatch, userId]); // Chỉ chạy lại khi ID thay đổi
 
+  const calculatedTotalHours = useMemo(() => {
+    // 1. Ưu tiên lấy con số tổng hợp từ Backend để đồng bộ với PotentialManagerList
+    if (displayUser?.promotionData?.totalAttendanceHours) {
+      return displayUser.promotionData.totalAttendanceHours;
+    }
+
+    // 2. Nếu không có, thực hiện tổng hợp trực tiếp từ mảng history (attendance records)
+    const history = displayUser?.history || [];
+    return history.reduce((sum, record) => {
+      // Chỉ tính toán khi có đầy đủ dữ liệu vào và ra
+      if (record.checkIn && record.checkOut) {
+        const checkIn = new Date(record.checkIn);
+        const checkOut = new Date(record.checkOut);
+
+        // Kiểm tra tính hợp lệ của ngày tháng
+        if (!isNaN(checkIn) && !isNaN(checkOut)) {
+          const durationMs = checkOut - checkIn;
+          const hours = durationMs / (1000 * 60 * 60); // Quy đổi ms sang giờ
+
+          // Chỉ cộng nếu số giờ dương (tránh lỗi dữ liệu ngược)
+          return sum + (hours > 0 ? hours : 0);
+        }
+      }
+      return sum;
+    }, 0);
+  }, [displayUser]);
   if (!viewingUser) return null;
 
   // Ưu tiên hiển thị dữ liệu mới nhất từ API, nếu chưa có thì dùng tạm dữ liệu từ props
-  const displayUser = selectedUser || viewingUser;
-  const isLoading = selectedUserLoading;
 
   // --- HANDLERS ---
 
@@ -203,15 +229,49 @@ const UserDetailModal = ({
                     ? new Date(eventData.startDate).toLocaleDateString("vi-VN")
                     : "N/A"}
                 </span>
-                {item.checkIn && (
-                  <span className='flex items-center gap-1 text-emerald-600'>
-                    <Clock className='w-3 h-3' />
-                    {new Date(item.checkIn).toLocaleTimeString("vi-VN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                <div className='flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-500'>
+                  <span className='flex items-center gap-1'>
+                    <Calendar className='w-3 h-3' />
+                    {eventData.startDate
+                      ? new Date(eventData.startDate).toLocaleDateString(
+                          "vi-VN"
+                        )
+                      : "N/A"}
                   </span>
-                )}
+
+                  {item.checkIn && item.checkOut ? (
+                    <span className='flex items-center gap-1 text-blue-600 font-medium'>
+                      <Clock className='w-3 h-3' />
+                      {/* Tính thời lượng: (CheckOut - CheckIn) */}
+                      {(
+                        (new Date(item.checkOut) - new Date(item.checkIn)) /
+                        (1000 * 60 * 60)
+                      ).toFixed(1)}{" "}
+                      giờ (
+                      {new Date(item.checkIn).toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      -
+                      {new Date(item.checkOut).toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      )
+                    </span>
+                  ) : (
+                    item.checkIn && (
+                      <span className='flex items-center gap-1 text-emerald-600'>
+                        <Clock className='w-3 h-3' />
+                        Vào:{" "}
+                        {new Date(item.checkIn).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -345,6 +405,30 @@ const UserDetailModal = ({
                               "vi-VN"
                             )
                           : "N/A"}
+                      </p>
+                    </div>
+                    {/* Sự kiện hoàn thành */}
+                    <div className='p-4 bg-emerald-50 rounded-xl border border-emerald-100'>
+                      <p className='text-xs font-semibold text-emerald-600 uppercase mb-1'>
+                        Sự kiện hoàn thành
+                      </p>
+                      <p className='text-emerald-900 font-bold text-lg flex items-center gap-2'>
+                        <Briefcase className='w-5 h-5 text-emerald-500' />
+                        {displayUser.promotionData?.eventsCompleted ||
+                          displayUser.history?.length ||
+                          0}
+                      </p>
+                    </div>
+
+                    {/* Tổng giờ cống hiến */}
+                    <div className='p-4 bg-blue-50 rounded-xl border border-blue-100'>
+                      <p className='text-xs font-semibold text-blue-600 uppercase mb-1'>
+                        Tổng giờ cống hiến
+                      </p>
+                      <p className='text-blue-900 font-bold text-lg flex items-center gap-2'>
+                        <Clock className='w-5 h-5 text-blue-500' />
+                        {/* Dùng giá trị vừa tính thay vì promotionData */}
+                        {calculatedTotalHours.toFixed(1)} giờ
                       </p>
                     </div>
                   </div>
