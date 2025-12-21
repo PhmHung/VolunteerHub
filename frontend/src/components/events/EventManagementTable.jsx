@@ -438,17 +438,14 @@ const EventManagementTable = ({
                           </button>
                         )}
 
-                        {onDeleteEvent &&
-                          (event.status === "pending" ||
-                            event.status === "rejected" ||
-                            event.status === "cancelled") && (
-                            <button
-                              onClick={() => onDeleteEvent(event)}
-                              className='p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition'
-                              title='Xóa vĩnh viễn'>
-                              <Trash2 className='w-4.5 h-4.5' />
-                            </button>
-                          )}
+                        {onDeleteEvent && event && (
+                          <button
+                            onClick={() => onDeleteEvent(event)}
+                            className='p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition'
+                            title='Xóa vĩnh viễn sự kiện'>
+                            <Trash2 className='w-4.5 h-4.5' />
+                          </button>
+                        )}
                         {isExpired && event.status === "approved" && (
                           <button
                             className='p-2 text-yellow-500 hover:bg-yellow-50 rounded-lg'

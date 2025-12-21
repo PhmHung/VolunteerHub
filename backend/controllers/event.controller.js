@@ -1,9 +1,15 @@
 /** @format */
 
 import asyncHandler from "express-async-handler";
+import mongoose from "mongoose";
 import Event from "../models/eventModel.js";
 import ApprovalRequest from "../models/approvalRequestModel.js";
 import Registration from "../models/registrationModel.js";
+import Attendance from "../models/attendanceModel.js";
+import Post from "../models/postModel.js";
+import Channel from "../models/channelModel.js";
+import Comment from "../models/commentModel.js";
+import Reaction from "../models/reactionModel.js";
 import {
   emitNotification,
   emitToMultiple,
@@ -47,7 +53,6 @@ const getEvents = asyncHandler(async (req, res) => {
 });
 
 export const getMyEvents = async (req, res) => {
-
   try {
     // ===== 1. Kiểm tra auth =====
     if (!req.user) {
@@ -57,7 +62,6 @@ export const getMyEvents = async (req, res) => {
 
     const userId = req.user._id;
     const role = req.user.role;
-
 
     // ===== 2. Build query =====
     let query = { status: "approved" };
@@ -80,7 +84,6 @@ export const getMyEvents = async (req, res) => {
       .populate("volunteers", "userName avatar")
       .populate("channel");
 
-
     // ===== 4. Edge case =====
     if (!events || events.length === 0) {
       console.warn("⚠️ [getMyEvents] No events found for user");
@@ -99,7 +102,6 @@ export const getMyEvents = async (req, res) => {
     });
   }
 };
-
 
 // @desc    Get event by ID (Public nếu approved)
 // @route   GET /api/events/:id
@@ -451,20 +453,57 @@ const getAllEvents = asyncHandler(async (req, res) => {
 
 // @desc    Xóa sự kiện
 // @route   DELETE /api/events/:eventId
+// [eventController.js]
 const deleteEvent = asyncHandler(async (req, res) => {
-  // 👇 Dùng trực tiếp eventId
-  const event = await Event.findById(req.params.eventId);
+  const { eventId } = req.params; // Lấy đúng eventId từ routes
 
+  const event = await Event.findById(eventId);
   if (!event) {
     res.status(404);
-    throw new Error("Không tìm thấy sự kiện");
+    throw new Error("Sự kiện không tồn tại hoặc đã bị xóa trước đó.");
   }
 
-  await ApprovalRequest.deleteMany({ event: event._id });
-  await Registration.deleteMany({ eventId: event._id });
-  await Event.findByIdAndDelete(event._id);
+  try {
+    // 1️⃣ Xóa hệ thống thảo luận (Channel -> Post -> Comment -> Reaction)
+    const channel = await Channel.findOne({ event: eventId });
 
-  res.json({ message: "Đã xóa sự kiện thành công" });
+    if (channel) {
+      const channelId = channel._id;
+
+      // Tìm tất cả ID bài viết trong kênh để dọn dẹp Reaction/Comment
+      const posts = await Post.find({ channel: channelId }).select("_id");
+      const postIds = posts.map((p) => p._id);
+
+      if (postIds.length > 0) {
+        // Xóa Reaction và Comment của các bài viết này
+        await Reaction.deleteMany({ post: { $in: postIds } });
+        await Comment.deleteMany({ post: { $in: postIds } });
+      }
+
+      // Xóa tất cả Post trong kênh và chính Channel
+      await Post.deleteMany({ channel: channelId });
+      await channel.deleteOne();
+    }
+
+    // 2️⃣ Xóa dữ liệu tham gia và đăng ký
+    await Registration.deleteMany({ eventId: eventId });
+    await Attendance.deleteMany({ eventId: eventId });
+
+    // 3️⃣ Xóa các yêu cầu phê duyệt liên quan (đăng bài, hủy bài)
+    await ApprovalRequest.deleteMany({ event: eventId });
+
+    // 4️⃣ Cuối cùng mới xóa chính bản ghi Sự kiện
+    await event.deleteOne();
+
+    res.json({
+      success: true,
+      message: "Đã dọn dẹp sạch toàn bộ dữ liệu và xóa sự kiện thành công",
+      data: eventId,
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error("Lỗi hệ thống khi dọn dẹp dữ liệu: " + error.message);
+  }
 });
 
 export {

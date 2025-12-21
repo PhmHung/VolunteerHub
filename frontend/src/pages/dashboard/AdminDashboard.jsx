@@ -41,7 +41,6 @@ import {
   clearMessages,
   deleteUser,
   updateUserStatus,
-  fetchSuggestedManagers,
 } from "../../features/userSlice";
 import {
   clearRegistrationMessages,
@@ -63,7 +62,7 @@ import EventDetailModal from "../../components/events/EventDetailModal";
 import { ToastContainer } from "../../components/common/Toast";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import PromptModal from "../../components/common/PromptModal";
-import PotentialManagerList from "../../components/approvals/PotentialManagerList";
+
 // NEW COMPONENTS
 import RegistrationManagementTable from "../../components/registrations/RegistrationManagementTable";
 import EventManagementTable from "../../components/events/EventManagementTable"; // Component mới cập nhật
@@ -106,7 +105,6 @@ const AdminDashboard = ({ user }) => {
     users: allUsers = [],
     message: userMessage,
     error: userError,
-    suggestedManagers = [],
   } = useSelector((state) => state.user);
 
   const {
@@ -199,7 +197,6 @@ const AdminDashboard = ({ user }) => {
     dispatch(fetchManagementEvents({ status: "", limit: 1000 }));
     dispatch(fetchAllUsers());
     dispatch(fetchAllRegistrations());
-    dispatch(fetchSuggestedManagers());
     dispatch(fetchPendingApprovals());
   }, [dispatch]);
 
@@ -325,28 +322,28 @@ const AdminDashboard = ({ user }) => {
   const handleDeleteEvent = (event) => {
     setConfirmModal({
       isOpen: true,
-      title: "Xóa sự kiện",
-      message: (
-        <div>
-          <p>
-            Bạn chắc chắn muốn <strong>xóa vĩnh viễn</strong> sự kiện?
-          </p>
-          <p className='font-medium mt-2'>"{event.title}"</p>
-          <p className='text-sm text-red-600 mt-2'>
-            Hành động này không thể hoàn tác.
-          </p>
-        </div>
-      ),
+      title: "Xác nhận xóa vĩnh viễn",
+      message: `Mọi dữ liệu: Đơn đăng ký, Điểm danh và Kênh thảo luận của "${event.title}" sẽ bị xóa sạch hoàn toàn. Bạn có chắc chắn?`,
       type: "danger",
-      confirmText: "Xóa vĩnh viễn",
+      confirmText: "Xóa sạch",
       onConfirm: async () => {
-        await dispatch(deleteEvent(event._id)).unwrap();
-        addToast(`Đã xóa sự kiện "${event.title}"`, "success");
-        dispatch(fetchManagementEvents({ status: "" }));
+        try {
+          // Gửi ID sự kiện lên server
+          await dispatch(deleteEvent(event._id)).unwrap();
+
+          addToast("Đã xóa vĩnh viễn sự kiện", "success");
+
+          // Tải lại danh sách để đồng bộ giao diện
+          dispatch(fetchManagementEvents({ status: "" }));
+          dispatch(fetchPendingApprovals()); // Cập nhật số lượng badge thông báo
+
+          setConfirmModal({ isOpen: false });
+        } catch (err) {
+          addToast(err || "Không thể xóa sự kiện", "error");
+        }
       },
     });
   };
-
   // Admin Force Cancel (Hủy trực tiếp sự kiện đang chạy)
   const handleAdminForceCancel = (event) => {
     setConfirmModal({
@@ -446,28 +443,6 @@ const AdminDashboard = ({ user }) => {
   };
 
   // --- OTHER ACTIONS (User/Manager/Reg) ---
-
-  const handleRecommendManager = (user) => {
-    /* ... giữ nguyên ... */
-    setConfirmModal({
-      isOpen: true,
-      title: "Đề cử thăng cấp Manager",
-      message: `Bạn có chắc muốn thăng cấp "${user.userName}"?`,
-      type: "success",
-      confirmText: "Thăng cấp ngay",
-      onConfirm: async () => {
-        try {
-          await dispatch(
-            updateUserRole({ userId: user._id, role: "manager" })
-          ).unwrap();
-          addToast(`Đã thăng cấp thành công cho ${user.userName}`, "success");
-          dispatch(fetchAllUsers());
-        } catch (error) {
-          addToast("Lỗi: " + error, "error");
-        }
-      },
-    });
-  };
 
   const handleApproveRegistration = (reg) => {
     setConfirmModal({
@@ -701,12 +676,6 @@ const AdminDashboard = ({ user }) => {
                     label: "Duyệt Manager",
                     count: pendingManagerRequests.length,
                     color: "purple",
-                  },
-                  {
-                    id: "suggestions",
-                    label: "Gợi ý Manager",
-                    count: suggestedManagers.length,
-                    color: "green",
                   },
                   { id: "users_management", label: "Quản lý người dùng" },
                 ].map((tab) => (
@@ -972,14 +941,6 @@ const AdminDashboard = ({ user }) => {
                   onViewUser={handleViewUser}
                   onToggleUserStatus={handleToggleUserStatus}
                   onDeleteUser={handleDeleteUser}
-                  highlightedId={highlightId}
-                />
-              )}
-
-              {activeTab === "suggestions" && (
-                <PotentialManagerList
-                  suggestedUsers={suggestedManagers}
-                  onRecommend={handleRecommendManager}
                   highlightedId={highlightId}
                 />
               )}

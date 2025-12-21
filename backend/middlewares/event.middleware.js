@@ -3,15 +3,17 @@ import asyncHandler from "express-async-handler";
 import Event from "../models/eventModel.js";
 
 const canModifyEvent = asyncHandler(async (req, res, next) => {
-  // 1. Lấy ID linh hoạt (dù route đặt là :id hay :eventId đều chạy được)
-  const id = req.params.id;
+  // ✅ SỬA TẠI ĐÂY: Lấy eventId thay vì id để khớp với file routes
+  const { eventId } = req.params;
 
-  if (!id) {
+  if (!eventId) {
     res.status(400);
+    // Đây chính là dòng gây ra thông báo lỗi màu đỏ trên màn hình của bạn
     throw new Error("Missing Event ID in Route Parameters");
   }
 
-  const event = await Event.findById(id);
+  // ✅ SỬA TẠI ĐÂY: Dùng eventId để tìm trong Database
+  const event = await Event.findById(eventId);
   if (!event) {
     res.status(404);
     throw new Error("Sự kiện không tồn tại");
@@ -26,14 +28,12 @@ const canModifyEvent = asyncHandler(async (req, res, next) => {
     throw new Error("Bạn không có quyền chỉnh sửa sự kiện này");
   }
 
-  // 3. (Optional) Nếu muốn chặn sửa khi đã Approved (Trừ Admin)
-  // Logic này lúc trước bạn để trong Controller, giờ chuyển ra đây cho sạch cũng được
+  // 3. Nếu đã Duyệt (Approved), chỉ Admin mới được sửa hoặc xóa
   if (event.status === "approved" && !isAdmin) {
     res.status(400);
     throw new Error("Sự kiện đã duyệt, Manager không thể chỉnh sửa");
   }
 
-  // 4. Gán event vào req để Controller dùng lại (Tiết kiệm 1 query DB)
   req.event = event;
   next();
 });
