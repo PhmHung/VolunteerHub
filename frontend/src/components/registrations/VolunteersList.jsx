@@ -2,17 +2,16 @@
 
 import React from "react";
 import { Users, AlertCircle } from "lucide-react";
-
-// 👈 IMPORT COMPONENT CON MỚI
 import VolunteersCard from "./VolunteersCard";
 
-// --- Main VolunteersList Component ---
 const VolunteersList = ({
   registrations = [],
   users = [],
   compact = false,
   canView = true,
-  onUserClick, // Truyền xuống VolunteerCard
+  onUserClick,
+  userRole,
+  addToast,
 }) => {
   // Logic tạo volunteers (populate user vào reg object)
   const volunteers = registrations.map((reg) => {
@@ -69,7 +68,9 @@ const VolunteersList = ({
             key={volunteer._id}
             volunteer={volunteer}
             compact={compact}
-            onUserClick={onUserClick} // Truyền handler xuống
+            onUserClick={onUserClick}
+            userRole={userRole}
+            addToast={addToast}
           />
         ))}
       </div>

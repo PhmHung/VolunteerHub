@@ -9,9 +9,11 @@ import {
 import { REGISTRATION_STATUS } from "../../utils/constants";
 
 const VolunteerCard = ({
-  volunteer, // Chứa object registration (có populate user)
+  volunteer,
   compact,
-  onUserClick, // Hàm mở UserDetailModal
+  onUserClick,
+  userRole,
+  addToast,
 }) => {
   // Chuẩn hóa dữ liệu user và registration
   const user = volunteer.user || volunteer.userId || {};
@@ -27,8 +29,19 @@ const VolunteerCard = ({
 
   const IconComponent = statusConfig.icon || Clock;
 
-  // Hàm xử lý click: Mở UserDetailModal
-  const handleClick = () => {
+  const handleClick = (e) => {
+    e?.stopPropagation();
+
+    if (userRole !== "admin" && userRole !== "manager") {
+      if (addToast) {
+        addToast(
+          "Bạn không có quyền xem thông tin chi tiết của người khác.",
+          "warning"
+        );
+      }
+      return;
+    }
+
     if (onUserClick && user._id) {
       onUserClick(user._id);
     }

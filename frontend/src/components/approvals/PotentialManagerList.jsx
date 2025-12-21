@@ -9,8 +9,7 @@ import {
   TrendingUp,
   ArrowRight,
 } from "lucide-react";
-// Dùng cho component này, thường được AdminDashboard truyền xuống
-// Giả định mỗi user trong list đã được tính toán kinh nghiệm
+
 const PotentialManagerList = ({
   suggestedUsers,
   onRecommend,

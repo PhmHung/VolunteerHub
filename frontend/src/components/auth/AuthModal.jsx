@@ -1,7 +1,10 @@
+/** @format */
+
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react"; // Icons để show/hide password
-import api from "../../api.js"; // centralized API client
-import FirebaseLogin from "./FirebaseLogin.jsx"; // Component login bằng Firebase
+import { Eye, EyeOff } from "lucide-react";
+import api from "../../api.js";
+import FirebaseLogin from "./FirebaseLogin.jsx";
+import { ToastContainer } from "../../components/common/Toast";
 import ForgotPasswordModal from "./ForgotPasswordModal.jsx";
 
 
@@ -52,9 +55,17 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     if (step > 0) setStep(step - 1);
   };
 
-  // --- API HANDLERS ---
+  const addToast = (message, type = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id) =>
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+
   const sendVerificationCode = async () => {
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
     try {
       if (!email) throw new Error("Vui lòng nhập Email.");
       await api.post("/api/auth/sendVerificationCode", { email });
@@ -69,33 +80,76 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
       if (!code) throw new Error("Vui lòng nhập mã.");
       const res = await api.post("/api/auth/verifyCode", { email, code });
       localStorage.setItem("verifyToken", res.data.verifyToken);
-      setStep(2); setSuccess(""); 
-    } catch (err) { setError(err.response?.data?.message || "Mã sai."); } 
-    finally { setLoading(false); }
+
+      setStep(2);
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Invalid code");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRegister = async () => {
-    setLoading(true); setError("");
-    const missing = [];
-    if (!password) missing.push("Mật khẩu");
-    if (!name) missing.push("Tên");
-    if (missing.length) { setError("Thiếu: " + missing.join(", ")); setLoading(false); return; }
+    setLoading(true);
+
+    // Validation: Kiểm tra các trường bắt buộc
+    const missingFields = [];
+    if (!password) missingFields.push("Password");
+    if (!name) missingFields.push("Name");
+    if (!role) missingFields.push("Role");
+
+    if (missingFields.length > 0) {
+      addToast("Vui lòng điền: " + missingFields.join(", "), "warning");
+      setLoading(false);
+      return;
+    }
+
+    const verifyToken = localStorage.getItem("verifyToken"); //token để xác minh email
 
     try {
-        const formData = new FormData();
-        formData.append("verifyToken", localStorage.getItem("verifyToken"));
-        formData.append("password", password);
-        formData.append("userName", name);
-        formData.append("biography", biography); // Gửi biography lên server
-        formData.append("role", "volunteer");
-        if (registeredPicture) formData.append("picture", registeredPicture);
-        if (role === 'admin' || role === 'manager') formData.append("adminRequest", "true");
-        
-        const res = await api.post("/api/auth/register", formData, { headers: { "Content-Type": "multipart/form-data" }});
-        setSuccess("Đăng ký thành công!");
-        setTimeout(() => onSuccess(res.data), 2000);
-    } catch (err) { setError(err.response?.data?.message || "Lỗi đăng ký."); } 
-    finally { setLoading(false); }
+      // Tạo FormData để gửi file ảnh
+      const formData = new FormData();
+      formData.append("verifyToken", verifyToken);
+      formData.append("password", password);
+      formData.append("userName", name);
+      formData.append("biography", biography);
+      formData.append("picture", registeredPicture); // File object
+      formData.append("role", role);
+
+      // Nếu chọn admin hoặc manager, thêm flag adminRequest
+      if (role === "admin" || role === "manager") {
+        formData.append("adminRequest", "true");
+      }
+
+      // Gọi API register với multipart/form-data header
+      const res = await api.post("/api/auth/register", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      // Xác định success message dựa trên role
+      const successMessage =
+        role === "admin" || role === "manager"
+          ? "Đăng ký thành công! Yêu cầu của bạn đã được gửi và đang chờ xét duyệt."
+          : "Register successful!";
+
+      // Hiển thị success message NGAY LẬP TỨC
+      setSuccess(successMessage);
+      setError(""); // Clear error nếu có
+
+      // Đợi user đọc message (3-4s) rồi mới gọi onSuccess (đóng modal)
+      setTimeout(
+        () => {
+          onSuccess(res.data);
+        },
+        role === "admin" || role === "manager" ? 4000 : 3000
+      );
+    } catch (err) {
+      addToast(err.response?.data?.message || "Đăng ký thất bại", "error");
+      setSuccess(""); // Clear success message khi có lỗi
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogin = async () => {
@@ -110,19 +164,32 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
   };
 
   return (
-    <>
-      <style>{GLOBAL_STYLES}</style>
-
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/75 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-        
-        <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden w-full max-w-5xl min-h-[600px] flex flex-row relative ring-1 ring-white/20">
-          
-          <button 
-            onClick={onClose}
-            className="absolute top-4 right-4 z-50 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+    // Overlay toàn màn hình
+    // fixed inset-0: Position fixed, top/right/bottom/left = 0 (full screen)
+    // z-50: Z-index cao để hiện trên tất cả
+    // flex items-center justify-center: Flexbox, căn giữa theo cả 2 chiều
+    // bg-black/60: Background đen với opacity 60%
+    // backdrop-blur-sm: Làm mờ nội dung phía sau
+    // p-4: Padding 1rem (16px) tất cả các cạnh
+    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'>
+      <div className='card w-full max-w-md max-h-[90vh] relative shadow-2xl overflow-hidden flex flex-col'>
+        <button
+          onClick={onClose}
+          className='absolute top-4 right-4 z-10 text-text-muted hover:text-text-main transition-colors bg-surface-white/80 backdrop-blur-sm rounded-full p-1'>
+          {/* SVG icon X để đóng */}
+          <svg
+            className='w-6 h-6'
+            fill='none'
+            stroke='currentColor'
+            viewBox='0 0 24 24'>
+            <path
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              strokeWidth={2}
+              d='M6 18L18 6M6 6l12 12'
+            />
+          </svg>
+        </button>
 
           <InspirationalSidebar mode={activeMode} />
 
@@ -235,19 +302,21 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                       </div>
                     </div>
 
-                    {/* Register Fields */}
-                    {activeMode === "register" && (
-                      <div className="space-y-4 animate-fade-in-up">
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Họ và tên</label>
-                          <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-colors outline-none bg-gray-50 focus:bg-white text-gray-900 font-medium"
-                            placeholder="Nguyễn Văn A"
-                          />
-                        </div>
+              {mode === "register" && step === 2 && (
+                <div className='space-y-3 sm:space-y-4 pt-1 sm:pt-2'>
+                  <div>
+                    <label className='block text-sm font-medium text-text-main mb-1.5 sm:mb-2'>
+                      Full Name
+                    </label>
+                    <input
+                      type='text'
+                      placeholder='Enter your full name'
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className='input-field sm:py-3 text-sm sm:text-base'
+                    />
+                  </div>
 
                         <div className="space-y-2">
                           <label className="text-sm font-semibold text-gray-700">Vai trò</label>
@@ -346,37 +415,69 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                   </div>
                 </div>
 
-              </div>
+                  {/* FirebaseLogin now returns auth result via onSuccess callback */}
+                  <FirebaseLogin
+                    onSuccess={(data) => {
+                      // data may contain either { token, ... } or { user }
+                      if (data?.token || data?.user) {
+                        onSuccess(data);
+                      }
+                    }}
+                  />
+                </>
+              )}
             </div>
-          </div>
-        )}
-        
-        {error && (
-          <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-error-50 border border-error-200 text-error-700 rounded-xl text-xs sm:text-sm flex items-start gap-2">
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-            {error}
-          </div>
-        )}
+          )}
 
-        {mode === "login" && (
-          <div className="mt-5 sm:mt-6 text-center text-xs sm:text-sm text-text-secondary">
-            Don't have an account?{" "}
-            <button 
-              onClick={() => window.location.reload()} 
-              className="text-secondary-500 font-semibold hover:text-secondary-600 hover:underline"
-            >
-              Sign up
-            </button>
-          </div>
-        )}
+          {success && (
+            <div className='mt-3 sm:mt-4 p-2.5 sm:p-3 bg-success-50 border border-success-200 text-success-700 rounded-xl text-xs sm:text-sm flex items-start gap-2'>
+              <svg
+                className='w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5'
+                fill='currentColor'
+                viewBox='0 0 20 20'>
+                <path
+                  fillRule='evenodd'
+                  d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
+                  clipRule='evenodd'
+                />
+              </svg>
+              {success}
+            </div>
+          )}
+
+          {error && (
+            <div className='mt-3 sm:mt-4 p-2.5 sm:p-3 bg-error-50 border border-error-200 text-error-700 rounded-xl text-xs sm:text-sm flex items-start gap-2'>
+              <svg
+                className='w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5'
+                fill='currentColor'
+                viewBox='0 0 20 20'>
+                <path
+                  fillRule='evenodd'
+                  d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
+                  clipRule='evenodd'
+                />
+              </svg>
+              {error}
+            </div>
+          )}
+
+          {mode === "login" && (
+            <div className='mt-5 sm:mt-6 text-center text-xs sm:text-sm text-text-secondary'>
+              Don't have an account?{" "}
+              <button
+                onClick={() => window.location.reload()}
+                className='text-secondary-500 font-semibold hover:text-secondary-600 hover:underline'>
+                Sign up
+              </button>
+            </div>
+          )}
 
         {showForgot && (
           <ForgotPasswordModal onClose={() => setShowForgot(false)} />
         )}
         </div>
       </div>
-    </>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+    </div>
   );
 }

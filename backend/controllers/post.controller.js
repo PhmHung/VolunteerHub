@@ -4,6 +4,7 @@ import Post from "../models/postModel.js";
 import Channel from "../models/channelModel.js";
 import Event from "../models/eventModel.js";
 import User from "../models/userModel.js";
+import { emitNotification } from "../utils/notificationHelper.js";
 import { pushToUsers } from "../utils/pushHelper.js";
 
 // ================================
@@ -32,13 +33,13 @@ export const createPost = asyncHandler(async (req, res) => {
   const isAdmin = req.user.role === "admin";
 
   const isEventMember =
-    event.managers.map(id => id.toString()).includes(userId) ||
-    event.volunteers.map(id => id.toString()).includes(userId);
+    event.managers.map((id) => id.toString()).includes(userId) ||
+    event.volunteers.map((id) => id.toString()).includes(userId);
 
   if (!isAdmin && !isEventMember) {
-    return res.status(403).json({
-      message: "You are not allowed to post in this channel",
-    });
+    return res
+      .status(403)
+      .json({ message: "You are not allowed to post in this channel" });
   }
 
   // 👉 tạo post
@@ -104,10 +105,21 @@ pushToUsers({
   });
 
   // ===============================
+  if (req.io) {
+    req.io.to(event._id.toString()).emit("FEED_UPDATE", {
+      type: "NEW_POST",
+      data: await post.populate("author", "userName profilePicture"),
+    });
+  }
+  emitNotification(req, event._id.toString(), {
+    title: "Bài viết mới trong Channel",
+    message: `${req.user.userName} vừa đăng bài trong sự kiện "${event.title}"`,
+    type: "info",
+    link: `/media?eventId=${event._id}&postId=${post._id}`,
+  });
 
   res.status(201).json(post);
 });
-
 
 // ================================
 // GET ALL POSTS (ADMIN ONLY)
@@ -132,14 +144,13 @@ export const getPosts = asyncHandler(async (req, res) => {
 export const getPostsByChannel = asyncHandler(async (req, res) => {
   const channelId = req.params.channelId;
 
-  const channel = await Channel.findById(channelId)
-    .populate({
-      path: "event",
-      populate: [
-        { path: "volunteers", select: "_id userName role" },
-        { path: "managers", select: "_id userName role" },
-      ],
-    });
+  const channel = await Channel.findById(channelId).populate({
+    path: "event",
+    populate: [
+      { path: "volunteers", select: "_id userName role" },
+      { path: "managers", select: "_id userName role" },
+    ],
+  });
 
   if (!channel) {
     return res.status(404).json({ message: "Channel not found" });
@@ -152,11 +163,15 @@ export const getPostsByChannel = asyncHandler(async (req, res) => {
   // Admin luôn có quyền
   if (userRole !== "admin") {
     // Nếu không phải admin, phải là thành viên event
-    const isVolunteer = event?.volunteers?.some(v => v._id.toString() === userId) || false;
-    const isManager = event?.managers?.some(m => m._id.toString() === userId) || false;
+    const isVolunteer =
+      event?.volunteers?.some((v) => v._id.toString() === userId) || false;
+    const isManager =
+      event?.managers?.some((m) => m._id.toString() === userId) || false;
 
     if (!isVolunteer && !isManager) {
-      return res.status(403).json({ message: "Access denied — you are not in this channel" });
+      return res
+        .status(403)
+        .json({ message: "Access denied — you are not in this channel" });
     }
   }
 
@@ -172,7 +187,6 @@ export const getPostsByChannel = asyncHandler(async (req, res) => {
   res.json(posts);
 });
 
-
 // ================================
 // UPDATE POST (OWNER ONLY)
 // ================================
@@ -185,7 +199,9 @@ export const updatePost = asyncHandler(async (req, res) => {
   }
 
   if (post.author.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "You can only update your own post" });
+    return res
+      .status(403)
+      .json({ message: "You can only update your own post" });
   }
 
   const { content } = req.body;
@@ -217,16 +233,22 @@ export const deletePost = asyncHandler(async (req, res) => {
   // ROLE-BASED DELETE
   if (userRole === "volunteer") {
     if (userId !== authorId) {
-      return res.status(403).json({ message: "Volunteers can only delete their own posts" });
+      return res
+        .status(403)
+        .json({ message: "Volunteers can only delete their own posts" });
     }
   } else if (userRole === "manager") {
     if (authorRole !== "volunteer") {
-      return res.status(403).json({ message: "Managers can only delete volunteer posts" });
+      return res
+        .status(403)
+        .json({ message: "Managers can only delete volunteer posts" });
     }
   } else if (userRole === "admin") {
     // Admin can delete volunteer and manager posts
     if (!["volunteer", "manager"].includes(authorRole)) {
-      return res.status(403).json({ message: "Admin cannot delete another admin's post" });
+      return res
+        .status(403)
+        .json({ message: "Admin cannot delete another admin's post" });
     }
   } else {
     return res.status(403).json({ message: "Unauthorized" });

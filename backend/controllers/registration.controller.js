@@ -4,7 +4,10 @@ import asyncHandler from "express-async-handler";
 import Registration from "../models/registrationModel.js";
 import Event from "../models/eventModel.js";
 import Attendance from "../models/attendanceModel.js";
-
+import {
+  emitNotification,
+  emitToMultiple,
+} from "../utils/notificationHelper.js";
 
 // Import Enum từ file constants (Đảm bảo đường dẫn đúng với cấu trúc dự án của bạn)
 import { REGISTRATION_STATUS, EVENT_STATUS } from "../config/typeEnum.js";
@@ -54,7 +57,12 @@ const registerForEvent = asyncHandler(async (req, res) => {
   });
 
   // LƯU Ý: KHÔNG tăng event.currentParticipants ở đây vì chưa được duyệt!
-
+  emitNotification(req, event.createdBy.toString(), {
+    title: "Đăng ký mới",
+    message: `Có tình nguyện viên mới vừa đăng ký tham gia sự kiện "${event.title}".`,
+    type: "info",
+    link: `/dashboard?tab=registrations&highlight=${registration._id}`,
+  });
   res.status(201).json({
     message: "Đăng ký thành công, vui lòng chờ duyệt",
     data: registration,
@@ -205,25 +213,22 @@ export const checkOutByQr = async (req, res) => {
 
     // 7️⃣ Populate để trả dữ liệu đẹp
     await attendance.populate({
-  path: "regId",
-  populate: [
-    { path: "userId", select: "name email" },
-    { path: "eventId", select: "title" },
-  ],
-});
+      path: "regId",
+      populate: [
+        { path: "userId", select: "name email" },
+        { path: "eventId", select: "title" },
+      ],
+    });
 
-console.log("CHECK-OUT SUCCESS");
-return res.json({
-  message: "Check-out thành công",
-  data: {
-    user: attendance.regId.userId,
-    event: attendance.regId.eventId,
-    checkOut: attendance.checkOut,
-  },
-});
-
-
-
+    console.log("CHECK-OUT SUCCESS");
+    return res.json({
+      message: "Check-out thành công",
+      data: {
+        user: attendance.regId.userId,
+        event: attendance.regId.eventId,
+        checkOut: attendance.checkOut,
+      },
+    });
   } catch (error) {
     console.error("CHECK-OUT ERROR:", error);
     return res.status(500).json({
@@ -302,7 +307,15 @@ const acceptRegistration = asyncHandler(async (req, res) => {
       status: "in-progress", // đợi checkout
     });
   }
-
+  emitNotification(req, registration.userId.toString(), {
+    title: "Kết quả đăng ký sự kiện",
+    message:
+      registration.status === "registered"
+        ? `Chúc mừng! Bạn đã được duyệt tham gia sự kiện "${event.title}".`
+        : `Yêu cầu tham gia sự kiện "${event.title}" của bạn đã bị từ chối.`,
+    type: registration.status === "registered" ? "success" : "danger",
+    link: "/history",
+  });
   res.json({
     message: "Đã duyệt đơn đăng ký",
     data: registration,
@@ -343,6 +356,15 @@ const rejectRegistration = asyncHandler(async (req, res) => {
   // Chuyển trạng thái sang CANCELLED (Gộp chung Rejected và Cancelled vào đây theo yêu cầu)
   registration.status = REGISTRATION_STATUS.CANCELLED;
   await registration.save();
+  emitNotification(req, registration.userId.toString(), {
+    title: "Kết quả đăng ký sự kiện",
+    message:
+      registration.status === "registered"
+        ? `Chúc mừng! Bạn đã được duyệt tham gia sự kiện "${event.title}".`
+        : `Yêu cầu tham gia sự kiện "${event.title}" của bạn đã bị từ chối.`,
+    type: registration.status === "registered" ? "success" : "danger",
+    link: "/history",
+  });
 
   res.json({
     message: "Đã từ chối đơn đăng ký",

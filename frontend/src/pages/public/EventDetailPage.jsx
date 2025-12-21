@@ -21,9 +21,11 @@ import {
 import { useGeolocation } from "../../hooks/useGeolocation";
 
 // Import components
+import ConfirmModal from "../../components/common/ConfirmModal";
 import VolunteersList from "../../components/registrations/VolunteersList";
 import EventSingleMap from "../public/EventMap";
 import Toast, { ToastContainer } from "../../components/common/Toast";
+import UserDetailModal from "../../components/users/UserDetailModal";
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -37,6 +39,9 @@ const EventDetail = () => {
   const [event, setEvent] = useState(null);
   const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [viewingUser, setViewingUser] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false });
   const [error, setError] = useState(null);
   const [toasts, setToasts] = useState([]);
 
@@ -57,6 +62,9 @@ const EventDetail = () => {
   const removeToast = (id) =>
     setToasts((prev) => prev.filter((t) => t.id !== id));
 
+  const handleViewUser = (userId) => {
+    setViewingUser({ _id: userId });
+  };
   // 1. Lấy vị trí người dùng
   const { location: userLocation } = useGeolocation();
 
@@ -237,6 +245,9 @@ const EventDetail = () => {
                 users={[]}
                 compact={false}
                 canView={true}
+                onUserClick={handleViewUser} // Truyền hàm xử lý
+                userRole={profile?.role} // Truyền quyền của người đang xem
+                addToast={addToast}
               />
             </div>
           </div>
@@ -386,6 +397,18 @@ const EventDetail = () => {
           </div>
         </div>
       </div>
+      {viewingUser && (
+        <UserDetailModal
+          viewingUser={viewingUser}
+          onClose={() => setViewingUser(null)}
+          addToast={addToast}
+          setConfirmModal={setConfirmModal}
+        />
+      )}
+      <ConfirmModal
+        {...confirmModal}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );

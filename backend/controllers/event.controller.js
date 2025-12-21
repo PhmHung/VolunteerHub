@@ -4,6 +4,10 @@ import asyncHandler from "express-async-handler";
 import Event from "../models/eventModel.js";
 import ApprovalRequest from "../models/approvalRequestModel.js";
 import Registration from "../models/registrationModel.js";
+import {
+  emitNotification,
+  emitToMultiple,
+} from "../utils/notificationHelper.js";
 
 // @desc    Get all APPROVED events (Public)
 // @route   GET /api/events
@@ -129,6 +133,12 @@ const createEvent = asyncHandler(async (req, res) => {
 
   event.approvalRequest = approvalRequest._id;
   await event.save();
+  emitNotification(req, "admin", {
+    title: "Sự kiện mới chờ duyệt",
+    message: `Manager ${req.user.userName} vừa tạo sự kiện "${title}"`,
+    type: "warning",
+    link: `/admin/dashboard?tab=events_management&action=view&highlight=${event._id}`,
+  });
 
   res.status(201).json({ message: "Tạo sự kiện thành công", data: event });
 });
@@ -250,11 +260,18 @@ const approveEvent = asyncHandler(async (req, res) => {
       reviewedAt: new Date(),
     }
   );
-
-  res.json({
-    message: `Sự kiện đã được ${status === "approved" ? "duyệt" : "từ chối"}`,
-    data: event,
+  emitNotification(req, event.createdBy.toString(), {
+    title:
+      status === "approved" ? "Sự kiện đã được duyệt" : "Sự kiện bị từ chối",
+    message:
+      status === "approved"
+        ? `Sự kiện "${event.title}" đã được đăng công khai.`
+        : `Sự kiện "${event.title}" không được duyệt. Lý do: ${adminNote}`,
+    type: status === "approved" ? "success" : "danger",
+    link: "/dashboard?tab=events",
   });
+
+  res.json({ message: `Sự kiện đã được ${status}`, data: event });
 });
 
 // @desc    Manager yêu cầu hủy / Admin hủy cưỡng chế
@@ -302,6 +319,20 @@ const cancelEvent = asyncHandler(async (req, res) => {
       { status: "approved", adminNote: "Đã thực hiện hủy trực tiếp bởi Admin." }
     );
 
+    emitToMultiple(req, volunteerIds, {
+      title: "Sự kiện đã bị HỦY",
+      message: `Rất tiếc, sự kiện "${event.title}" đã bị hủy. Vui lòng kiểm tra lại lịch trình.`,
+      type: "danger",
+      link: "/history",
+    });
+
+    emitToMultiple(req, volunteerIds, {
+      title: "Sự kiện đã bị HỦY",
+      message: `Rất tiếc, sự kiện "${event.title}" đã bị hủy. Vui lòng kiểm tra lại lịch trình.`,
+      type: "danger",
+      link: "/history",
+    });
+
     return res.json({
       message: "Đã hủy sự kiện thành công (Admin Action).",
       data: event,
@@ -337,6 +368,13 @@ const cancelEvent = asyncHandler(async (req, res) => {
     // Lưu ý: Cần đảm bảo FE hiển thị đúng trạng thái này (hoặc coi nó như Approved nhưng bị khóa)
     event.status = "cancel_pending";
     await event.save();
+
+    emitNotification(req, "admin", {
+      title: "Yêu cầu HỦY sự kiện",
+      message: `Manager ${req.user.userName} muốn hủy sự kiện "${event.title}"`,
+      type: "danger",
+      link: `/admin/dashboard?tab=events_management&action=review_cancel&highlight=${eventId}`,
+    });
 
     return res.json({
       message: "Đã gửi yêu cầu hủy sự kiện. Vui lòng chờ Admin duyệt.",

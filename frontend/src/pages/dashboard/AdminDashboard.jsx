@@ -1,7 +1,7 @@
 /** @format */
 
 import React, { useState, useEffect, useMemo } from "react";
-//import { useSearchParams } from "react-router-dom";
+import NotificationBell from "../../components/common/NotificationBell";
 import { useDeepLink } from "../../hooks/useDeepLink";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -827,6 +827,7 @@ const AdminDashboard = ({ user }) => {
                 />
               )}
 
+              {/* === TAB DUYỆT MANAGER === */}
               {activeTab === "managers" && (
                 <div className='space-y-4'>
                   {pendingManagerRequests.length === 0 ? (
@@ -835,47 +836,65 @@ const AdminDashboard = ({ user }) => {
                     </div>
                   ) : (
                     pendingManagerRequests.map((req) => {
-                      // 1. Kiểm tra trạng thái highlight dựa trên ID từ URL
                       const isHighlighted = req._id === highlightId;
+                      // 1. Phân loại: Nếu eventsCompleted = 0 hoặc không có promotionData là đăng ký mới
+                      const isNewRegistration =
+                        !req.promotionData ||
+                        (req.promotionData.eventsCompleted || 0) === 0;
 
                       return (
                         <div
                           key={req._id}
-                          // 2. Gán ID để logic scrollIntoView có thể tìm thấy hàng này
                           id={`manager-req-${req._id}`}
-                          // 3. Thêm các class CSS để hiển thị viền tím và nền nổi bật khi được highlight
-                          className={`bg-white rounded-xl border p-5 flex items-center justify-between transition-all duration-500 ${
+                          className={`rounded-xl border p-5 flex items-center justify-between transition-all duration-500 ${
                             isHighlighted
-                              ? "ring-2 ring-purple-500 bg-purple-50/50 shadow-md z-10 relative"
-                              : "hover:shadow-md border-gray-200"
+                              ? "ring-2 ring-purple-500 shadow-md z-10 relative"
+                              : "hover:shadow-md"
+                          } ${
+                            // 2. THAY ĐỔI MÀU NỀN THEO LOẠI ĐĂNG KÝ
+                            isNewRegistration
+                              ? isHighlighted
+                                ? "bg-blue-100/60 border-blue-300"
+                                : "bg-blue-50/40 border-blue-200"
+                              : isHighlighted
+                              ? "bg-purple-50/50 border-purple-200"
+                              : "bg-white border-gray-200"
                           }`}>
                           <div className='flex items-center gap-4'>
-                            {/* Avatar với viền thay đổi khi highlight */}
-                            <div
-                              className={`w-12 h-12 rounded-full overflow-hidden border-2 transition-colors ${
-                                isHighlighted
-                                  ? "border-purple-500"
-                                  : "border-transparent"
-                              }`}>
-                              {req.requestedBy?.profilePicture ? (
-                                <img
-                                  src={req.requestedBy.profilePicture}
-                                  alt=''
-                                  className='w-full h-full object-cover'
-                                />
-                              ) : (
-                                <div
-                                  className={`w-full h-full flex items-center justify-center font-bold transition-colors ${
-                                    isHighlighted
-                                      ? "bg-purple-600 text-white"
-                                      : "bg-purple-100 text-purple-700"
-                                  }`}>
-                                  {req.requestedBy?.userName?.[0] || "U"}
-                                </div>
+                            {/* Avatar với Badge "New" */}
+                            <div className='relative'>
+                              <div
+                                className={`w-12 h-12 rounded-full overflow-hidden border-2 transition-colors ${
+                                  isHighlighted
+                                    ? "border-purple-500"
+                                    : "border-transparent"
+                                }`}>
+                                {req.requestedBy?.profilePicture ? (
+                                  <img
+                                    src={req.requestedBy.profilePicture}
+                                    alt=''
+                                    className='w-full h-full object-cover'
+                                  />
+                                ) : (
+                                  <div
+                                    className={`w-full h-full flex items-center justify-center font-bold ${
+                                      isHighlighted
+                                        ? "bg-purple-600 text-white"
+                                        : "bg-purple-100 text-purple-700"
+                                    }`}>
+                                    {req.requestedBy?.userName?.[0] || "U"}
+                                  </div>
+                                )}
+                              </div>
+                              {/* 3. HIỂN THỊ BADGE NEW CHO TÀI KHOẢN MỚI */}
+                              {isNewRegistration && (
+                                <span className='absolute -top-1 -left-1 bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase shadow-sm border border-white'>
+                                  New
+                                </span>
                               )}
                             </div>
+
                             <div>
-                              {/* Tên người dùng chuyển màu tím đậm khi highlight */}
                               <p
                                 className={`font-bold transition-colors ${
                                   isHighlighted
@@ -885,21 +904,42 @@ const AdminDashboard = ({ user }) => {
                                 {req.requestedBy?.userName ||
                                   "Người dùng không xác định"}
                               </p>
-                              <p className='text-sm text-gray-500'>
-                                Hoàn thành:{" "}
-                                <span className='font-semibold text-gray-700'>
-                                  {req.promotionData?.eventsCompleted || 0}
-                                </span>{" "}
-                                sự kiện •{" "}
-                                <span className='font-semibold text-gray-700'>
-                                  {req.promotionData?.totalAttendanceHours || 0}
-                                </span>{" "}
-                                giờ
-                              </p>
+
+                              <div className='text-xs flex flex-col gap-0.5 mt-0.5'>
+                                {req.requestedBy?.phoneNumber && (
+                                  <p className='text-gray-500 font-medium'>
+                                    SĐT:{" "}
+                                    <span className='text-gray-700'>
+                                      {req.requestedBy.phoneNumber}
+                                    </span>
+                                  </p>
+                                )}
+
+                                {isNewRegistration ? (
+                                  <p className='text-blue-600 font-bold italic flex items-center gap-1'>
+                                    <span className='w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse'></span>
+                                    Đăng ký tài khoản Manager/Admin
+                                  </p>
+                                ) : (
+                                  <p className='text-gray-500'>
+                                    Hoàn thành:{" "}
+                                    <span className='font-semibold text-gray-700'>
+                                      {req.promotionData.eventsCompleted}
+                                    </span>{" "}
+                                    sự kiện •
+                                    <span className='font-semibold text-gray-700'>
+                                      {" "}
+                                      {req.promotionData.totalAttendanceHours?.toFixed(
+                                        1
+                                      ) || 0}
+                                    </span>{" "}
+                                    giờ
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          {/* Nút bấm chuyển sang màu đặc khi highlight */}
                           <button
                             onClick={() => setSelectedManagerRequest(req)}
                             className={`px-4 py-2 rounded-lg font-medium transition-all ${

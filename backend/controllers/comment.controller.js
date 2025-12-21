@@ -13,7 +13,9 @@ export const createComment = asyncHandler(async (req, res) => {
   const image = req.file?.path || null;
 
   if (!content && !image) {
-    return res.status(400).json({ message: "Comment content or image required" });
+    return res
+      .status(400)
+      .json({ message: "Comment content or image required" });
   }
 
   let post = null;
@@ -26,7 +28,9 @@ export const createComment = asyncHandler(async (req, res) => {
     }
     post = await Post.findById(parent.post).populate("channel");
     if (!post || post.isDeleted) {
-      return res.status(404).json({ message: "Post not found for this parent comment" });
+      return res
+        .status(404)
+        .json({ message: "Post not found for this parent comment" });
     }
   } else if (postId) {
     post = await Post.findById(postId).populate("channel");
@@ -34,7 +38,9 @@ export const createComment = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: "Post not found" });
     }
   } else {
-    return res.status(400).json({ message: "post or parentComment is required" });
+    return res
+      .status(400)
+      .json({ message: "post or parentComment is required" });
   }
 
   // Kiểm tra quyền: giống post
@@ -43,11 +49,13 @@ export const createComment = asyncHandler(async (req, res) => {
   const userId = req.user._id.toString();
   const isAdmin = req.user.role === "admin";
   const isEventMember =
-    event.managers.map(id => id.toString()).includes(userId) ||
-    event.volunteers.map(id => id.toString()).includes(userId);
+    event.managers.map((id) => id.toString()).includes(userId) ||
+    event.volunteers.map((id) => id.toString()).includes(userId);
 
   if (!isAdmin && !isEventMember) {
-    return res.status(403).json({ message: "You are not allowed to comment on this post" });
+    return res
+      .status(403)
+      .json({ message: "You are not allowed to comment on this post" });
   }
 
   // Tạo comment
@@ -59,9 +67,27 @@ export const createComment = asyncHandler(async (req, res) => {
     parentComment: parentComment || null,
   });
 
+  if (req.io) {
+    req.io.to(event._id.toString()).emit("FEED_UPDATE", {
+      type: "NEW_COMMENT",
+      postId: post._id,
+      data: await comment.populate("author", "userName profilePicture"),
+    });
+  }
+
+  if (post.author.toString() !== req.user._id.toString()) {
+    emitNotification(req, post.author.toString(), {
+      title: "Bình luận mới",
+      message: `${
+        req.user.userName
+      } đã bình luận bài viết của bạn: "${content.substring(0, 30)}..."`,
+      type: "success",
+      link: `/media?eventId=${event._id}&postId=${post._id}`,
+    });
+  }
+
   res.status(201).json(comment);
 });
-
 
 // ================================
 // GET COMMENTS OF A POST
@@ -81,10 +107,12 @@ export const getCommentsByPost = asyncHandler(async (req, res) => {
   const userRole = req.user.role;
 
   if (userRole !== "admin") {
-    const isVolunteer = event.volunteers.some(v => v.toString() === userId);
-    const isManager = event.managers.some(m => m.toString() === userId);
+    const isVolunteer = event.volunteers.some((v) => v.toString() === userId);
+    const isManager = event.managers.some((m) => m.toString() === userId);
     if (!isVolunteer && !isManager) {
-      return res.status(403).json({ message: "Access denied — you are not in this post's channel" });
+      return res.status(403).json({
+        message: "Access denied — you are not in this post's channel",
+      });
     }
   }
 
@@ -109,7 +137,9 @@ export const updateComment = asyncHandler(async (req, res) => {
   }
 
   if (comment.author.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "You can only update your own comment" });
+    return res
+      .status(403)
+      .json({ message: "You can only update your own comment" });
   }
 
   const { content } = req.body;
@@ -126,7 +156,10 @@ export const updateComment = asyncHandler(async (req, res) => {
 // DELETE COMMENT (ROLE-BASED)
 // ================================
 export const deleteComment = asyncHandler(async (req, res) => {
-  const comment = await Comment.findById(req.params.id).populate("author", "role");
+  const comment = await Comment.findById(req.params.id).populate(
+    "author",
+    "role"
+  );
   if (!comment || comment.isDeleted) {
     return res.status(404).json({ message: "Comment not found" });
   }
@@ -139,15 +172,21 @@ export const deleteComment = asyncHandler(async (req, res) => {
   // ROLE-BASED DELETE
   if (userRole === "volunteer") {
     if (userId !== authorId) {
-      return res.status(403).json({ message: "Volunteers can only delete their own comments" });
+      return res
+        .status(403)
+        .json({ message: "Volunteers can only delete their own comments" });
     }
   } else if (userRole === "manager") {
     if (authorRole !== "volunteer") {
-      return res.status(403).json({ message: "Managers can only delete volunteer comments" });
+      return res
+        .status(403)
+        .json({ message: "Managers can only delete volunteer comments" });
     }
   } else if (userRole === "admin") {
     if (!["volunteer", "manager"].includes(authorRole)) {
-      return res.status(403).json({ message: "Admin cannot delete another admin's comment" });
+      return res
+        .status(403)
+        .json({ message: "Admin cannot delete another admin's comment" });
     }
   } else {
     return res.status(403).json({ message: "Unauthorized" });

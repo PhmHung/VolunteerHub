@@ -5,12 +5,7 @@ import { useSearchParams } from "react-router-dom";
 
 export const useDeepLink = (dependencies = {}) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const {
-    setActiveTab,
-    setSelectedEvent,
-    // Xóa setViewingUserId nếu Hook này chưa cần xử lý xem User
-    dataList = [],
-  } = dependencies;
+  const { setActiveTab, setSelectedEvent, dataList = [] } = dependencies;
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -29,7 +24,6 @@ export const useDeepLink = (dependencies = {}) => {
         setSelectedEvent(target);
       }
     }
-    // 👇 THÊM các hàm setter vào đây để hết lỗi "missing dependencies"
   }, [searchParams, dataList, setActiveTab, setSelectedEvent]);
 
   const clearParams = (currentTab) => {
