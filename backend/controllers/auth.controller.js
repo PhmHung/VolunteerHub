@@ -145,16 +145,16 @@ const register = asyncHandler(async (req, res) => {
   if (user) {
     // 3. LOGIC QUAN TRỌNG: Nếu người dùng muốn làm Manager/Admin -> Tạo yêu cầu duyệt
     if (adminRequest === "true" && (role === "manager" || role === "admin")) {
-      await ApprovalRequest.create({
+      const newRequest = await ApprovalRequest.create({
         requestedBy: user._id,
-        type: "manager_promotion", // Loại yêu cầu mà AdminDashboard đang lọc
-        reason: `Người dùng đăng ký và yêu cầu quyền: ${role}`,
+        type: "manager_promotion",
+        reason: `Đăng ký tài khoản mới - Vai trò yêu cầu: ${role.toUpperCase()}`,
         status: "pending",
       });
       emitNotification(req, "admin", {
-        title: `Yêu cầu quyền ${role === "admin" ? "Admin" : "Manager"}`, // Phân biệt tiêu đề
+        title: `Yêu cầu quyền ${role === "admin" ? "Admin" : "Manager"}`,
         message: `Người dùng ${userName} yêu cầu quyền ${role} khi đăng ký.`,
-        type: role === "admin" ? "danger" : "info", // Admin dùng màu đỏ (danger), Manager dùng xanh (info)
+        type: role === "admin" ? "danger" : "info",
         link: `/admin/dashboard?tab=managers&highlight=${newRequest._id}`,
       });
     }
@@ -163,9 +163,9 @@ const register = asyncHandler(async (req, res) => {
       _id: user._id,
       userName: user.userName,
       userEmail: user.userEmail,
-      role: user.role, // Trả về "volunteer"
+      role: user.role,
       token: generateToken(user._id),
-      // ... các thông tin khác
+      // thông tin khác
     };
 
     res.status(201).json(payload);

@@ -25,26 +25,33 @@ const getPendingRequests = asyncHandler(async (req, res) => {
 });
 
 // @desc    Admin: Duyệt yêu cầu
+// @desc    Admin: Duyệt yêu cầu
 const approveRequest = asyncHandler(async (req, res) => {
   const { adminNote } = req.body;
-  const request = await ApprovalRequest.findById(req.params.id);
+
+  // 1. Phải populate "event" ngay từ đầu để lấy thông tin title
+  const request = await ApprovalRequest.findById(req.params.id).populate(
+    "event"
+  );
 
   if (!request || request.status !== "pending") {
     res.status(400);
     throw new Error("Yêu cầu không tồn tại hoặc đã xử lý");
   }
 
-  // --- LOGIC XỬ LÝ ĐA HÌNH (POLYMORPHIC) ---
-
+  // --- LOGIC XỬ LÝ THEO LOẠI YÊU CẦU ---
   if (request.type === "event_approval") {
-    // 1. DUYỆT ĐĂNG SỰ KIỆN MỚI
     if (!request.event) {
       res.status(400);
       throw new Error("Không tìm thấy Event ID trong yêu cầu.");
     }
     await Event.findByIdAndUpdate(request.event, { status: "approved" });
   } else if (request.type === "manager_promotion") {
-    await User.findByIdAndUpdate(request.requestedBy, { role: "manager" });
+    // Kiểm tra trong lý do để cấp đúng quyền Admin hoặc Manager
+    const isTargetAdmin = request.reason?.toLowerCase().includes("admin");
+    await User.findByIdAndUpdate(request.requestedBy, {
+      role: isTargetAdmin ? "admin" : "manager",
+    });
   } else if (request.type === "event_cancellation") {
     if (!request.event) {
       res.status(400);
@@ -59,38 +66,55 @@ const approveRequest = asyncHandler(async (req, res) => {
       cancelledBy: req.user._id,
     });
 
-    // B. Hủy tất cả vé đăng ký của sự kiện đó (Chỉ hủy vé đang hoạt động)
+    // B. Hủy tất cả vé đăng ký của sự kiện đó
     await Registration.updateMany(
       {
-        eventId: request.event,
+        eventId: request.event?._id,
         status: { $in: ["registered", "pending", "waitlisted"] },
       },
       { status: "event_cancelled" }
     );
-  } else {
-    // Xử lý loại request không xác định
-    res.status(400);
-    throw new Error(`Loại yêu cầu không hợp lệ: ${request.type}`);
+
+    // ✅ ĐƯA LOGIC THÔNG BÁO TỔNG VÀO ĐÂY (Chỉ chạy khi hủy sự kiện)
+    const registrations = await Registration.find({
+      eventId: request.event?._id,
+    }).select("userId");
+
+    const volunteerIds = registrations
+      .map((reg) => reg.userId?.toString())
+      .filter((id) => id);
+
+    if (volunteerIds.length > 0) {
+      emitToMultiple(req, volunteerIds, {
+        title: "Sự kiện đã bị HỦY",
+        message: `Sự kiện "${
+          request.event?.title || "Sự kiện"
+        }" đã bị hủy theo yêu cầu của ban tổ chức.`,
+        type: "danger",
+        link: "/history",
+      });
+    }
   }
 
-  // ---------------------------
-
-  // Cập nhật trạng thái ApprovalRequest
+  // 2. Cập nhật trạng thái cho chính bản ghi ApprovalRequest
   request.status = "approved";
   request.reviewedBy = req.user._id;
   request.reviewedAt = new Date();
   request.adminNote = adminNote || "Đã duyệt";
   await request.save();
-  const targetRoom = request.requestedBy.toString();
+
+  // 3. CHUẨN HÓA THÔNG BÁO GỬI NGƯỜI YÊU CẦU (Dựa trên notificationData)
   let notificationData = {
     type: "success",
     id: request._id,
   };
 
   if (request.type === "manager_promotion") {
+    const isTargetAdmin = request.reason?.toLowerCase().includes("admin");
     notificationData.title = "Thăng cấp thành công!";
-    notificationData.message =
-      "Chúc mừng! Bạn đã chính thức trở thành Manager của hệ thống.";
+    notificationData.message = `Chúc mừng! Bạn đã chính thức trở thành ${
+      isTargetAdmin ? "ADMIN" : "MANAGER"
+    } của hệ thống.`;
     notificationData.link = "/information";
   } else if (request.type === "event_approval") {
     notificationData.title = "Sự kiện đã được duyệt";
@@ -101,23 +125,10 @@ const approveRequest = asyncHandler(async (req, res) => {
     notificationData.message = `Yêu cầu hủy sự kiện "${request.event?.title}" đã được Admin chấp thuận.`;
     notificationData.link = "/dashboard";
   }
-  const registrations = await Registration.find({
-    eventId: request.event,
-  }).select("userId");
-  const volunteerIds = registrations.map((reg) => reg.userId.toString());
 
-  emitToMultiple(req, volunteerIds, {
-    title: "Sự kiện đã bị HỦY",
-    message: `Sự kiện "${request.event.title}" đã bị hủy theo yêu cầu của ban tổ chức.`,
-    type: "danger",
-    link: "/history",
-  });
-  emitNotification(req, request.requestedBy.toString(), {
-    title: "Yêu cầu hủy đã được duyệt",
-    message: `Sự kiện "${request.event.title}" của bạn đã được hủy thành công.`,
-    type: "success",
-    link: "/dashboard",
-  });
+  // ✅ GỬI THÔNG BÁO CHÍNH XÁC (Dùng dữ liệu đã chuẩn bị ở bước 3)
+  emitNotification(req, request.requestedBy.toString(), notificationData);
+
   res.json({
     message: "Đã duyệt yêu cầu thành công",
     data: request,
