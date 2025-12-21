@@ -2,9 +2,11 @@
 
 import { Html5Qrcode } from "html5-qrcode";
 import { useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
 import React from "react";
 
-function ManagerQrScanner({ onScanSuccess, onScanError }) {
+function ManagerQrScanner({ eventId, onScanSuccess, onScanError }) {
+  const dispatch = useDispatch();
   const regionRef = useRef(null);
   const qrRef = useRef(null);
   const startedRef = useRef(false);
@@ -55,6 +57,8 @@ function ManagerQrScanner({ onScanSuccess, onScanError }) {
             lockRef.current = true;
 
             onScanSuccess?.(decodedText);
+
+            dispatch(fetchChannelByEventId(eventId));
 
             // ⏳ mở khóa sau 2s để quét tiếp
             setTimeout(() => {

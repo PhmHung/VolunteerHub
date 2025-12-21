@@ -24,7 +24,7 @@ const EventReviews = ({ eventId }) => {
   );
   
     const myAttendance = currentChannel.attendances.find(
-      (a) => a.regId.userId._id === user._id
+      (a) => a.regId.userId === user._id
     );
   
   // --- TÍNH TOÁN SỐ LIỆU THỐNG KÊ (Memoized) ---

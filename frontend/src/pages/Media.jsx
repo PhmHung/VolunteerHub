@@ -14,6 +14,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import AttendanceManagement from "../components/socials/AttendanceManagement.jsx";
 
 // QR & Logic Components
 import QRCode from "../components/socials/QRCode.jsx";
@@ -204,6 +205,13 @@ const EventDetailView = ({ event, user, onBack }) => {
                 </div>
               )}
 
+              {activeTab === "attendance" && (
+                <div className="bg-white rounded-[3rem] p-8 md:p-12">
+                  <AttendanceManagement attendances={currentChannel?.attendances || []} />
+                </div>
+              )}
+
+
               {activeTab === "about" && (
                 <div className="bg-white rounded-[3rem] p-8 md:p-14 shadow-sm border border-slate-200/60">
                   <h2 className="text-4xl font-black mb-8 text-slate-900 tracking-tighter italic uppercase underline decoration-blue-500 decoration-8 underline-offset-8">Giới thiệu</h2>
@@ -234,7 +242,7 @@ const EventDetailView = ({ event, user, onBack }) => {
 
                   {user.role === "manager" && (
                     <div className="space-y-6">
-                      <ManagerQrScanner onScanSuccess={handleScanSuccess} onScanError={handleScanError} />
+                      <ManagerQrScanner eventId={event._id || event.id} onScanSuccess={handleScanSuccess} onScanError={handleScanError} />
                       
                       {/* HIỂN THỊ TRẠNG THÁI & LỖI (Sửa lỗi scanError unused) */}
                       <div className="mt-6 space-y-4">

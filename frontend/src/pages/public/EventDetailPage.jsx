@@ -100,12 +100,7 @@ const EventDetail = () => {
   }, [event]);
 
   // Lọc danh sách đã được duyệt
-  const approvedVolunteers = registrations.filter(
-    (reg) =>
-      reg.status === "accepted" ||
-      reg.status === "approved" ||
-      reg.status === "registered"
-  );
+  const approvedVolunteers = registrations;
 
   // --- RENDER HELPERS ---
   if (loading)
