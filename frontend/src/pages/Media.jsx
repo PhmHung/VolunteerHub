@@ -24,7 +24,7 @@ import { fetchMyEvents } from "../features/eventSlice";
 import { fetchChannelByEventId, clearChannel } from "../features/channelSlice";
 import { fetchMyQRCode } from "../features/registrationSlice";
 import { checkOutByQr } from "../features/registrationSlice";
-import { useRef } from "react";
+
 
 
 // Event Components
