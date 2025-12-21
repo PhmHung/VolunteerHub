@@ -1,15 +1,7 @@
 /** @format */
 
 import React from "react";
-import {
-  MessageSquare,
-  Info,
-  Users,
-  ImageIcon,
-  Star,
-  QrCodeIcon,
-  Clock,
-} from "lucide-react";
+import { MessageSquare, Info, Users, ImageIcon, Star, QrCodeIcon } from "lucide-react";
 
 const TABS_CONFIG = [
   {
@@ -49,7 +41,6 @@ const TABS_CONFIG = [
     icon: ImageIcon,
     badge: null,
   },
-  { id: "attendance", label: "Điểm danh", icon: Clock, badge: null },
   {
     id: "qr",
     label: "Mã QR",
@@ -58,18 +49,12 @@ const TABS_CONFIG = [
   },
 ];
 
-const EventTabs = ({ activeTab, setActiveTab, badgeCounts = {}, user }) => {
+const EventTabs = ({ activeTab, setActiveTab, badgeCounts = {} }) => {
   return (
     <div className='bg-gray-50 border-b border-gray-200 sticky top-0 z-20'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
         <nav className='flex items-center gap-1 py-2 overflow-x-auto no-scrollbar'>
-          {TABS_CONFIG.filter((tab) => {
-            // Chỉ hiển thị tab 'attendance' nếu là Manager hoặc Admin
-            if (tab.id === "attendance") {
-              return user?.role === "manager" || user?.role === "admin";
-            }
-            return true;
-          }).map((tab) => {
+          {TABS_CONFIG.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             const count = badgeCounts[tab.id] || tab.badge;
@@ -84,11 +69,7 @@ const EventTabs = ({ activeTab, setActiveTab, badgeCounts = {}, user }) => {
                       ? "bg-white text-primary-600 shadow-sm border border-gray-200"
                       : "text-gray-600 hover:bg-white/80 hover:text-gray-900"
                   }`}>
-                <Icon
-                  className={`w-4.5 h-4.5 ${
-                    isActive ? "text-primary-600" : "text-gray-500"
-                  }`}
-                />
+                <Icon className={`w-4.5 h-4.5 ${isActive ? "text-primary-600" : "text-gray-500"}`} />
                 <span>{tab.label}</span>
 
                 {count > 0 && (

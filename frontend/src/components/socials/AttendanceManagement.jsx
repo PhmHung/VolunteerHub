@@ -27,6 +27,7 @@ const getStatus = (att) => {
 };
 
 const AttendanceManagement = ({ attendances = [] }) => {
+  console.log("start");
   const [filter, setFilter] = useState("all");
   const [keyword, setKeyword] = useState("");
 
