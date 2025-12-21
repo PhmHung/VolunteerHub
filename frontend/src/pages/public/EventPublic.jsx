@@ -381,6 +381,9 @@ export default function EventsPage({ user, openAuth }) {
             const isFull =
               (event.currentParticipants ?? 0) >= (event.maxParticipants ?? 0);
             const isApproved = event.status === "approved" || !event.status;
+            const isAutoCancelled =
+              (reg?.status === "pending" || reg?.status === "waitlisted") &&
+              (isFull || isExpired);
 
             return (
               <motion.article
@@ -428,6 +431,13 @@ export default function EventsPage({ user, openAuth }) {
                             disabled
                             className='w-full py-2 rounded-lg font-semibold bg-gray-100 text-gray-400 cursor-not-allowed'>
                             Sự kiện đã kết thúc
+                          </button>
+                        ) : isAutoCancelled ? (
+                          /* THÊM TRẠNG THÁI NÀY: Hiển thị cho người dùng biết họ không được duyệt kịp */
+                          <button
+                            disabled
+                            className='w-full py-2 rounded-lg font-semibold bg-red-50 text-red-400'>
+                            Đăng ký đã đóng
                           </button>
                         ) : reg ? (
                           <div className='flex gap-2 w-full'>

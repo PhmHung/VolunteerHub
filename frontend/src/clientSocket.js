@@ -18,7 +18,8 @@ export const connectSocket = (user) => {
       socket.emit("join", user._id);
 
       if (user.role === "admin") {
-        socket.emit("join", "admin");
+        //socket.emit("join", "admin");
+        socket.emit("join-admin");
       }
     });
   }

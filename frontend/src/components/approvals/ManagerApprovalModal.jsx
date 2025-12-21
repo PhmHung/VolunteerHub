@@ -38,6 +38,7 @@ const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
   const isManagerPromotion = type === "manager_promotion";
   const isCancellation = type === "event_cancellation";
   const requester = request.requestedBy || {};
+  const isRequestedAdmin = request.reason?.toLowerCase().includes("admin");
   const event = request.event || {};
   const promotionData = request.promotionData || {};
   const cancellationReason =
@@ -129,7 +130,6 @@ const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
             </div>
           )}
           {/* Dynamic Content */}
-          {/* 👇 CẬP NHẬT: Gom nhóm hiển thị thông tin sự kiện cho cả Tạo mới và Hủy */}
           {(isEvent || isCancellation) && (
             <div className='space-y-4'>
               {isCancellation && (
@@ -209,12 +209,23 @@ const ManagerApprovalModal = ({ request, onClose, onApprove, onReject }) => {
                   label='Tổng Giờ Tham gia'
                   color='yellow'
                 />
-                <StatBox
-                  icon={Star}
-                  value={promotionData.averageRating?.toFixed(1) || 0}
-                  label='Rating TB Event'
-                  color='purple'
-                />
+              </div>
+              <div
+                className={`mt-2 p-3 rounded-xl border ${
+                  isRequestedAdmin
+                    ? "bg-red-50 border-red-200"
+                    : "bg-blue-50 border-blue-200"
+                }`}>
+                <p
+                  className={`text-sm font-bold ${
+                    isRequestedAdmin ? "text-red-700" : "text-blue-700"
+                  }`}>
+                  VAI TRÒ YÊU CẦU:{" "}
+                  {isRequestedAdmin ? "QUẢN TRỊ VIÊN ADMIN" : "QUẢN LÝ MANAGER"}
+                </p>
+                <p className='text-xs text-gray-500 mt-1'>
+                  Lý do: {request.reason}
+                </p>
               </div>
 
               <div className='mt-6'>

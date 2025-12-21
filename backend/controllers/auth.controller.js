@@ -152,18 +152,11 @@ const register = asyncHandler(async (req, res) => {
         status: "pending",
       });
       emitNotification(req, "admin", {
-        title: "Đăng ký tài khoản Manager/Admin",
-        message: `Người dùng ${userName} vừa đăng ký và chờ duyệt quyền ${role}.`,
-        type: "info",
-        link: `/admin/dashboard?tab=managers&highlight=${user._id}`,
+        title: `Yêu cầu quyền ${role === "admin" ? "Admin" : "Manager"}`, // Phân biệt tiêu đề
+        message: `Người dùng ${userName} yêu cầu quyền ${role} khi đăng ký.`,
+        type: role === "admin" ? "danger" : "info", // Admin dùng màu đỏ (danger), Manager dùng xanh (info)
+        link: `/admin/dashboard?tab=managers&highlight=${newRequest._id}`,
       });
-
-      // if (req.io) {
-      //   req.io("admin", "NOTIFICATION", {
-      //     title: "Yêu cầu thăng cấp mới",
-      //     message: `Người dùng ${userName} vừa đăng ký và chờ duyệt quyền ${role}.`,
-      //   });
-      // }
     }
 
     const payload = {
@@ -308,11 +301,9 @@ const forgotPassword = asyncHandler(async (req, res) => {
   await sendPasswordChangeEmail(email, code);
 
   // Tạo token chứa email
-  const resetToken = jwt.sign(
-    { email },
-    process.env.JWT_SECRET,
-    { expiresIn: "10m" }
-  );
+  const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, {
+    expiresIn: "10m",
+  });
 
   return res.json({
     message: "Mã xác nhận đã được gửi",
@@ -376,7 +367,6 @@ const resetPassword = asyncHandler(async (req, res) => {
   });
 });
 
-
 export {
   saveCode,
   checkCode,
@@ -385,7 +375,6 @@ export {
   register,
   login,
   firebaseLogin,
-
   forgotPassword,
   resetPassword,
 };

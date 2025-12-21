@@ -48,6 +48,9 @@ const RegistrationCard = ({
     color: "gray",
   };
 
+  const isEventFull =
+    (event?.currentParticipants ?? 0) >= (event?.maxParticipants ?? 0);
+
   const handleAccept = async () => {
     setIsProcessing(true);
     await onAccept(registration);
@@ -181,10 +184,14 @@ const RegistrationCard = ({
             <div className='flex gap-3 mt-2'>
               <button
                 onClick={handleAccept}
-                disabled={isProcessing}
-                className='flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-50'>
+                disabled={isProcessing || isEventFull}
+                className={`flex-1 sm:flex-none px-4 py-2 text-white rounded-lg font-medium transition ... ${
+                  isEventFull
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-emerald-600 hover:bg-emerald-700"
+                }`}>
                 <CheckCircle className='w-4 h-4' />
-                Chấp nhận
+                {isEventFull ? "Sự kiện đã đầy" : "Chấp nhận"}
               </button>
               <button
                 onClick={handleReject}

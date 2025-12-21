@@ -54,6 +54,8 @@ const EventDetail = () => {
   }, [event]);
 
   const isExpired = timeStatus === "EXPIRED";
+  const isFull =
+    (event.currentParticipants ?? 0) >= (event.maxParticipants ?? 0);
 
   const addToast = (message, type = "success") => {
     const id = Date.now();
@@ -314,7 +316,7 @@ const EventDetail = () => {
             {!isManagerOrAdmin && (
               <div
                 className={`${
-                  event.status === "cancelled" || isExpired
+                  event.status === "cancelled" || isExpired || isFull
                     ? "bg-gray-500 shadow-gray-200" // Chuyển màu xám nếu hủy HOẶC hết hạn
                     : "bg-emerald-600 shadow-emerald-200"
                 } rounded-2xl p-6 text-white text-center shadow-lg transition-all duration-300`}>
@@ -334,8 +336,23 @@ const EventDetail = () => {
                       Sự kiện đã kết thúc
                     </button>
                   </>
+                ) : isFull ? (
+                  /* Trường hợp sự kiện đầy chỗ */
+                  <>
+                    <h4 className='text-xl font-bold mb-2'>
+                      Sự kiện đã đầy chỗ
+                    </h4>
+                    <p className='text-gray-100 text-sm mb-6'>
+                      Cảm ơn bạn, nhưng sự kiện đã đạt số lượng tối đa.
+                    </p>
+                    <button
+                      disabled
+                      className='w-full py-3 bg-gray-300 text-gray-500 font-bold rounded-xl cursor-not-allowed'>
+                      Hết chỗ
+                    </button>
+                  </>
                 ) : event.status === "cancelled" ? (
-                  /* TRƯỜNG HỢP 2: SỰ KIỆN BỊ HỦY */
+                  /* SỰ KIỆN BỊ HỦY */
                   <>
                     <h4 className='text-xl font-bold mb-2'>
                       Sự kiện đã ngừng tiếp nhận

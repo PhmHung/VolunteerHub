@@ -841,6 +841,9 @@ const AdminDashboard = ({ user }) => {
                       const isNewRegistration =
                         !req.promotionData ||
                         (req.promotionData.eventsCompleted || 0) === 0;
+                      const isRequestedAdmin = req.reason
+                        ?.toLowerCase()
+                        .includes("admin");
 
                       return (
                         <div
@@ -888,8 +891,15 @@ const AdminDashboard = ({ user }) => {
                               </div>
                               {/* 3. HIỂN THỊ BADGE NEW CHO TÀI KHOẢN MỚI */}
                               {isNewRegistration && (
-                                <span className='absolute -top-1 -left-1 bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase shadow-sm border border-white'>
-                                  New
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                    isRequestedAdmin
+                                      ? "bg-red-100 text-red-700 border border-red-200"
+                                      : "bg-blue-100 text-blue-700 border border-blue-200"
+                                  }`}>
+                                  {isRequestedAdmin
+                                    ? "Yêu cầu ADMIN"
+                                    : "Yêu cầu MANAGER"}
                                 </span>
                               )}
                             </div>

@@ -22,6 +22,8 @@ import {
   fetchEventRegistrations,
   requestCancelEvent,
   deleteEvent,
+  createEvent,
+  updateEvent,
 } from "../../features/eventSlice";
 import {
   fetchAllRegistrations,
@@ -512,14 +514,35 @@ export default function ManagerDashboard({ user }) {
       {showEventForm && (
         <EventsForm
           eventToEdit={editingEvent}
-          onSave={() => {
-            dispatch(fetchManagementEvents());
-            setShowEventForm(false);
-            setEditingEvent(null);
-            addToast(
-              editingEvent ? "Đã cập nhật sự kiện" : "Đã tạo sự kiện mới",
-              "success"
-            );
+          onSave={async (finalData) => {
+            // ✅ Nhận dữ liệu finalData từ form gửi về
+            try {
+              if (editingEvent) {
+                // TRƯỜNG HỢP: Cập nhật sự kiện đã có
+                await dispatch(
+                  updateEvent({
+                    eventId: editingEvent._id,
+                    eventData: finalData,
+                  })
+                ).unwrap();
+                addToast("Đã cập nhật sự kiện thành công", "success");
+              } else {
+                // TRƯỜNG HỢP: Tạo sự kiện mới
+                await dispatch(createEvent(finalData)).unwrap();
+                addToast(
+                  "Tạo sự kiện mới thành công! Đang chờ Admin duyệt.",
+                  "success"
+                );
+              }
+
+              // ✅ SAU KHI LƯU THÀNH CÔNG:
+              dispatch(fetchManagementEvents()); // Tải lại danh sách để hiển thị sự kiện mới
+              setShowEventForm(false); // Đóng form
+              setEditingEvent(null); // Reset trạng thái sửa
+            } catch (error) {
+              // Nếu có lỗi từ server (ví dụ: trùng tên, lỗi mạng)
+              addToast(error || "Lỗi khi lưu sự kiện", "error");
+            }
           }}
           onClose={() => {
             setShowEventForm(false);

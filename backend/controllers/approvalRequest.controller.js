@@ -134,7 +134,6 @@ const rejectRequest = asyncHandler(async (req, res) => {
     throw new Error("Yêu cầu không tồn tại hoặc đã xử lý");
   }
 
-  // 👇 LOGIC BỔ SUNG: Nếu từ chối yêu cầu HỦY, cần khôi phục trạng thái sự kiện
   if (request.type === "event_cancellation" && request.event) {
     // Nếu sự kiện đang ở trạng thái 'cancel_pending' (chờ hủy), trả về 'approved' (hoạt động bình thường)
     const event = await Event.findById(request.event);
