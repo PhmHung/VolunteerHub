@@ -14,11 +14,15 @@ export const addReaction = asyncHandler(async (req, res) => {
   const userId = req.user._id.toString();
 
   if (!type || (!postId && !commentId)) {
-    return res.status(400).json({ message: "Reaction type and target (post or comment) required" });
+    return res
+      .status(400)
+      .json({ message: "Reaction type and target (post or comment) required" });
   }
 
   if (postId && commentId) {
-    return res.status(400).json({ message: "Reaction can only be added to post OR comment, not both" });
+    return res.status(400).json({
+      message: "Reaction can only be added to post OR comment, not both",
+    });
   }
 
   let post = null;
@@ -26,14 +30,19 @@ export const addReaction = asyncHandler(async (req, res) => {
   // Lấy post liên quan để check quyền
   if (postId) {
     post = await Post.findById(postId).populate("channel");
-    if (!post || post.isDeleted) return res.status(404).json({ message: "Post not found" });
+    if (!post || post.isDeleted)
+      return res.status(404).json({ message: "Post not found" });
   }
 
   if (commentId) {
     const comment = await Comment.findById(commentId).populate("post");
-    if (!comment || comment.isDeleted) return res.status(404).json({ message: "Comment not found" });
+    if (!comment || comment.isDeleted)
+      return res.status(404).json({ message: "Comment not found" });
     post = await Post.findById(comment.post._id).populate("channel");
-    if (!post || post.isDeleted) return res.status(404).json({ message: "Post not found for this comment" });
+    if (!post || post.isDeleted)
+      return res
+        .status(404)
+        .json({ message: "Post not found for this comment" });
   }
 
   // Check quyền: admin hoặc thành viên event
@@ -41,11 +50,13 @@ export const addReaction = asyncHandler(async (req, res) => {
   const event = channel.event;
   const isAdmin = req.user.role === "admin";
   const isEventMember =
-    event.managers.map(id => id.toString()).includes(userId) ||
-    event.volunteers.map(id => id.toString()).includes(userId);
+    event.managers.map((id) => id.toString()).includes(userId) ||
+    event.volunteers.map((id) => id.toString()).includes(userId);
 
   if (!isAdmin && !isEventMember) {
-    return res.status(403).json({ message: "You are not allowed to react to this post/comment" });
+    return res
+      .status(403)
+      .json({ message: "You are not allowed to react to this post/comment" });
   }
 
   // Tạo query động để check nếu user đã react trước đó
@@ -68,10 +79,24 @@ export const addReaction = asyncHandler(async (req, res) => {
   if (commentId) newReactionData.comment = commentId;
 
   reaction = await Reaction.create(newReactionData);
+  const targetOwnerId = postId
+    ? post.author.toString()
+    : comment.author.toString();
+
+  if (targetOwnerId !== userId) {
+    // Không tự báo cho chính mình
+    emitNotification(req, targetOwnerId, {
+      title: "Tương tác mới",
+      message: `${req.user.userName} đã thả cảm xúc vào ${
+        postId ? "bài viết" : "bình luận"
+      } của bạn.`,
+      type: "info",
+      link: `/media?eventId=${event._id}&postId=${post._id}`,
+    });
+  }
 
   res.status(201).json(reaction);
 });
-
 
 // ================================
 // REMOVE REACTION
@@ -81,10 +106,12 @@ export const removeReaction = asyncHandler(async (req, res) => {
 
   if (!reaction) return res.status(404).json({ message: "Reaction not found" });
   if (reaction.user.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "You can only remove your own reaction" });
+    return res
+      .status(403)
+      .json({ message: "You can only remove your own reaction" });
   }
 
-  await reaction.deleteOne(); 
+  await reaction.deleteOne();
   res.json({ message: "Reaction removed successfully" });
 });
 
@@ -95,7 +122,9 @@ export const getReactions = asyncHandler(async (req, res) => {
   const { post: postId, comment: commentId } = req.query;
 
   if (!postId && !commentId) {
-    return res.status(400).json({ message: "post or comment query param required" });
+    return res
+      .status(400)
+      .json({ message: "post or comment query param required" });
   }
 
   let post = null;
@@ -103,14 +132,19 @@ export const getReactions = asyncHandler(async (req, res) => {
   // Xác định post liên quan
   if (postId) {
     post = await Post.findById(postId).populate("channel");
-    if (!post || post.isDeleted) return res.status(404).json({ message: "Post not found" });
+    if (!post || post.isDeleted)
+      return res.status(404).json({ message: "Post not found" });
   }
 
   if (commentId) {
     const comment = await Comment.findById(commentId).populate("post");
-    if (!comment || comment.isDeleted) return res.status(404).json({ message: "Comment not found" });
+    if (!comment || comment.isDeleted)
+      return res.status(404).json({ message: "Comment not found" });
     post = await Post.findById(comment.post._id).populate("channel");
-    if (!post || post.isDeleted) return res.status(404).json({ message: "Post not found for this comment" });
+    if (!post || post.isDeleted)
+      return res
+        .status(404)
+        .json({ message: "Post not found for this comment" });
   }
 
   // Lấy event để check quyền
@@ -119,11 +153,13 @@ export const getReactions = asyncHandler(async (req, res) => {
   const userId = req.user._id.toString();
   const isAdmin = req.user.role === "admin";
   const isEventMember =
-    event.managers.map(id => id.toString()).includes(userId) ||
-    event.volunteers.map(id => id.toString()).includes(userId);
+    event.managers.map((id) => id.toString()).includes(userId) ||
+    event.volunteers.map((id) => id.toString()).includes(userId);
 
   if (!isAdmin && !isEventMember) {
-    return res.status(403).json({ message: "You are not allowed to view reactions for this post/comment" });
+    return res.status(403).json({
+      message: "You are not allowed to view reactions for this post/comment",
+    });
   }
 
   const filter = {};
@@ -132,7 +168,10 @@ export const getReactions = asyncHandler(async (req, res) => {
 
   console.log("Reaction filter:", filter);
 
-  const reactions = await Reaction.find(filter).populate("user", "userName role");
+  const reactions = await Reaction.find(filter).populate(
+    "user",
+    "userName role"
+  );
 
   // Thống kê số lượng theo type
   const summary = reactions.reduce((acc, r) => {
@@ -142,4 +181,3 @@ export const getReactions = asyncHandler(async (req, res) => {
 
   res.json({ reactions, summary });
 });
-
