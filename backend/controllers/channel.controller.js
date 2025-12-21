@@ -219,7 +219,7 @@ export const getChannelByEventId = asyncHandler(async (req, res) => {
   const attendances = await Attendance.find({
     regId: { $in: regIds },
   })
-    .select("+feedback +feedback.comment")
+    .select("+feedback +feedback.comment +checkOut")
     .populate({
       path: "regId",
       populate: {

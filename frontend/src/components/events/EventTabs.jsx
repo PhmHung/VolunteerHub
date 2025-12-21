@@ -38,6 +38,12 @@ const TABS_CONFIG = [
     badge: null,
   },
   {
+    id: "attendance",
+    label: "Điểm danh",
+    icon: Users,
+    badge: null,
+  },
+  {
     id: "media",
     label: "Ảnh & File",
     icon: ImageIcon,

@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import AttendanceManagement from "../components/socials/AttendanceManagement.jsx";
 
 // QR & Logic Components
 import QRCode from "../components/socials/QRCode.jsx";
@@ -206,23 +207,21 @@ const EventDetailView = ({ event, user, onBack }) => {
               )}
 
               {activeTab === "members" && (
-                <div className='bg-white rounded-[3rem] p-8 md:p-12 shadow-sm border border-slate-200/60'>
-                  <div className='flex items-center justify-between mb-10'>
-                    <h2 className='text-3xl font-black text-slate-900 tracking-tight italic'>
-                      THÀNH VIÊN
-                    </h2>
-                    <div className='p-4 bg-blue-50 text-blue-600 rounded-[1.5rem]'>
-                      <Users size={28} />
-                    </div>
-                  </div>
-                  <VolunteersList
-                    registrations={attendanceRegistrations}
-                    compact={false}
-                    canView={true}
-                    onUserClick={(u) => console.log(u)}
-                  />
+                <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-sm border border-slate-200/60">
+                   <div className="flex items-center justify-between mb-10">
+                      <h2 className="text-3xl font-black text-slate-900 tracking-tight italic">THÀNH VIÊN</h2>
+                      <div className="p-4 bg-blue-50 text-blue-600 rounded-[1.5rem]"><Users size={28}/></div>
+                   </div>
+                   <VolunteersList registrations={attendanceRegistrations} compact={false} canView={true} onUserClick={(u) => console.log(u)} />
                 </div>
               )}
+
+              {activeTab === "attendance" && (
+                <div className="bg-white rounded-[3rem] p-8 md:p-12">
+                  <AttendanceManagement attendances={currentChannel?.attendances || []} />
+                </div>
+              )}
+
 
               {activeTab === "about" && (
                 <div className='bg-white rounded-[3rem] p-8 md:p-14 shadow-sm border border-slate-200/60'>
@@ -289,12 +288,9 @@ const EventDetailView = ({ event, user, onBack }) => {
                   )}
 
                   {user.role === "manager" && (
-                    <div className='space-y-6'>
-                      <ManagerQrScanner
-                        onScanSuccess={handleScanSuccess}
-                        onScanError={handleScanError}
-                      />
-
+                    <div className="space-y-6">
+                      <ManagerQrScanner eventId={event._id || event.id} onScanSuccess={handleScanSuccess} onScanError={handleScanError} />
+                      
                       {/* HIỂN THỊ TRẠNG THÁI & LỖI (Sửa lỗi scanError unused) */}
                       <div className='mt-6 space-y-4'>
                         {checkOutLoading && (

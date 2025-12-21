@@ -47,36 +47,59 @@ const getEvents = asyncHandler(async (req, res) => {
 });
 
 export const getMyEvents = async (req, res) => {
+
   try {
+    // ===== 1. Kiểm tra auth =====
+    if (!req.user) {
+      console.error("❌ [getMyEvents] req.user is undefined");
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
     const userId = req.user._id;
     const role = req.user.role;
 
-    let query = {
-      status: "approved",
-    };
+
+    // ===== 2. Build query =====
+    let query = { status: "approved" };
 
     if (role === "volunteer") {
       query.volunteers = userId;
     } else if (role === "manager") {
       query.managers = userId;
     } else if (role === "admin") {
-      // admin thấy hết
+      console.log("🛡️ [getMyEvents] admin -> see all events");
     } else {
+      console.error("❌ [getMyEvents] Unsupported role:", role);
       return res.status(403).json({ message: "Role not supported" });
     }
 
+    // ===== 3. Query DB =====
     const events = await Event.find(query)
       .sort({ startDate: -1 })
       .populate("managers", "userName avatar")
       .populate("volunteers", "userName avatar")
       .populate("channel");
 
+
+    // ===== 4. Edge case =====
+    if (!events || events.length === 0) {
+      console.warn("⚠️ [getMyEvents] No events found for user");
+    }
+
+    // ===== 5. Response =====
     res.status(200).json(events);
+    console.log("✅ [getMyEvents] DONE");
   } catch (error) {
-    console.error("getMyEvents error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("🔥 [getMyEvents] ERROR MESSAGE:", error.message);
+    console.error("🔥 [getMyEvents] ERROR STACK:", error.stack);
+
+    res.status(500).json({
+      message: "Server error",
+      debug: error.message, // 👈 chỉ để DEV, prod thì bỏ
+    });
   }
 };
+
 
 // @desc    Get event by ID (Public nếu approved)
 // @route   GET /api/events/:id

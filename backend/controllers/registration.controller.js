@@ -297,6 +297,17 @@ const acceptRegistration = asyncHandler(async (req, res) => {
     registration.status = REGISTRATION_STATUS.REGISTERED;
     await registration.save();
 
+    // 2️. Add user to volunteers (KHÔNG TRÙNG)
+    const userIdStr = registration.userId.toString();
+    const volunteerIds = event.volunteers.map(v => v.toString());
+
+    if (!volunteerIds.includes(userIdStr)) {
+      event.volunteers.push(registration.userId);
+    } 
+
+    await event.save();
+
+
     // 2. Tăng số lượng người tham gia trong Event (ĐÂY LÀ CHỖ DUY NHẤT TĂNG)
     event.currentParticipants += 1;
     await event.save();

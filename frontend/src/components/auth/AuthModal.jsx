@@ -157,12 +157,17 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     if (step > 0) setStep(step - 1);
   };
 
-  // --- API HANDLERS ---
+  // ========== FUNCTION: GỬI MÃ XÁC THỰC ==========
   const sendVerificationCode = async () => {
     setLoading(true);
     setError("");
     try {
-      if (!email) throw new Error("Vui lòng nhập Email.");
+      if (!email) {
+        setError("Email is required");
+        setLoading(false);
+        return;
+      }
+
       await api.post("/api/auth/sendVerificationCode", { email });
       setStep(1);
       setSuccess("Mã xác thực đã được gửi!");
@@ -176,11 +181,18 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     }
   };
 
+  // ========== FUNCTION: XÁC THỰC MÃ ==========
   const verifyCode = async () => {
     setLoading(true);
     setError("");
     try {
-      if (!code) throw new Error("Vui lòng nhập mã.");
+      if (!code) {
+        setError("Verification code is required");
+        setLoading(false);
+        return;
+      }
+
+      // Gọi API verify code
       const res = await api.post("/api/auth/verifyCode", { email, code });
       localStorage.setItem("verifyToken", res.data.verifyToken);
       setStep(2);
@@ -195,6 +207,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     }
   };
 
+  // ========== FUNCTION: ĐĂNG KÝ TÀI KHOẢN ==========
   const handleRegister = async () => {
     setLoading(true);
     setError("");
@@ -243,6 +256,8 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     }
   };
 
+  // ========== FUNCTION: ĐĂNG NHẬP ==========
+  // Gửi email + password đến backend để xác thực
   const handleLogin = async () => {
     setLoading(true);
     setError("");
@@ -256,6 +271,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     }
 
     try {
+      // Gọi API login
       const res = await api.post("/api/auth/login", { userEmail: email, password });
       setSuccess("Chào mừng trở lại!");
       addToast("Đăng nhập thành công.", "success");
@@ -269,6 +285,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     }
   };
 
+  // ========== RENDER UI ==========
   return (
     <>
       <style>{GLOBAL_STYLES}</style>
@@ -398,19 +415,19 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                       </div>
                     </div>
 
-                    {/* Register Fields */}
-                    {activeMode === "register" && (
-                      <div className="space-y-4 animate-fade-in-up">
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Họ và tên</label>
-                          <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-colors outline-none bg-gray-50 focus:bg-white text-gray-900 font-medium"
-                            placeholder="Nguyễn Văn A"
-                          />
-                        </div>
+            {mode === "register" && step === 2 && (
+              <div className="space-y-3 sm:space-y-4 pt-1 sm:pt-2">
+                <div>
+                  <label className="block text-sm font-medium text-text-main mb-1.5 sm:mb-2">Full Name</label>
+                  <input
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="input-field sm:py-3 text-sm sm:text-base"
+                  />
+                </div>
 
                         <div className="space-y-2">
                           <label className="text-sm font-semibold text-gray-700">Vai trò</label>
@@ -545,3 +562,4 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     </>
   );
 }
+
