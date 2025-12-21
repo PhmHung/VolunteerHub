@@ -319,6 +319,9 @@ const cancelEvent = asyncHandler(async (req, res) => {
       { status: "approved", adminNote: "Đã thực hiện hủy trực tiếp bởi Admin." }
     );
 
+    const registrations = await Registration.find({ eventId }).select("userId");
+    const volunteerIds = registrations.map((r) => r.userId.toString());
+
     emitToMultiple(req, volunteerIds, {
       title: "Sự kiện đã bị HỦY",
       message: `Rất tiếc, sự kiện "${event.title}" đã bị hủy. Vui lòng kiểm tra lại lịch trình.`,

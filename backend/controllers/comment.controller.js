@@ -74,6 +74,12 @@ export const createComment = asyncHandler(async (req, res) => {
       data: await comment.populate("author", "userName profilePicture"),
     });
   }
+  emitNotification(req, event._id.toString(), {
+    title: "Thảo luận mới",
+    message: `${req.user.userName} vừa bình luận trong sự kiện "${event.title}"`,
+    type: "info",
+    link: `/media?eventId=${event._id}&postId=${post._id}`,
+  });
 
   if (post.author.toString() !== req.user._id.toString()) {
     emitNotification(req, post.author.toString(), {
