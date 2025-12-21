@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { socket } from "../../clientSocket.js";
+import { ToastContainer } from "../common/Toast";
 import {
   Bell,
   CheckCircle,
@@ -26,12 +28,24 @@ import {
   fetchAllRegistrations,
   fetchMyRegistrations,
 } from "../../features/registrationSlice";
-import { fetchSuggestedManagers } from "../../features/userSlice";
+import {
+  fetchSuggestedManagers,
+  fetchUserProfile,
+} from "../../features/userSlice";
 
 const NotificationBell = ({ user }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+
+  const [toasts, setToasts] = useState([]);
+  const addToast = (message, type = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+  const removeToast = (id) =>
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+
   const [readIds, setReadIds] = useState(() => {
     const saved = localStorage.getItem(`read_notifications_${user?._id}`);
     return saved ? JSON.parse(saved) : [];
@@ -84,6 +98,39 @@ const NotificationBell = ({ user }) => {
       dispatch(fetchMyRegistrations());
     }
   }, [dispatch, role, user?._id]);
+
+  // NotificationBell.jsx
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const handleSocket = (data) => {
+      // 1. Hiện Toast báo hiệu (Cái này hiện ngay lập tức)
+      addToast(data.message, data.type || "info");
+
+      // 2. 🔥 QUAN TRỌNG: Gọi lại các hàm fetch để "Chuông" tự cập nhật số lượng
+      // Bạn phải fetch CẢ dữ liệu đăng ký (Registrations) thì chuông mới nhảy số
+      if (role === "admin") {
+        dispatch(fetchPendingApprovals());
+        dispatch(fetchManagementEvents({ status: "pending" }));
+        dispatch(fetchAllRegistrations()); // <-- Phải có cái này để hiện "Yêu cầu tham gia mới"
+      } else if (role === "manager") {
+        dispatch(fetchMyRequests());
+        dispatch(fetchAllRegistrations()); // <-- Phải có cái này để Manager thấy TNV vừa đăng ký
+        dispatch(fetchMyEvents({ limit: 100 }));
+      } else if (role === "volunteer") {
+        dispatch(fetchMyRegistrations());
+        // Nếu có link về /information, có thể là vừa được duyệt lên Manager
+        if (data.link === "/information") dispatch(fetchUserProfile());
+      }
+    };
+
+    socket.on("NOTIFICATION", handleSocket);
+
+    return () => {
+      socket.off("NOTIFICATION", handleSocket);
+    };
+  }, [dispatch, user?._id, role]); // Thêm role vào đây để khi đổi vai trò listener vẫn chạy đúng
 
   const handleMarkAsRead = (e, id) => {
     e.stopPropagation();
@@ -477,6 +524,7 @@ const NotificationBell = ({ user }) => {
           </div>
         </div>
       )}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };

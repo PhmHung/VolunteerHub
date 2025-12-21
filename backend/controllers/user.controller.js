@@ -7,6 +7,7 @@ import Registration from "../models/registrationModel.js";
 import Attendance from "../models/attendanceModel.js";
 import ApprovalRequest from "../models/approvalRequestModel.js";
 import generateToken from "../utils/generateToken.js";
+import { emitNotification } from "../utils/notificationHelper.js";
 
 // @desc   Update user profile
 // @route  PUT /api/users/profile
@@ -243,6 +244,16 @@ const updateUserStatus = asyncHandler(async (req, res) => {
   // Cập nhật trạng thái
   user.status = status;
   await user.save();
+  emitNotification(req, user._id.toString(), {
+    title:
+      status === "active" ? "Tài khoản đã mở khóa" : "Tài khoản đã bị khóa",
+    message:
+      status === "active"
+        ? "Chào mừng trở lại! Bạn có thể tiếp tục tham gia hoạt động."
+        : "Tài khoản của bạn đã bị tạm khóa bởi quản trị viên.",
+    type: status === "active" ? "success" : "danger",
+    link: "/information",
+  });
 
   res.status(200).json({
     message: `Tài khoản đã được ${
@@ -297,6 +308,13 @@ const requestManagerRole = asyncHandler(async (req, res) => {
     status: "pending",
     // Chèn dữ liệu đã tính toán
     promotionData: experienceStats,
+  });
+
+  emitNotification(req, "admin", {
+    title: "Yêu cầu thăng cấp Manager",
+    message: `Người dùng ${req.user.userName} vừa gửi yêu cầu thăng cấp quyền Manager.`,
+    type: "info",
+    link: `/admin/dashboard?tab=managers&highlight=${userId}`,
   });
 
   res.status(201).json({

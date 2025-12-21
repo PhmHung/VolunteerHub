@@ -5,8 +5,8 @@ import mongoose from "mongoose";
 import Attendance from "../models/attendanceModel.js";
 import Registration from "../models/registrationModel.js";
 import Event from "../models/eventModel.js";
+import { emitNotification } from "../utils/notificationHelper.js";
 
-// --- HÀM PHỤ: TÍNH TOÁN VÀ CẬP NHẬT RATING CHO EVENT ---
 const calcAverageRatings = async (eventId) => {
   try {
     const regIds = await Registration.find({ eventId }).distinct("_id");
@@ -43,7 +43,7 @@ const calcAverageRatings = async (eventId) => {
   }
 };
 
-// @desc    Add feedback and rating -> CẬP NHẬT LOGIC TÍNH RATING
+// @desc    Add feedback and rating
 // @route   PUT /api/attendances/:id/feedback
 // @access  Private (User đã tham gia và đã check-out)
 const addFeedback = asyncHandler(async (req, res) => {
@@ -80,6 +80,15 @@ const addFeedback = asyncHandler(async (req, res) => {
   const registration = await Registration.findById(attendance.regId);
   if (registration) {
     await calcAverageRatings(registration.eventId);
+    const event = registration.eventId;
+    const volunteerName = registration.userId?.userName || "Một TNV";
+
+    emitNotification(req, event.createdBy.toString(), {
+      title: "Đánh giá mới cho sự kiện",
+      message: `${volunteerName} vừa gửi đánh giá ${rating}⭐ cho sự kiện "${event.title}"`,
+      type: "info",
+      link: `/dashboard?tab=events&highlight=${event._id}`,
+    });
   }
 
   res.json({
@@ -107,20 +116,19 @@ const getEventFeedbacks = asyncHandler(async (req, res) => {
   const registrationIds = await Registration.find({ eventId }).distinct("_id");
 
   // Tìm tất cả feedback của sự kiện đó
-const feedbacks = await Attendance.find({
-  regId: { $in: registrationIds },
-  "feedback.rating": { $exists: true },
-})
-  .select("+feedback")
-  .populate({
-    path: "regId",
-    populate: {
-      path: "userId",
-      select: "userName userEmail profilePicture",
-    },
+  const feedbacks = await Attendance.find({
+    regId: { $in: registrationIds },
+    "feedback.rating": { $exists: true },
   })
-  .sort({ "feedback.submittedAt": -1 });
-
+    .select("+feedback")
+    .populate({
+      path: "regId",
+      populate: {
+        path: "userId",
+        select: "userName userEmail profilePicture",
+      },
+    })
+    .sort({ "feedback.submittedAt": -1 });
 
   res.json({
     message: "Danh sách phản hồi của sự kiện",

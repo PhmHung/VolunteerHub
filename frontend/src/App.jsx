@@ -30,7 +30,7 @@ import Information from "./pages/Information.jsx";
 import VolunteerHistory from "./pages/dashboard/VolunteerHistory.jsx";
 import AuthModal from "./components/auth/AuthModal.jsx";
 import EventDetail from "./pages/public/EventDetailPage.jsx";
-
+import { connectSocket, disconnectSocket } from "./clientSocket.js";
 /**
  * Main App Component
  * Handles global routing, authentication state, and layout
@@ -73,6 +73,13 @@ export default function App() {
     }
     setAuthModal(null);
   };
+
+  useEffect(() => {
+    if (user && profileChecked) {
+      connectSocket(user);
+    }
+    return () => disconnectSocket();
+  }, [user, profileChecked]);
 
   /**
    * Handle user logout
@@ -175,10 +182,14 @@ export default function App() {
             </Route>
 
             {/* Volunteer/authenticated user routes */}
-            <Route element={<ProtectedRoute user={user} loading={loadingUser} />}>
+            <Route
+              element={<ProtectedRoute user={user} loading={loadingUser} />}>
               <Route path='/dashboard' element={<Dashboard user={user} />} />
               <Route path='/information' element={<Information />} />
-              <Route path='/history' element={<VolunteerHistory user={user} />} />
+              <Route
+                path='/history'
+                element={<VolunteerHistory user={user} />}
+              />
               <Route
                 path='/media'
                 element={<Media user={user} openAuth={setAuthModal} />}

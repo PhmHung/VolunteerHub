@@ -12,6 +12,7 @@ import {
   sendPasswordChangeEmail,
 } from "../utils/send-email.js";
 import admin from "firebase-admin";
+import { emitNotification } from "../utils/notificationHelper.js";
 
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.development.local" });
@@ -150,14 +151,19 @@ const register = asyncHandler(async (req, res) => {
         reason: `Người dùng đăng ký và yêu cầu quyền: ${role}`,
         status: "pending",
       });
+      emitNotification(req, "admin", {
+        title: "Đăng ký tài khoản Manager/Admin",
+        message: `Người dùng ${userName} vừa đăng ký và chờ duyệt quyền ${role}.`,
+        type: "info",
+        link: `/admin/dashboard?tab=managers&highlight=${user._id}`,
+      });
 
-      // (Tùy chọn) Nếu bạn đã cài đặt Socket, thông báo cho Admin ngay
-      if (req.io) {
-        req.io("admin", "NOTIFICATION", {
-          title: "Yêu cầu thăng cấp mới",
-          message: `Người dùng ${userName} vừa đăng ký và chờ duyệt quyền ${role}.`,
-        });
-      }
+      // if (req.io) {
+      //   req.io("admin", "NOTIFICATION", {
+      //     title: "Yêu cầu thăng cấp mới",
+      //     message: `Người dùng ${userName} vừa đăng ký và chờ duyệt quyền ${role}.`,
+      //   });
+      // }
     }
 
     const payload = {
@@ -282,7 +288,6 @@ export {
   sendVerificationCode,
   verifyCode,
   register,
-  // loginUser,
   login,
   firebaseLogin,
 };

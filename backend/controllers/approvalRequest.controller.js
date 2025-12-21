@@ -4,13 +4,17 @@ import asyncHandler from "express-async-handler";
 import ApprovalRequest from "../models/approvalRequestModel.js";
 import Event from "../models/eventModel.js";
 import User from "../models/userModel.js";
-import Registration from "../models/registrationModel.js"; // 👈 THÊM: Cần để hủy vé
+import Registration from "../models/registrationModel.js";
+import {
+  emitNotification,
+  emitToMultiple,
+} from "../utils/notificationHelper.js";
 
 // @desc    Admin: Lấy danh sách yêu cầu đang chờ duyệt
 const getPendingRequests = asyncHandler(async (req, res) => {
   const requests = await ApprovalRequest.find({ status: "pending" })
     .populate("event", "title location startDate image")
-    .populate("requestedBy", "userName userEmail phoneNumber profilePicture") // Thêm profilePicture để hiển thị avatar
+    .populate("requestedBy", "userName userEmail phoneNumber profilePicture")
     .sort({ createdAt: -1 });
 
   res.json({
@@ -40,10 +44,8 @@ const approveRequest = asyncHandler(async (req, res) => {
     }
     await Event.findByIdAndUpdate(request.event, { status: "approved" });
   } else if (request.type === "manager_promotion") {
-    // 2. DUYỆT THĂNG CẤP MANAGER
     await User.findByIdAndUpdate(request.requestedBy, { role: "manager" });
   } else if (request.type === "event_cancellation") {
-    // 3. 👇 DUYỆT HỦY SỰ KIỆN (MỚI THÊM) 👇
     if (!request.event) {
       res.status(400);
       throw new Error("Không tìm thấy Event ID.");
@@ -79,7 +81,43 @@ const approveRequest = asyncHandler(async (req, res) => {
   request.reviewedAt = new Date();
   request.adminNote = adminNote || "Đã duyệt";
   await request.save();
+  const targetRoom = request.requestedBy.toString();
+  let notificationData = {
+    type: "success",
+    id: request._id,
+  };
 
+  if (request.type === "manager_promotion") {
+    notificationData.title = "Thăng cấp thành công!";
+    notificationData.message =
+      "Chúc mừng! Bạn đã chính thức trở thành Manager của hệ thống.";
+    notificationData.link = "/information";
+  } else if (request.type === "event_approval") {
+    notificationData.title = "Sự kiện đã được duyệt";
+    notificationData.message = `Sự kiện "${request.event?.title}" của bạn đã được đăng công khai.`;
+    notificationData.link = `/dashboard?tab=events&highlight=${request.event?._id}`;
+  } else if (request.type === "event_cancellation") {
+    notificationData.title = "Đã duyệt hủy sự kiện";
+    notificationData.message = `Yêu cầu hủy sự kiện "${request.event?.title}" đã được Admin chấp thuận.`;
+    notificationData.link = "/dashboard";
+  }
+  const registrations = await Registration.find({
+    eventId: request.event,
+  }).select("userId");
+  const volunteerIds = registrations.map((reg) => reg.userId.toString());
+
+  emitToMultiple(req, volunteerIds, {
+    title: "Sự kiện đã bị HỦY",
+    message: `Sự kiện "${request.event.title}" đã bị hủy theo yêu cầu của ban tổ chức.`,
+    type: "danger",
+    link: "/history",
+  });
+  emitNotification(req, request.requestedBy.toString(), {
+    title: "Yêu cầu hủy đã được duyệt",
+    message: `Sự kiện "${request.event.title}" của bạn đã được hủy thành công.`,
+    type: "success",
+    link: "/dashboard",
+  });
   res.json({
     message: "Đã duyệt yêu cầu thành công",
     data: request,
@@ -111,6 +149,27 @@ const rejectRequest = asyncHandler(async (req, res) => {
   request.reviewedAt = new Date();
   request.adminNote = adminNote || "Không phù hợp";
   await request.save();
+  const targetRoom = request.requestedBy.toString();
+  let notificationData = {
+    type: "danger",
+    id: request._id,
+  };
+
+  if (request.type === "manager_promotion") {
+    notificationData.title = "Yêu cầu thăng cấp bị từ chối";
+    notificationData.message = `Rất tiếc, yêu cầu làm Manager của bạn chưa được duyệt. Lý do: ${adminNote}`;
+    notificationData.link = "/information";
+  } else if (request.type === "event_approval") {
+    notificationData.title = "Từ chối đăng sự kiện";
+    notificationData.message = `Sự kiện "${request.event?.title}" bị từ chối đăng. Lý do: ${adminNote}`;
+    notificationData.link = "/dashboard";
+  } else if (request.type === "event_cancellation") {
+    notificationData.title = "Từ chối yêu cầu hủy";
+    notificationData.message = `Admin không chấp thuận hủy sự kiện "${request.event?.title}". Sự kiện sẽ tiếp tục hoạt động.`;
+    notificationData.link = `/dashboard?tab=events&highlight=${request.event?._id}`;
+  }
+
+  emitNotification(req, targetRoom, notificationData);
 
   res.json({
     message: "Đã từ chối yêu cầu",
